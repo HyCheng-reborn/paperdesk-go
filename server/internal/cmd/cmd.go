@@ -22,21 +22,20 @@ var (
 		Usage: "main",
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
-			// 显式初始化（顺序重要：dao → migrate → rag → chat）
-			// 失败时清理已建立资源，返回带阶段信息的错误。
+			// 显式初始化（顺序重要：dao → rag → chat）
+			// 注意：普通启动不执行 Migrate，避免意外改表。
+			// 需要迁移时使用 dao.InitWithMigrate() 或 dao.Migrate()。
+			// 失败时级联清理已建立资源，返回带阶段信息的错误。
 			if err := dao.InitDB(); err != nil {
 				return fmt.Errorf("stage[dao] init failed: %w", err)
 			}
-			if err := dao.Migrate(); err != nil {
-				dao.Close()
-				return fmt.Errorf("stage[dao] migrate failed: %w", err)
-			}
 			if err := ragicit.Init(); err != nil {
-				dao.Close()
+				dao.Reset()
 				return fmt.Errorf("stage[rag] init failed: %w", err)
 			}
 			if err := chat.Init(); err != nil {
-				dao.Close()
+				ragicit.Reset()
+				dao.Reset()
 				return fmt.Errorf("stage[chat] init failed: %w", err)
 			}
 

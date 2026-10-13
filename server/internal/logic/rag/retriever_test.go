@@ -4,15 +4,7 @@ import (
 	"testing"
 )
 
-// TestNoAutoInit 验证 package import 不会自动触发向量存储连接。
-// 移除 init() 副作用后，ragSvr 应保持为 nil（不再初始化为 &core.Rag{}）。
-func TestNoAutoInit(t *testing.T) {
-	if ragSvr != nil {
-		t.Fatal("ragSvr should be nil before Init() is called; init() side effect was not removed")
-	}
-}
-
-// TestGetRagSvrBeforeInit 验证未初始化时 GetRagSvr 返回 nil 而非零值实例。
+// TestGetRagSvrBeforeInit 验证未初始化时 GetRagSvr 返回 nil。
 func TestGetRagSvrBeforeInit(t *testing.T) {
 	svr := GetRagSvr()
 	if svr != nil {
@@ -27,7 +19,37 @@ func TestIsInitializedBeforeCall(t *testing.T) {
 	}
 }
 
-// TestInit_Signature 验证 Init 函数签名正确（返回 error）。
+// TestResetBeforeInit 验证未初始化时 Reset 是安全的 no-op。
+func TestResetBeforeInit(t *testing.T) {
+	Reset()
+	if IsInitialized() {
+		t.Fatal("IsInitialized() should return false after Reset()")
+	}
+	if GetRagSvr() != nil {
+		t.Fatal("GetRagSvr() should return nil after Reset()")
+	}
+}
+
+// TestInit_FailsWithoutConfig 验证无配置时 Init 返回 error 而非 panic。
+func TestInit_FailsWithoutConfig(t *testing.T) {
+	err := Init()
+	if err == nil {
+		// 如果意外成功（有默认配置），清理资源
+		Reset()
+		t.Skip("Init() succeeded unexpectedly (config exists); cleaned up")
+	}
+	// 验证失败后状态未改变
+	if IsInitialized() {
+		t.Fatal("IsInitialized() should return false after failed Init()")
+	}
+	if GetRagSvr() != nil {
+		t.Fatal("GetRagSvr() should return nil after failed Init()")
+	}
+}
+
+// TestInit_Signature 验证 Init/Reset 函数签名正确。
 func TestInit_Signature(t *testing.T) {
 	var _ func() error = Init
+	var _ func() = Reset
+	var _ func() bool = IsInitialized
 }

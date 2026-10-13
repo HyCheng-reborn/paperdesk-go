@@ -13,7 +13,7 @@ import (
 
 var (
 	db     database.Database
-	dbMu   sync.Mutex
+	dbMu   sync.RWMutex
 	dbInit bool
 )
 
@@ -29,26 +29,34 @@ func InitDB() error {
 	}
 
 	ctx := context.Background()
-	dbType := g.Cfg().MustGet(ctx, "database.default.type", "mysql").String()
+	dbType, _ := g.Cfg().Get(ctx, "database.default.type")
+	dbTypeStr := dbType.String()
+	if dbTypeStr == "" {
+		dbTypeStr = "mysql"
+	}
+
 	var (
 		cfg *database.Config
 		err error
 	)
-	switch dbType {
-	case "mysql", "":
-		cfg, _ = GetMysqlConfig()
+	switch dbTypeStr {
+	case "mysql":
+		cfg, err = GetMysqlConfig()
+		if err != nil {
+			return fmt.Errorf("dao: mysql config error: %w", err)
+		}
 	case "sqlite":
 		cfg, err = GetSqliteConfig()
 		if err != nil {
-			return err
+			return fmt.Errorf("dao: sqlite config error: %w", err)
 		}
 	default:
-		return fmt.Errorf("unsupported database type: %s", dbType)
+		return fmt.Errorf("dao: unsupported database type: %s", dbTypeStr)
 	}
 
 	// 使用局部变量构建新实例，成功后才赋值全局
 	var newDB database.Database
-	switch dbType {
+	switch dbTypeStr {
 	case "sqlite":
 		newDB = database.NewSqlite(cfg)
 	default:
@@ -59,7 +67,6 @@ func InitDB() error {
 		return fmt.Errorf("dao: connect failed: %w", err)
 	}
 	if err = newDB.Ping(); err != nil {
-		// 连接失败时尝试关闭底层资源
 		_ = newDB.Close()
 		return fmt.Errorf("dao: ping failed: %w", err)
 	}
@@ -102,69 +109,100 @@ func Close() error {
 	return err
 }
 
-// GetDsn 返回当前数据库 DSN。未初始化时返回空字符串。
-func GetDsn() string {
-	if db == nil {
-		return ""
+// Reset 重置 DAO 状态，清理全局变量。用于初始化失败时的级联清理。
+func Reset() {
+	dbMu.Lock()
+	defer dbMu.Unlock()
+	if db != nil {
+		_ = db.Close()
+		db = nil
 	}
-	return db.DSN()
+	dbInit = false
+}
+
+// GetDsn 返回当前数据库 DSN。未初始化时返回错误。
+func GetDsn() (string, error) {
+	dbMu.RLock()
+	defer dbMu.RUnlock()
+	if db == nil {
+		return "", fmt.Errorf("dao: database not initialized")
+	}
+	return db.DSN(), nil
 }
 
 // IsInitialized 返回数据库是否已初始化。
 func IsInitialized() bool {
-	dbMu.Lock()
-	defer dbMu.Unlock()
+	dbMu.RLock()
+	defer dbMu.RUnlock()
 	return dbInit
 }
 
 // ensureSQLiteFileDir 确保 SQLite 文件的父目录存在
 func ensureSQLiteFileDir(filePath string) error {
-	// 获取文件的目录路径
 	dir := filepath.Dir(filePath)
-
-	// 检查目录是否存在
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		// 目录不存在，创建目录（包括所有必要的父目录）
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %v", dir, err)
 		}
 		g.Log().Infof(context.Background(), "Created directory for SQLite database: %s", dir)
 	}
-
 	return nil
+}
+
+// cfgGet 安全读取配置，不 panic。
+func cfgGet(ctx context.Context, key string, args ...any) string {
+	v, _ := g.Cfg().Get(ctx, key, args...)
+	return v.String()
+}
+
+// cfgGetInt 安全读取配置整数，不 panic。
+func cfgGetInt(ctx context.Context, key string, args ...any) int {
+	v, _ := g.Cfg().Get(ctx, key, args...)
+	return v.Int()
 }
 
 func GetSqliteConfig() (*database.Config, error) {
 	ctx := context.Background()
 	cfg := &database.Config{}
-	cfg.FilePath = g.Cfg().MustGet(ctx, "database.default.host").String()
-	if cfg.FilePath == "" {
-		return nil, fmt.Errorf("sqlite file path is required when using sqlite")
+
+	filePath := cfgGet(ctx, "database.default.host")
+	if filePath == "" {
+		return nil, fmt.Errorf("database.default.host (sqlite file path) not configured")
 	}
+	cfg.FilePath = filePath
+
 	if err := ensureSQLiteFileDir(cfg.FilePath); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite file directory: %v", err)
 	}
-	cfg.BusyTimeout = g.Cfg().MustGet(ctx, "database.default.busy_timeout").Int()
-	cfg.JournalMode = g.Cfg().MustGet(ctx, "database.default.journal_mode").String()
-	cfg.Synchronous = g.Cfg().MustGet(ctx, "database.default.synchronous").String()
-	cfg.CacheSize = g.Cfg().MustGet(ctx, "database.default.cache_size").Int()
-	cfg.MaxOpenConn = g.Cfg().MustGet(ctx, "database.default.max_open_conns", 1).Int()
-	cfg.MaxIdleConn = g.Cfg().MustGet(ctx, "database.default.max_idle_conns", 1).Int()
+
+	cfg.BusyTimeout = cfgGetInt(ctx, "database.default.busy_timeout")
+	cfg.JournalMode = cfgGet(ctx, "database.default.journal_mode")
+	cfg.Synchronous = cfgGet(ctx, "database.default.synchronous")
+	cfg.CacheSize = cfgGetInt(ctx, "database.default.cache_size")
+	cfg.MaxOpenConn = cfgGetInt(ctx, "database.default.max_open_conns", 1)
+	cfg.MaxIdleConn = cfgGetInt(ctx, "database.default.max_idle_conns", 1)
 	cfg.LogLevel = 4
 	return cfg, nil
 }
 
-func GetMysqlConfig() (*database.Config, error) {
-	cfg := g.DB().GetConfig()
+func GetMysqlConfig() (cfg *database.Config, err error) {
+	// g.DB() 会在无配置文件时 panic，使用 recover 捕获
+	defer func() {
+		if r := recover(); r != nil {
+			cfg = nil
+			err = fmt.Errorf("database config not found: %v", r)
+		}
+	}()
+	goCfg := g.DB().GetConfig()
 	c := &database.Config{
-		Host:        cfg.Host,
-		Port:        cfg.Port,
-		User:        cfg.User,
-		Password:    cfg.Pass,
-		Database:    cfg.Name,
-		Charset:     cfg.Charset,
-		MaxOpenConn: cfg.MaxOpenConnCount,
-		MaxIdleConn: cfg.MaxIdleConnCount,
+		Host:        goCfg.Host,
+		Port:        goCfg.Port,
+		User:        goCfg.User,
+		Password:    goCfg.Pass,
+		Database:    goCfg.Name,
+		Charset:     goCfg.Charset,
+		MaxOpenConn: goCfg.MaxOpenConnCount,
+		MaxIdleConn: goCfg.MaxIdleConnCount,
 		LogLevel:    4,
 	}
 	if c.MaxIdleConn == 0 {

@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	chat    *Chat
-	chatMu  sync.Mutex
+	chat     *Chat
+	chatMu   sync.RWMutex
 	chatInit bool
 )
 
@@ -29,17 +29,22 @@ type Chat struct {
 
 // GetChat 返回 Chat 服务实例。未初始化时返回 nil。
 func GetChat() *Chat {
-	chatMu.Lock()
-	defer chatMu.Unlock()
+	chatMu.RLock()
+	defer chatMu.RUnlock()
 	if !chatInit {
 		return nil
 	}
 	return chat
 }
 
+// cfgGet 安全读取配置，不 panic。
+func cfgGet(ctx context.Context, key string) string {
+	v, _ := g.Cfg().Get(ctx, key)
+	return v.String()
+}
+
 // Init 初始化 Chat 服务：读取配置、创建 chat model、初始化 chat-history。
-// 必须在程序启动时显式调用，不在 init() 中自动执行，以支持离线测试隔离。
-// 注意：dao 必须先初始化，因为 chat 依赖 dao.GetDsn()。
+// 必须先初始化 dao，因为 chat 依赖 dao.GetDsn()。
 // 重复调用返回 error（幂等拒绝）。
 //
 // chat-history 的 NewEinoHistory(dsn) 内部会对 chat-history 自己的 4 张表执行
@@ -55,19 +60,39 @@ func Init() error {
 
 	ctx := gctx.New()
 
-	// 使用局部变量构建完整实例
+	apiKey := cfgGet(ctx, "chat.apiKey")
+	baseURL := cfgGet(ctx, "chat.baseURL")
+	chatModel := cfgGet(ctx, "chat.model")
+
+	if apiKey == "" {
+		return fmt.Errorf("chat: chat.apiKey not configured")
+	}
+	if baseURL == "" {
+		return fmt.Errorf("chat: chat.baseURL not configured")
+	}
+	if chatModel == "" {
+		return fmt.Errorf("chat: chat.model not configured")
+	}
+
+	// 使用局部变量构建 chat model
 	c, err := newChat(&openai.ChatModelConfig{
-		APIKey:  g.Cfg().MustGet(ctx, "chat.apiKey").String(),
-		BaseURL: g.Cfg().MustGet(ctx, "chat.baseURL").String(),
-		Model:   g.Cfg().MustGet(ctx, "chat.model").String(),
+		APIKey:  apiKey,
+		BaseURL: baseURL,
+		Model:   chatModel,
 	})
 	if err != nil {
-		return fmt.Errorf("newChat failed: %w", err)
+		return fmt.Errorf("chat: newChat failed: %w", err)
 	}
-	// 使用 DSN 初始化，chat-history 包会根据 DSN 判断数据库类型
-	// 对于 SQLite: file.db?_journal_mode=WAL
-	// 对于 MySQL: user:pass@tcp(host:port)/dbname?charset=utf8mb4
-	c.eh = eino.NewEinoHistory(dao.GetDsn())
+
+	// 获取 DSN（dao 必须先初始化）
+	dsn, err := dao.GetDsn()
+	if err != nil {
+		return fmt.Errorf("chat: dao.GetDsn() failed (is dao initialized?): %w", err)
+	}
+
+	// 使用 DSN 初始化 chat-history
+	// 注意：NewEinoHistory 内部会 AutoMigrate 4 张表（第三方包行为）
+	c.eh = eino.NewEinoHistory(dsn)
 
 	// 成功后才赋值全局变量（原子发布）
 	chat = c
@@ -85,9 +110,17 @@ func newChat(cfg *openai.ChatModelConfig) (res *Chat, err error) {
 
 // IsInitialized 返回 Chat 服务是否已初始化。
 func IsInitialized() bool {
+	chatMu.RLock()
+	defer chatMu.RUnlock()
+	return chatInit
+}
+
+// Reset 重置 Chat 服务状态，清理全局变量。用于初始化失败时的级联清理。
+func Reset() {
 	chatMu.Lock()
 	defer chatMu.Unlock()
-	return chatInit
+	chat = nil
+	chatInit = false
 }
 
 func (x *Chat) GetAnswer(ctx context.Context, convID string, docs []*schema.Document, question string) (answer string, err error) {

@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-13
-**阶段**：Stage 1A 复核修复已完成
+**阶段**：Stage 1A 第二轮修复已完成，待独立复核
 
 ## Stage 0：事实基线与只读核对
 
@@ -32,7 +32,7 @@
 | 批次 | 内容 | F 编号 | 依赖 | 状态 |
 |---|---|---|---|---|
 | 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | 待实施 |
-| 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **复核修复已完成** |
+| 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第二轮修复已完成，待独立复核** |
 | 1B | Retriever/Indexer 并发 + Rerank HTTP | F01/F02/F05 | 1A | 待实施 |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
@@ -40,7 +40,7 @@
 ### Stage 1A 完成记录
 
 **日期**：2026-10-13
-**状态**：✅ 复核修复已完成
+**状态**：✅ 第二轮修复已完成，待独立复核
 
 **原始修改**：
 - `server/internal/dao/dao.go` — 移除 init()，保留 InitDB() error
@@ -48,7 +48,7 @@
 - `server/internal/logic/chat/chat.go` — init() 提取为 Init() error
 - `server/internal/cmd/cmd.go` — 在 s.Run() 前显式调用 dao.InitDB() → rag.Init() → chat.Init()
 
-**复核修复**：
+**第一轮复核修复**：
 - `server/internal/dao/dao.go` — AutoMigrate 分离为 Migrate()；新增 Close()、InitWithMigrate()、IsInitialized()；原子初始化；重复调用保护
 - `server/internal/dao/db/interface.go` — Database 接口新增 Close() 方法
 - `server/internal/dao/db/base.go` — Base 实现 Close()
@@ -59,18 +59,29 @@
 - `server/core/common/chat_model_test.go` — 添加 //go:build integration 标签
 - `design/stage1-plan.md` — F 编号修正（1C→F03/F04，1D→F07/F08/F09）
 
-**新增文件**：
-- `server/internal/dao/dao_test.go` — 验证 db 在 InitDB() 前为 nil，GetDsn/Close/IsInitialized/Migrate 未初始化行为
-- `server/internal/logic/rag/retriever_test.go` — 验证 ragSvr 在 Init() 前为 nil，GetRagSvr/IsInitialized 行为
-- `server/internal/logic/chat/chat_test.go` — 验证 chat 在 Init() 前为 nil，GetChat/IsInitialized 行为
+**第二轮复核修复（bd20ca2 → 本轮）**：
 
-**验证结果**：
+| 修复项 | 说明 |
+|---|---|
+| Migrate 分离 | cmd.go 普通启动不再调用 dao.Migrate()，避免意外改表 |
+| 在线测试隔离 | rerank_test.go 和 youcom_integration_test.go 添加 `//go:build online`；rag_test.go 改为 `//go:build integration && online`；chat_model_test.go 改为独立单元测试 |
+| MustGet 替换 | dao/retriever/chat 三个包的 MustGet 全部替换为 Get + error 处理，缺配置返回 error 而非 panic |
+| 行为测试 | 17 个测试覆盖：预初始化状态、失败后状态不变、Reset 安全性、GetDsn 返回 error |
+| 失败清理协调 | 新增 dao.Reset()、rag.Reset()、chat.Reset()；cmd.go 级联清理（chat 失败 → rag.Reset + dao.Reset） |
+| 同步一致性 | 全部改用 sync.RWMutex；GetDsn 返回 (string, error)；IsInitialized/GetRagSvr/GetChat 使用 RLock |
+| chat-history 边界 | chat.Init() 先检查 dao.GetDsn() 返回 error，明确标注 AutoMigrate 边界 |
+| Windows 诊断 | `go test ./...` 的 fork/exec Access denied 为 Windows 临时目录权限问题，单独运行通过 |
+
+**验证结果（第二轮）**：
 - `go build ./...` — 退出码 0
 - `go vet ./...` — 退出码 0
-- `go test -race ./internal/dao/... ./internal/logic/rag/... ./internal/logic/chat/...` — 退出码 0，14 个测试全部通过
+- `go test -race ./internal/dao/... ./internal/logic/rag/... ./internal/logic/chat/...` — 退出码 0，17 个测试全部通过
+- `go test ./core/retriever/...` — 退出码 0（单独运行）
+- `go test ./core/websearch/...` — 退出码 0（单独运行）
+- `go test ./...` — core/retriever 和 core/websearch 因 Windows 临时目录权限问题 fork/exec 失败（非测试逻辑问题）
 - 离线测试不触发数据库/向量服务/OpenAI 连接
-- 集成测试通过 //go:build integration 标签隔离
-- `core/retriever` 和 `core/websearch` 的失败为 Windows 临时目录权限问题（已有问题，非本次引入）
+- 集成测试通过 `//go:build integration` 标签隔离
+- 在线测试通过 `//go:build online` 标签隔离
 
 **详细计划**：[design/stage1-plan.md](design/stage1-plan.md)
 

@@ -2,8 +2,8 @@
 
 ## 当前状态
 
-**日期**：2026-10-13
-**阶段**：Stage 1A 第二轮修复已完成，待独立复核
+**日期**：2026-10-14
+**阶段**：Stage 1A 第三轮修复已完成，待独立复核
 
 ## Stage 0：事实基线与只读核对
 
@@ -32,15 +32,15 @@
 | 批次 | 内容 | F 编号 | 依赖 | 状态 |
 |---|---|---|---|---|
 | 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | 待实施 |
-| 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第二轮修复已完成，待独立复核** |
+| 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第三轮修复已完成，待独立复核** |
 | 1B | Retriever/Indexer 并发 + Rerank HTTP | F01/F02/F05 | 1A | 待实施 |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1A 完成记录
 
-**日期**：2026-10-13
-**状态**：✅ 第二轮修复已完成，待独立复核
+**日期**：2026-10-14
+**状态**：✅ 第三轮修复已完成，待独立复核
 
 **原始修改**：
 - `server/internal/dao/dao.go` — 移除 init()，保留 InitDB() error
@@ -82,6 +82,27 @@
 - 离线测试不触发数据库/向量服务/OpenAI 连接
 - 集成测试通过 `//go:build integration` 标签隔离
 - 在线测试通过 `//go:build online` 标签隔离
+
+**第三轮复核修复（2df2421 → e48b67e）**：
+
+| 修复项 | 说明 |
+|---|---|
+| chat-history AutoMigrate 适配 | 创建 historyWrapper 和 historyImpl，复用 dao 连接，绕过 NewEinoHistory 的 AutoMigrate；新增 MigrateChatHistoryTables() 显式迁移入口 |
+| 可注入边界 | dao.InitDB 接受 ConfigProvider 接口；生产用 InitDBWithConfig()，测试用 fakeConfig |
+| 确定性失败测试 | 使用 fakeConfig 测试配置错误、无效 DSN、nil 配置等场景，不再使用“若意外成功就 skip” |
+| Reset/Close 资源释放 | rag.Reset() 改为返回 error；cmd.go 级联清理处理 Reset 错误 |
+| 配置错误传播 | ConfigProvider 接口统一配置读取错误传播 |
+| 在线许可检查 | rerank_test.go 和 youcom_integration_test.go 添加 ONLINE_TEST_PERMITTED=true 检查 |
+| Database 接口扩展 | 新增 GormDB() 方法暴露底层 *gorm.DB，供 chat-history wrapper 使用 |
+
+**验证结果（第三轮）**：
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test -race ./internal/dao/... ./internal/logic/rag/... ./internal/logic/chat/...` — 退出码 0，19 个测试全部通过
+- `go test ./core/websearch/...` — 退出码 0（单独运行）
+- `go test ./...` — 除 Windows 文件锁定问题外全部通过（非测试逻辑问题）
+- 新增测试：TestInitDB_ConfigError, TestInitDB_InvalidDSN, TestInitDB_NilConfig
+- chat-history 不再在 Init 时 AutoMigrate，迁移通过 MigrateChatHistoryTables() 显式控制
 
 **详细计划**：[design/stage1-plan.md](design/stage1-plan.md)
 

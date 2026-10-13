@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/wangle201210/go-rag/server/core"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
 
@@ -57,6 +58,20 @@ func (f *fakeVectorStoreFactory) Create(cfg *vector.Config) (vector.VectorStore,
 	return f.vs, nil
 }
 
+// fakeRagFactory 测试用的 RagFactory 实现
+type fakeRagFactory struct {
+	createErr   error
+	createCount int
+}
+
+func (f *fakeRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.Rag, error) {
+	f.createCount++
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
+	return &core.Rag{}, nil
+}
+
 // --- 辅助函数 ---
 
 // resetState 重置包级状态，用于测试隔离
@@ -69,6 +84,17 @@ func resetState() {
 	ragSvr = nil
 	vectorStore = nil
 	ragInit = false
+}
+
+// validRagConfig 返回一个有效的最小 RagConfig 用于测试
+func validRagConfig() RagConfig {
+	return RagConfig{
+		VectorCfg:      vector.Config{Type: "qdrant", IndexName: "test"},
+		EmbeddingAPIKey: "test-key",
+		BaseURL:        "http://test",
+		EmbeddingModel: "test-embed",
+		ChatModel:      "test-chat",
+	}
 }
 
 // --- 前置条件测试 ---
@@ -102,55 +128,169 @@ func TestResetBeforeInit(t *testing.T) {
 	}
 }
 
-// --- 行为测试 ---
+// --- 行为测试（全部使用 fake，不调用现场 Init/factory/config） ---
 
-// TestInit_FailsWithoutConfig 验证无配置时 Init 返回 error 而非 panic。
-func TestInit_FailsWithoutConfig(t *testing.T) {
-	err := Init()
+// TestInit_ConfigError_BeforeFactory 验证配置错误在工厂调用之前被检测到。
+func TestInit_ConfigError_BeforeFactory(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+	vsFactory := &fakeVectorStoreFactory{vs: fakeVS}
+	ragFctory := &fakeRagFactory{}
+
+	// 空配置 → 配置错误
+	cfg := RagConfig{} // 所有字段为零值
+
+	err := InitWith(cfg, vsFactory, ragFctory)
 	if err == nil {
-		Reset()
-		t.Skip("Init() succeeded unexpectedly (config exists); cleaned up")
+		t.Fatal("expected config error")
+	}
+	if !strings.Contains(err.Error(), "not configured") {
+		t.Fatalf("expected config error, got: %v", err)
+	}
+	// 工厂不应被调用
+	if vsFactory.createCount != 0 {
+		t.Fatal("VS factory should not be called on config error")
+	}
+	if ragFctory.createCount != 0 {
+		t.Fatal("RAG factory should not be called on config error")
 	}
 	if IsInitialized() {
-		t.Fatal("IsInitialized() should return false after failed Init()")
-	}
-	if GetRagSvr() != nil {
-		t.Fatal("GetRagSvr() should return nil after failed Init()")
+		t.Fatal("should not be initialized after config error")
 	}
 }
 
-// TestInitWith_VectorStoreError 验证 VectorStore 创建失败时不发布。
-func TestInitWith_VectorStoreError(t *testing.T) {
+// TestInit_VSFactoryError 验证 VectorStore 工厂失败时不发布。
+func TestInit_VSFactoryError(t *testing.T) {
 	defer resetState()
 
-	factory := &fakeVectorStoreFactory{createErr: errors.New("vs error")}
-	cfg := &vector.Config{Type: "qdrant", IndexName: "test"}
+	vsFactory := &fakeVectorStoreFactory{createErr: errors.New("vs error")}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
 
-	err := InitWith(cfg, factory)
+	err := InitWith(cfg, vsFactory, ragFctory)
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	if !strings.Contains(err.Error(), "NewVectorStore") {
 		t.Fatalf("expected NewVectorStore error, got: %v", err)
 	}
+	if ragFctory.createCount != 0 {
+		t.Fatal("RAG factory should not be called when VS factory fails")
+	}
 	if IsInitialized() {
-		t.Fatal("should not be initialized after VectorStore error")
+		t.Fatal("should not be initialized after VS factory error")
 	}
 }
 
-// TestInitWith_NilFactory_UsesDefault 验证 nil 工厂使用默认（会因无配置失败）。
-func TestInitWith_NilFactory_UsesDefault(t *testing.T) {
+// TestInit_RagFactoryError_ClosesVS 验证 RagFactory 失败时关闭已创建的 VectorStore。
+func TestInit_RagFactoryError_ClosesVS(t *testing.T) {
 	defer resetState()
 
-	cfg := &vector.Config{Type: "qdrant", IndexName: "test"}
-	err := InitWith(cfg, nil)
+	fakeVS := &fakeVectorStore{}
+	vsFactory := &fakeVectorStoreFactory{vs: fakeVS}
+	ragFctory := &fakeRagFactory{createErr: errors.New("rag error")}
+	cfg := validRagConfig()
+
+	err := InitWith(cfg, vsFactory, ragFctory)
 	if err == nil {
-		Reset()
-		t.Skip("InitWith() with nil factory succeeded unexpectedly; cleaned up")
+		t.Fatal("expected error")
 	}
-	// 使用默认工厂会尝试真实连接，预期失败
+	if !strings.Contains(err.Error(), "rag error") {
+		t.Fatalf("expected rag factory error, got: %v", err)
+	}
+	// VectorStore 应被关闭
+	if fakeVS.closeCount != 1 {
+		t.Fatalf("expected VS to be closed after rag factory error, got %d closes", fakeVS.closeCount)
+	}
 	if IsInitialized() {
-		t.Fatal("should not be initialized")
+		t.Fatal("should not be initialized after rag factory error")
+	}
+}
+
+// TestInit_NilFactory_Error 验证 nil 工厂返回错误。
+func TestInit_NilFactory_Error(t *testing.T) {
+	defer resetState()
+
+	cfg := validRagConfig()
+
+	// nil VS factory
+	err := InitWith(cfg, nil, &fakeRagFactory{})
+	if err == nil {
+		t.Fatal("expected error with nil VS factory")
+	}
+	if !strings.Contains(err.Error(), "must not be nil") {
+		t.Fatalf("expected 'must not be nil' error, got: %v", err)
+	}
+
+	// nil RAG factory
+	err = InitWith(cfg, &fakeVectorStoreFactory{vs: &fakeVectorStore{}}, nil)
+	if err == nil {
+		t.Fatal("expected error with nil RAG factory")
+	}
+	if !strings.Contains(err.Error(), "must not be nil") {
+		t.Fatalf("expected 'must not be nil' error, got: %v", err)
+	}
+}
+
+// TestInit_Success_Publishes 验证成功初始化后全局状态已发布。
+func TestInit_Success_Publishes(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+	vsFactory := &fakeVectorStoreFactory{vs: fakeVS}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
+
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("InitWith() unexpected error: %v", err)
+	}
+
+	if !IsInitialized() {
+		t.Fatal("IsInitialized() should return true after successful InitWith()")
+	}
+	if GetRagSvr() == nil {
+		t.Fatal("GetRagSvr() should return non-nil after successful InitWith()")
+	}
+	if vsFactory.createCount != 1 {
+		t.Fatalf("expected 1 VS factory call, got %d", vsFactory.createCount)
+	}
+	if ragFctory.createCount != 1 {
+		t.Fatalf("expected 1 RAG factory call, got %d", ragFctory.createCount)
+	}
+}
+
+// TestInit_RepeatCall_Rejected 验证重复初始化被拒绝（通过真实成功，非预设状态）。
+func TestInit_RepeatCall_Rejected(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+	vsFactory := &fakeVectorStoreFactory{vs: fakeVS}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
+
+	// 第一次成功
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("first InitWith() unexpected error: %v", err)
+	}
+
+	// 第二次返回 error
+	err = InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error on repeat call")
+	}
+	if !strings.Contains(err.Error(), "already called") {
+		t.Fatalf("expected 'already called' error, got: %v", err)
+	}
+
+	// 工厂调用数不增加
+	if vsFactory.createCount != 1 {
+		t.Fatalf("VS factory should be called only once, got %d", vsFactory.createCount)
+	}
+	if ragFctory.createCount != 1 {
+		t.Fatalf("RAG factory should be called only once, got %d", ragFctory.createCount)
 	}
 }
 
@@ -200,45 +340,88 @@ func TestReset_VectorStoreCloseError(t *testing.T) {
 	}
 }
 
-// TestInitWith_RepeatCall_Error 验证重复初始化返回错误。
-func TestInitWith_RepeatCall_Error(t *testing.T) {
+// --- 配置错误传播测试 ---
+
+// TestInit_EmbeddingModelEmpty 验证空 embedding.model 在工厂调用前被拒绝。
+func TestInit_EmbeddingModelEmpty(t *testing.T) {
 	defer resetState()
 
-	fakeVS := &fakeVectorStore{}
-	factory := &fakeVectorStoreFactory{vs: fakeVS}
-	cfg := &vector.Config{Type: "qdrant", IndexName: "test"}
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
+	cfg.EmbeddingModel = ""
 
-	// 模拟已初始化状态
-	ragMu.Lock()
-	ragInit = true
-	ragMu.Unlock()
-
-	err := InitWith(cfg, factory)
+	err := InitWith(cfg, vsFactory, ragFctory)
 	if err == nil {
-		t.Fatal("expected error on repeat call")
+		t.Fatal("expected error for empty embedding.model")
 	}
-	if !strings.Contains(err.Error(), "already called") {
-		t.Fatalf("expected 'already called' error, got: %v", err)
+	if !strings.Contains(err.Error(), "embedding.model") {
+		t.Fatalf("expected embedding.model error, got: %v", err)
 	}
-	if factory.createCount != 0 {
-		t.Fatal("factory should not be called on repeat init")
+	if vsFactory.createCount != 0 {
+		t.Fatal("factory should not be called for config error")
 	}
 }
 
-// TestInitWith_NilConfig_ReadsFromGoFrame 验证 nil 配置时从 GoFrame 读取（会因无配置失败）。
-func TestInitWith_NilConfig_ReadsFromGoFrame(t *testing.T) {
+// TestInit_ChatModelEmpty 验证空 chat.model 在工厂调用前被拒绝。
+func TestInit_ChatModelEmpty(t *testing.T) {
 	defer resetState()
 
-	fakeVS := &fakeVectorStore{}
-	factory := &fakeVectorStoreFactory{vs: fakeVS}
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
+	cfg.ChatModel = ""
 
-	err := InitWith(nil, factory)
+	err := InitWith(cfg, vsFactory, ragFctory)
 	if err == nil {
-		Reset()
-		t.Skip("InitWith(nil, factory) succeeded unexpectedly; cleaned up")
+		t.Fatal("expected error for empty chat.model")
 	}
-	// 无配置文件时应该返回配置错误
-	if factory.createCount != 0 {
-		t.Fatal("factory should not be called when config is missing")
+	if !strings.Contains(err.Error(), "chat.model") {
+		t.Fatalf("expected chat.model error, got: %v", err)
+	}
+	if vsFactory.createCount != 0 {
+		t.Fatal("factory should not be called for config error")
+	}
+}
+
+// TestInit_VectorTypeEmpty 验证空 vector.type 在工厂调用前被拒绝。
+func TestInit_VectorTypeEmpty(t *testing.T) {
+	defer resetState()
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
+	cfg.VectorCfg.Type = ""
+
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error for empty vector.type")
+	}
+	if !strings.Contains(err.Error(), "vector.type") {
+		t.Fatalf("expected vector.type error, got: %v", err)
+	}
+	if vsFactory.createCount != 0 {
+		t.Fatal("factory should not be called for config error")
+	}
+}
+
+// TestInit_IndexNameEmpty 验证空 vector.indexName 在工厂调用前被拒绝。
+func TestInit_IndexNameEmpty(t *testing.T) {
+	defer resetState()
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	cfg := validRagConfig()
+	cfg.VectorCfg.IndexName = ""
+
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error for empty vector.indexName")
+	}
+	if !strings.Contains(err.Error(), "vector.indexName") {
+		t.Fatalf("expected vector.indexName error, got: %v", err)
+	}
+	if vsFactory.createCount != 0 {
+		t.Fatal("factory should not be called for config error")
 	}
 }

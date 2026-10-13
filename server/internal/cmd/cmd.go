@@ -30,19 +30,24 @@ var (
 				return fmt.Errorf("stage[dao] init failed: %w", err)
 			}
 			if err := ragicit.Init(); err != nil {
-				if resetErr := dao.Close(); resetErr != nil {
-					g.Log().Errorf(ctx, "Failed to close DAO after RAG init failure: %v", resetErr)
+				if resetErr := dao.Reset(); resetErr != nil {
+					return fmt.Errorf("stage[rag] init failed: %w; dao reset also failed: %v", err, resetErr)
 				}
 				return fmt.Errorf("stage[rag] init failed: %w", err)
 			}
 			if err := chat.Init(); err != nil {
+				var errs []error
+				errs = append(errs, fmt.Errorf("stage[chat] init failed: %w", err))
 				if resetErr := ragicit.Reset(); resetErr != nil {
-					g.Log().Errorf(ctx, "Failed to reset RAG after Chat init failure: %v", resetErr)
+					errs = append(errs, fmt.Errorf("rag reset failed: %w", resetErr))
 				}
 				if closeErr := dao.Close(); closeErr != nil {
-					g.Log().Errorf(ctx, "Failed to close DAO after Chat init failure: %v", closeErr)
+					errs = append(errs, fmt.Errorf("dao close failed: %w", closeErr))
 				}
-				return fmt.Errorf("stage[chat] init failed: %w", err)
+				if len(errs) > 1 {
+					return fmt.Errorf("%v", errs)
+				}
+				return errs[0]
 			}
 
 			s := g.Server()

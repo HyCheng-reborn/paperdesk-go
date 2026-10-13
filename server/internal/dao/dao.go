@@ -134,14 +134,17 @@ func Close() error {
 }
 
 // Reset 重置 DAO 状态，清理全局变量。用于初始化失败时的级联清理。
-func Reset() {
+// 返回 Close 错误（如果有）。
+func Reset() error {
 	dbMu.Lock()
 	defer dbMu.Unlock()
+	var err error
 	if db != nil {
-		_ = db.Close()
+		err = db.Close()
 		db = nil
 	}
 	dbInit = false
+	return err
 }
 
 // GetDsn 返回当前数据库 DSN。未初始化时返回错误。

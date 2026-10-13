@@ -139,7 +139,35 @@ func TestMigrateBeforeInit(t *testing.T) {
 
 // TestResetBeforeInit 验证未初始化时 Reset 是安全的 no-op。
 func TestResetBeforeInit(t *testing.T) {
-	Reset()
+	err := Reset()
+	if err != nil {
+		t.Fatalf("Reset() before InitDB() should return nil, got %v", err)
+	}
+	if IsInitialized() {
+		t.Fatal("IsInitialized() should return false after Reset()")
+	}
+}
+
+// TestReset_ReturnsCloseError 验证 Reset 返回 Close 错误。
+func TestReset_ReturnsCloseError(t *testing.T) {
+	defer resetState()
+
+	fakeDB := &fakeDatabase{dsn: "test", closeErr: errors.New("close error")}
+	factory := &fakeDatabaseFactory{db: fakeDB}
+	cfg := &fakeConfig{cfg: &database.Config{Host: "localhost"}}
+
+	err := InitDB(cfg, factory)
+	if err != nil {
+		t.Fatalf("InitDB() unexpected error: %v", err)
+	}
+
+	err = Reset()
+	if err == nil {
+		t.Fatal("expected error from Reset() when Close fails")
+	}
+	if !strings.Contains(err.Error(), "close error") {
+		t.Fatalf("expected close error, got: %v", err)
+	}
 	if IsInitialized() {
 		t.Fatal("IsInitialized() should return false after Reset()")
 	}
@@ -425,7 +453,10 @@ func TestReset_ClosesDB(t *testing.T) {
 		t.Fatalf("InitDB() unexpected error: %v", err)
 	}
 
-	Reset()
+	err = Reset()
+	if err != nil {
+		t.Fatalf("Reset() unexpected error: %v", err)
+	}
 	if fakeDB.closeCount != 1 {
 		t.Fatalf("expected 1 close call after Reset, got %d", fakeDB.closeCount)
 	}

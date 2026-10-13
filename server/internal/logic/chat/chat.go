@@ -118,6 +118,12 @@ func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 		return fmt.Errorf("chat: chat.model not configured")
 	}
 
+	// 验证 dao 已初始化（chat 依赖 dao），在工厂调用之前检查
+	_, err := dao.GetDsn()
+	if err != nil {
+		return fmt.Errorf("chat: dao.GetDsn() failed (is dao initialized?): %w", err)
+	}
+
 	// 如果未注入工厂，使用默认工厂
 	if cmFactory == nil {
 		cmFactory = &defaultChatModelFactory{}
@@ -127,12 +133,6 @@ func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 	cm, err := cmFactory.Create(apiKey, baseURL, chatModel)
 	if err != nil {
 		return fmt.Errorf("chat: create chat model failed: %w", err)
-	}
-
-	// 验证 dao 已初始化（chat 依赖 dao）
-	_, err = dao.GetDsn()
-	if err != nil {
-		return fmt.Errorf("chat: dao.GetDsn() failed (is dao initialized?): %w", err)
 	}
 
 	// 获取 dao 的 GORM DB 实例，创建 History 包装器

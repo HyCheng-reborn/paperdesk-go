@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-14
-**阶段**：Stage 1-Pre 已完成，Stage 1A 第三轮复核已完成
+**阶段**：Stage 1-Pre 已完成，Stage 1A 第三轮复核已完成，Stage 1-Pre 独立复核通过，Stage 1B 计划已制定
 
 ## Stage 0：事实基线与只读核对
 
@@ -66,6 +66,23 @@
 **PaperDesk 模式策略**：当前 `isPaperDeskMode()` 返回 false（临时策略），待 PaperDesk profile 配置实现后接入。
 
 **证据目录**：[verification/stage1pre/](verification/stage1pre/)
+
+### Stage 1-Pre 独立复核记录
+
+**日期**：2026-10-14
+**复核基线**：`db0c5971d137ddabcc10ae5fb0c4b9baa17e1b98`（Stage 1-Pre 完成后的 HEAD）
+**复核方式**：源码复核，未独立重跑 Go 测试
+
+**复核结论**：
+- F06 nil 访问修复逻辑正确，`validateIndexerInput()` 在所有副作用前完成参数校验
+- 四类输入行为定义清晰，默认模式与 PaperDesk 模式分支合理
+- `paperDeskModeOverride` 为临时测试机制，待 PaperDesk profile 配置实现后移除
+- 无副作用保证：校验失败直接返回 error，不触发文件保存、DB 插入、后台任务
+
+**行为修正记录**：
+- 默认模式下 File+URL 同时存在时的行为为"File 优先，URL 忽略"（非报错）
+- PaperDesk 模式目前未在生产启用（`isPaperDeskMode()` 临时返回 false）
+- `paperDeskModeOverride` 是临时测试机制，不应在生产代码中长期保留
 
 ### Stage 1A 完成记录
 

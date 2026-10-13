@@ -29,7 +29,10 @@ type defaultConfig struct{}
 
 func (c *defaultConfig) GetDBConfig() (*database.Config, error) {
 	ctx := context.Background()
-	dbType, _ := g.Cfg().Get(ctx, "database.default.type")
+	dbType, err := g.Cfg().Get(ctx, "database.default.type")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read database.default.type: %w", err)
+	}
 	dbTypeStr := dbType.String()
 	if dbTypeStr == "" {
 		dbTypeStr = "mysql"
@@ -45,16 +48,16 @@ func (c *defaultConfig) GetDBConfig() (*database.Config, error) {
 	}
 }
 
-// InitDBWithConfig 使用默认配置初始化数据库（生产入口）
+// InitDBWithConfig 使用默认配置和默认工厂初始化数据库（生产入口）
 func InitDBWithConfig() error {
-	return InitDB(&defaultConfig{})
+	return InitDB(&defaultConfig{}, database.NewDefaultFactory())
 }
 
 // InitDB 初始化数据库连接（不含迁移）。
 // 必须在程序启动时显式调用，不在 init() 中自动执行，以支持离线测试隔离。
 // 重复调用返回 error（幂等拒绝）。
-// cfg 参数允许注入配置提供者，生产环境传 &defaultConfig{}，测试使用 fake。
-func InitDB(cfg ConfigProvider) error {
+// cfg: 注入的配置提供者；factory: 注入的数据库工厂。
+func InitDB(cfg ConfigProvider, factory database.DatabaseFactory) error {
 	dbMu.Lock()
 	defer dbMu.Unlock()
 
@@ -62,32 +65,26 @@ func InitDB(cfg ConfigProvider) error {
 		return fmt.Errorf("dao: InitDB already called")
 	}
 
-	// 使用注入的配置提供者获取配置
-	var (
-		dbCfg *database.Config
-		err   error
-	)
-	if cfg != nil {
-		dbCfg, err = cfg.GetDBConfig()
-		if err != nil {
-			return fmt.Errorf("dao: config error: %w", err)
-		}
-	} else {
-		// 兼容旧调用：如果 cfg 为 nil，使用默认配置
-		dbCfg, err = (&defaultConfig{}).GetDBConfig()
-		if err != nil {
-			return fmt.Errorf("dao: config error: %w", err)
-		}
+	if cfg == nil {
+		return fmt.Errorf("dao: ConfigProvider must not be nil")
+	}
+	if factory == nil {
+		return fmt.Errorf("dao: DatabaseFactory must not be nil")
 	}
 
-	// 使用局部变量构建新实例，成功后才赋值全局
-	var newDB database.Database
-	if dbCfg.FilePath != "" {
-		// SQLite
-		newDB = database.NewSqlite(dbCfg)
-	} else {
-		// MySQL
-		newDB = database.NewMysql(dbCfg)
+	// 使用注入的配置提供者获取配置
+	dbCfg, err := cfg.GetDBConfig()
+	if err != nil {
+		return fmt.Errorf("dao: config error: %w", err)
+	}
+	if dbCfg == nil {
+		return fmt.Errorf("dao: config returned nil config")
+	}
+
+	// 使用注入的工厂创建 Database 实例
+	newDB, err := factory.Create(*dbCfg)
+	if err != nil {
+		return fmt.Errorf("dao: factory create failed: %w", err)
 	}
 
 	if err = newDB.Connect(); err != nil {
@@ -117,7 +114,7 @@ func Migrate() error {
 
 // InitWithMigrate 连接数据库并执行迁移（兼容入口，等价于 InitDB + Migrate）。
 func InitWithMigrate() error {
-	if err := InitDB(nil); err != nil {
+	if err := InitDB(&defaultConfig{}, database.NewDefaultFactory()); err != nil {
 		return err
 	}
 	return Migrate()
@@ -187,23 +184,32 @@ func ensureSQLiteFileDir(filePath string) error {
 	return nil
 }
 
-// cfgGet 安全读取配置，不 panic。
-func cfgGet(ctx context.Context, key string, args ...any) string {
-	v, _ := g.Cfg().Get(ctx, key, args...)
-	return v.String()
+// cfgGet 安全读取配置，传播错误而非忽略。
+func cfgGet(ctx context.Context, key string, args ...any) (string, error) {
+	v, err := g.Cfg().Get(ctx, key, args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to read config %q: %w", key, err)
+	}
+	return v.String(), nil
 }
 
-// cfgGetInt 安全读取配置整数，不 panic。
-func cfgGetInt(ctx context.Context, key string, args ...any) int {
-	v, _ := g.Cfg().Get(ctx, key, args...)
-	return v.Int()
+// cfgGetInt 安全读取配置整数，传播错误而非忽略。
+func cfgGetInt(ctx context.Context, key string, args ...any) (int, error) {
+	v, err := g.Cfg().Get(ctx, key, args...)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read config %q: %w", key, err)
+	}
+	return v.Int(), nil
 }
 
 func GetSqliteConfig() (*database.Config, error) {
 	ctx := context.Background()
 	cfg := &database.Config{}
 
-	filePath := cfgGet(ctx, "database.default.host")
+	filePath, err := cfgGet(ctx, "database.default.host")
+	if err != nil {
+		return nil, err
+	}
 	if filePath == "" {
 		return nil, fmt.Errorf("database.default.host (sqlite file path) not configured")
 	}
@@ -213,12 +219,12 @@ func GetSqliteConfig() (*database.Config, error) {
 		return nil, fmt.Errorf("failed to create sqlite file directory: %v", err)
 	}
 
-	cfg.BusyTimeout = cfgGetInt(ctx, "database.default.busy_timeout")
-	cfg.JournalMode = cfgGet(ctx, "database.default.journal_mode")
-	cfg.Synchronous = cfgGet(ctx, "database.default.synchronous")
-	cfg.CacheSize = cfgGetInt(ctx, "database.default.cache_size")
-	cfg.MaxOpenConn = cfgGetInt(ctx, "database.default.max_open_conns", 1)
-	cfg.MaxIdleConn = cfgGetInt(ctx, "database.default.max_idle_conns", 1)
+	cfg.BusyTimeout, _ = cfgGetInt(ctx, "database.default.busy_timeout")
+	cfg.JournalMode, _ = cfgGet(ctx, "database.default.journal_mode")
+	cfg.Synchronous, _ = cfgGet(ctx, "database.default.synchronous")
+	cfg.CacheSize, _ = cfgGetInt(ctx, "database.default.cache_size")
+	cfg.MaxOpenConn, _ = cfgGetInt(ctx, "database.default.max_open_conns", 1)
+	cfg.MaxIdleConn, _ = cfgGetInt(ctx, "database.default.max_idle_conns", 1)
 	cfg.LogLevel = 4
 	return cfg, nil
 }

@@ -26,6 +26,23 @@ type Chat struct {
 	eh *historyWrapper
 }
 
+// ChatModelFactory 创建 BaseChatModel 的工厂接口
+// 生产环境使用 defaultChatModelFactory，测试使用 fake
+type ChatModelFactory interface {
+	Create(apiKey, baseURL, modelName string) (model.BaseChatModel, error)
+}
+
+// defaultChatModelFactory 生产环境的 ChatModelFactory 实现
+type defaultChatModelFactory struct{}
+
+func (f *defaultChatModelFactory) Create(apiKey, baseURL, modelName string) (model.BaseChatModel, error) {
+	return openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
+		APIKey:  apiKey,
+		BaseURL: baseURL,
+		Model:   modelName,
+	})
+}
+
 // GetChat 返回 Chat 服务实例。未初始化时返回 nil。
 func GetChat() *Chat {
 	chatMu.RLock()
@@ -36,20 +53,30 @@ func GetChat() *Chat {
 	return chat
 }
 
-// cfgGet 安全读取配置，不 panic。
-func cfgGet(ctx context.Context, key string) string {
-	v, _ := g.Cfg().Get(ctx, key)
-	return v.String()
+// cfgGet 安全读取配置，传播错误而非忽略。
+func cfgGet(ctx context.Context, key string) (string, error) {
+	v, err := g.Cfg().Get(ctx, key)
+	if err != nil {
+		return "", fmt.Errorf("failed to read config %q: %w", key, err)
+	}
+	return v.String(), nil
 }
 
-// Init 初始化 Chat 服务：读取配置、创建 chat model、初始化 chat-history。
-// 必须先初始化 dao，因为 chat 依赖 dao.GetDsn()。
+// Init 初始化 Chat 服务（生产入口，等价于 InitWith(nil, nil)）。
+// 必须先初始化 dao，因为 chat 依赖 dao.GetGormDB()。
 // 重复调用返回 error（幂等拒绝）。
 //
-// chat-history 的 NewEinoHistory(dsn) 内部会对 chat-history 自己的 4 张表执行
-// AutoMigrate（conversations, messages, attachments, message_attachments）。
-// 这是第三方包行为，当前无法跳过；后续可在 Stage 5 通过适配器替换。
+// History 适配器复用 dao 的 *gorm.DB 连接，不创建独立连接。
+// chat-history 表的迁移通过 MigrateChatHistoryTables() 显式控制。
 func Init() error {
+	return InitWith(nil, nil)
+}
+
+// InitWith 初始化 Chat 服务：使用注入的配置和工厂。
+// chatCfg: 注入的配置（nil 时从 g.Cfg() 读取）；
+// cmFactory: 注入的 ChatModel 工厂（nil 时使用默认工厂）。
+// 重复调用返回 error（幂等拒绝）。
+func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 	chatMu.Lock()
 	defer chatMu.Unlock()
 
@@ -59,9 +86,27 @@ func Init() error {
 
 	ctx := gctx.New()
 
-	apiKey := cfgGet(ctx, "chat.apiKey")
-	baseURL := cfgGet(ctx, "chat.baseURL")
-	chatModel := cfgGet(ctx, "chat.model")
+	var apiKey, baseURL, chatModel string
+
+	if chatCfg != nil {
+		apiKey = chatCfg.APIKey
+		baseURL = chatCfg.BaseURL
+		chatModel = chatCfg.Model
+	} else {
+		var err error
+		apiKey, err = cfgGet(ctx, "chat.apiKey")
+		if err != nil {
+			return fmt.Errorf("chat: %w", err)
+		}
+		baseURL, err = cfgGet(ctx, "chat.baseURL")
+		if err != nil {
+			return fmt.Errorf("chat: %w", err)
+		}
+		chatModel, err = cfgGet(ctx, "chat.model")
+		if err != nil {
+			return fmt.Errorf("chat: %w", err)
+		}
+	}
 
 	if apiKey == "" {
 		return fmt.Errorf("chat: chat.apiKey not configured")
@@ -73,14 +118,15 @@ func Init() error {
 		return fmt.Errorf("chat: chat.model not configured")
 	}
 
-	// 使用局部变量构建 chat model
-	c, err := newChat(&openai.ChatModelConfig{
-		APIKey:  apiKey,
-		BaseURL: baseURL,
-		Model:   chatModel,
-	})
+	// 如果未注入工厂，使用默认工厂
+	if cmFactory == nil {
+		cmFactory = &defaultChatModelFactory{}
+	}
+
+	// 使用注入的工厂创建 chat model
+	cm, err := cmFactory.Create(apiKey, baseURL, chatModel)
 	if err != nil {
-		return fmt.Errorf("chat: newChat failed: %w", err)
+		return fmt.Errorf("chat: create chat model failed: %w", err)
 	}
 
 	// 验证 dao 已初始化（chat 依赖 dao）
@@ -90,12 +136,13 @@ func Init() error {
 	}
 
 	// 获取 dao 的 GORM DB 实例，创建 History 包装器
-	// 注意：这里不再调用 NewEinoHistory（它会创建独立连接并 AutoMigrate）
-	// 而是复用 dao 的连接，迁移通过 MigrateChatHistoryTables() 显式控制
+	// 复用 dao 的连接，不创建独立连接，不执行 AutoMigrate
 	gormDB, err := dao.GetGormDB()
 	if err != nil {
 		return fmt.Errorf("chat: dao.GetGormDB() failed: %w", err)
 	}
+
+	c := &Chat{cm: cm}
 	c.eh = newHistoryWrapper(gormDB)
 
 	// 成功后才赋值全局变量（原子发布）
@@ -104,12 +151,11 @@ func Init() error {
 	return nil
 }
 
-func newChat(cfg *openai.ChatModelConfig) (res *Chat, err error) {
-	chatModel, err := openai.NewChatModel(context.Background(), cfg)
-	if err != nil {
-		return nil, err
-	}
-	return &Chat{cm: chatModel}, nil
+// ChatConfig 注入的 Chat 配置
+type ChatConfig struct {
+	APIKey  string
+	BaseURL string
+	Model   string
 }
 
 // IsInitialized 返回 Chat 服务是否已初始化。

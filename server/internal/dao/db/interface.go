@@ -18,6 +18,12 @@ type Database interface {
 	GormDB() *gorm.DB
 }
 
+// DatabaseFactory 创建 Database 实例的工厂接口
+// 生产环境使用 defaultFactory（真实驱动），测试使用 fakeFactory
+type DatabaseFactory interface {
+	Create(cfg Config) (Database, error)
+}
+
 type Config struct {
 	Host        string
 	Port        string

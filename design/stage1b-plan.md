@@ -24,6 +24,8 @@ Stage 1B 目标：修复 Retriever 并发、Indexer 异步闭包和 Rerank HTTP 
 - 测试简单（httptest）
 - 可独立验证
 
+**1B-1 已完成**：见 `CHANGES.md` 和 `PROJECT_PROGRESS.md` Stage 1B-1 记录。
+
 ---
 
 ## 1B-1：F05 Rerank HTTP 修复

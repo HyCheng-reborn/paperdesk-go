@@ -1,5 +1,46 @@
 # 变更记录
 
+## 2026-10-14 Stage 1B-1：F05 Rerank HTTP ctx 绑定与校验
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| ctx 绑定 | HTTP 请求使用 `http.NewRequestWithContext` 绑定调用方 ctx，不再使用 `context.Background()` |
+| 有界超时 | `context.WithTimeout(ctx, 30s)`，调用方更早 deadline 优先生效 |
+| 响应大小限制 | `http.MaxBytesReader(nil, resp.Body, 10MB+1)` 防止内存溢出 |
+| 状态码校验 | 非 200 返回 `rerank API returned status %d` |
+| JSON 校验 | 解析失败返回 `invalid JSON` 错误 |
+| 结果校验 | 检查 nil result、missing index、index 越界、重复 index、missing score、NaN/Inf score |
+| HTTPDoer 注入 | 接口注入支持测试 mock，默认使用 `http.DefaultClient` |
+| 输入校验 | 空 docs、nil document、非法 topK、已取消 ctx 均在 HTTP 调用前检查 |
+| 无部分修改 | 结果校验失败时不修改输入 docs 的 score |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/core/rerank/rerank.go | 重构为 Rerank 结构体；新增 HTTPDoer 接口、RerankConfig；ctx 绑定 + 30s 超时；MaxBytesReader；状态码/JSON/结果全面校验 |
+| server/core/retriever.go | 更新调用方适配新 API：`rerank.NewRerank(cfg, nil).Rerank(ctx, ...)` |
+| server/core/rerank/rerank_test.go | 更新在线测试适配新 API |
+| server/core/rerank/rerank_http_test.go | 新增 25 个离线 httptest 测试 |
+| PROJECT_PROGRESS.md | 更新进度 |
+| CHANGES.md | 添加 Stage 1B-1 记录 |
+
+### 验证结果
+
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test ./core/rerank/... -count=1 -v` — 退出码 0，25 个测试全部通过
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- `go test -race ./core/rerank/...` — Windows 环境 race detector DLL 问题（非代码问题）
+
+### 回滚说明
+
+修改涉及 rerank 包重构和调用方适配，回滚需同时恢复 `rerank.go`、`retriever.go`、`rerank_test.go` 并删除 `rerank_http_test.go`。
+
+---
+
 ## 2026-10-14 Stage 1-Pre 独立复核通过
 
 **复核基线**：`db0c5971d137ddabcc10ae5fb0c4b9baa17e1b98`

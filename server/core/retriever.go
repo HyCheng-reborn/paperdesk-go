@@ -144,7 +144,8 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 	docs = retriever.RRFFusion(inputs)
 
 	// 重排
-	docs, err = rerank.NewRerank(ctx, req.optQuery, docs, req.TopK)
+	reranker := rerank.NewRerank(rerank.GetConf(ctx).ToRerankConfig(), nil)
+	docs, err = reranker.Rerank(ctx, req.optQuery, docs, req.TopK)
 	if err != nil {
 		g.Log().Errorf(ctx, "Rerank failed, err=%v", err)
 		return

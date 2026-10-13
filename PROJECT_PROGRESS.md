@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-14
-**阶段**：Stage 1-Pre 已完成，Stage 1A 第三轮复核已完成，Stage 1-Pre 独立复核通过，Stage 1B 计划已制定
+**阶段**：Stage 1B-1 已完成，Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1B 计划已制定
 
 ## Stage 0：事实基线与只读核对
 
@@ -33,7 +33,9 @@
 |---|---|---|---|---|
 | 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | **✅ 已完成** |
 | 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第三轮修复已完成，待独立复核** |
-| 1B | Retriever/Indexer 并发 + Rerank HTTP | F01/F02/F05 | 1A | 待实施 |
+| 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
+| 1B-2 | F01 Retriever 并发安全 | F01 | 1A | 待实施 |
+| 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | 待实施 |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
@@ -66,6 +68,41 @@
 **PaperDesk 模式策略**：当前 `isPaperDeskMode()` 返回 false（临时策略），待 PaperDesk profile 配置实现后接入。
 
 **证据目录**：[verification/stage1pre/](verification/stage1pre/)
+
+### Stage 1B-1 完成记录
+
+**日期**：2026-10-14
+**基线**：`d4d8259d78036662ac9853e6b7fac721c8445569`（Stage 1B plan）
+**状态**：✅ 已完成
+
+**修改文件**：
+- `server/core/rerank/rerank.go` — 重构为 Rerank 结构体；HTTPDoer 接口注入；ctx 绑定 + 30s 有界超时；MaxBytesReader 10MB 响应限制；状态码校验；JSON/结果/索引/分数全面校验
+- `server/core/retriever.go` — 更新调用方适配新 API
+- `server/core/rerank/rerank_test.go` — 更新在线测试适配新 API
+- `server/core/rerank/rerank_http_test.go` — 新增 25 个离线 httptest 测试
+
+**修复内容**：
+
+| 修复项 | 说明 |
+|---|---|
+| ctx 绑定 | HTTP 请求使用 `http.NewRequestWithContext` 绑定调用方 ctx |
+| 有界超时 | `context.WithTimeout(ctx, 30s)`，调用方更早 deadline 优先生效 |
+| 响应大小限制 | `http.MaxBytesReader(nil, resp.Body, 10MB+1)` 防止内存溢出 |
+| 状态码校验 | 非 200 返回明确错误信息 |
+| JSON 校验 | 解析失败返回 `invalid JSON` 错误 |
+| 结果校验 | 检查 nil result、missing index、index 越界、重复 index、missing score、NaN/Inf score |
+| HTTPDoer 注入 | 接口注入支持测试 mock，默认使用 `http.DefaultClient` |
+| 输入校验 | 空 docs、nil document、非法 topK、已取消 ctx 均在 HTTP 调用前检查 |
+| 无部分修改 | 结果校验失败时不修改输入 docs 的 score |
+
+**验证结果**：
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test ./core/rerank/... -count=1 -v` — 退出码 0，25 个测试全部通过
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- `go test -race ./core/rerank/...` — Windows 环境 race detector DLL 问题（非代码问题）
+
+**证据目录**：[verification/stage1b1/](verification/stage1b1/)
 
 ### Stage 1-Pre 独立复核记录
 

@@ -1,5 +1,42 @@
 # 变更记录
 
+## 2026-10-14 Stage 1-Pre：F06 File/URL 参数校验
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| F06 nil 访问修复 | `rag_v1_indexer.go:29` 在 `if req.File != nil` 块外访问 `req.File.Filename`，当仅通过 URL 提交时触发 panic。已通过前置参数校验消除 |
+| 参数校验前置 | 新增 `validateIndexerInput()` 在任何副作用（文件保存、SQL 写入、索引、后台任务）之前校验 File/URL |
+| 四类输入定义 | 无 File 无 URL → 参数错误；仅 File → 正常处理；仅 URL → 默认模式正常/PaperDesk 拒绝；File+URL → 默认模式正常/PaperDesk 拒绝 |
+| PaperDesk 模式 | `isPaperDeskMode()` 临时返回 false，待 profile 配置实现后接入。通过 `paperDeskModeOverride` 支持测试切换 |
+| URL 模式文件名 | URL 输入时用 `path.Base(req.URL)` 提取文件名，避免 nil 访问 |
+| 无副作用保证 | 校验失败直接返回 error，不触发文件保存、DB 插入、后台任务 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/internal/controller/rag/rag_v1_indexer.go | 新增 `validateIndexerInput()`、`isPaperDeskMode()`、`paperDeskModeOverride`；修复 nil 访问；URL 模式文件名提取 |
+| server/internal/controller/rag/rag_v1_indexer_test.go | 新增 11 个测试：四类输入 + PaperDesk 模式 + 边界情况 + 无副作用验证 |
+| PROJECT_PROGRESS.md | 更新进度 |
+| CHANGES.md | 添加 Stage 1-Pre 记录 |
+| design/stage1-plan.md | 标记 1-Pre 为已完成 |
+
+### 验证结果
+
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test ./internal/controller/rag/... -count=1 -v` — 退出码 0，11 个测试全部通过
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- 非法请求不触发文件保存、SQL 写入、后台任务
+
+### 回滚说明
+
+单文件修改 + 测试文件，回滚简单：恢复 `rag_v1_indexer.go` 原始内容，删除测试文件。
+
+---
+
 ## 2026-10-13 Stage 1A 第二轮复核修复
 
 ### 修复内容

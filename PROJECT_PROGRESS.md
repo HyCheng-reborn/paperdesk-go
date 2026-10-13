@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-14
-**阶段**：Stage 1A 第三轮修复已完成，待独立复核
+**阶段**：Stage 1-Pre 已完成，Stage 1A 第三轮复核已完成
 
 ## Stage 0：事实基线与只读核对
 
@@ -31,11 +31,41 @@
 
 | 批次 | 内容 | F 编号 | 依赖 | 状态 |
 |---|---|---|---|---|
-| 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | 待实施 |
+| 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | **✅ 已完成** |
 | 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第三轮修复已完成，待独立复核** |
 | 1B | Retriever/Indexer 并发 + Rerank HTTP | F01/F02/F05 | 1A | 待实施 |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
+
+### Stage 1-Pre 完成记录
+
+**日期**：2026-10-14
+**基线**：3b8f7a0（Stage 1A 复核通过）
+**状态**：✅ 已完成
+
+**修改文件**：
+- `server/internal/controller/rag/rag_v1_indexer.go` — 新增 `validateIndexerInput()` 参数校验；修复 `req.File.Filename` nil 访问；URL 模式下用 `path.Base` 提取文件名
+- `server/internal/controller/rag/rag_v1_indexer_test.go` — 新增 11 个测试覆盖四类输入 + PaperDesk 模式 + 无副作用验证
+
+**四类输入行为**：
+
+| 输入情况 | 默认模式 | PaperDesk 模式 |
+|---|---|---|
+| File 和 URL 均缺失 | 返回参数错误 | 返回参数错误 |
+| 仅 File | 正常处理 | 正常处理 |
+| 仅 URL | 正常处理 | 返回错误 |
+| File + URL | 正常处理 | 返回错误 |
+
+**验证结果**：
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test ./internal/controller/rag/... -count=1 -v` — 退出码 0，11 个测试全部通过
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- 非法请求不触发文件保存、SQL 写入、后台任务
+
+**PaperDesk 模式策略**：当前 `isPaperDeskMode()` 返回 false（临时策略），待 PaperDesk profile 配置实现后接入。
+
+**证据目录**：[verification/stage1pre/](verification/stage1pre/)
 
 ### Stage 1A 完成记录
 

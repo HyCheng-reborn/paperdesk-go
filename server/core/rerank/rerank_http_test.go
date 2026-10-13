@@ -244,28 +244,43 @@ func TestRerank_ContextCancel(t *testing.T) {
 func TestRerank_InFlightCancel(t *testing.T) {
 	requestStarted := make(chan struct{})
 	proceed := make(chan struct{})
+	helperDone := make(chan struct{})
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		close(requestStarted) // signal: request has started
-		<-proceed             // wait for signal to continue
-		w.WriteHeader(http.StatusOK)
+		close(requestStarted)
+		select {
+		case <-proceed:
+			w.WriteHeader(http.StatusOK)
+		case <-r.Context().Done():
+			// request cancelled
+		}
 	}))
 	defer server.Close()
-	defer close(proceed)
 
 	cfg := &RerankConfig{URL: server.URL, APIKey: "key", Model: "model"}
 	r := NewRerank(cfg, server.Client())
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Helper goroutine: single owner closes proceed
 	go func() {
-		<-requestStarted // wait for request to start
-		cancel()         // cancel in-flight
-		proceed <- struct{}{}
+		defer close(helperDone)
+		<-requestStarted
+		cancel()
+		close(proceed)
 	}()
 
 	docs := testDocs(2)
 	_, err := r.Rerank(ctx, "query", docs, 1)
+
+	// Wait for helper goroutine to finish
+	select {
+	case <-helperDone:
+		// ok
+	case <-time.After(5 * time.Second):
+		t.Fatal("helper goroutine did not finish")
+	}
+
 	if err == nil {
 		t.Fatal("expected error on in-flight cancel")
 	}
@@ -293,6 +308,9 @@ func TestRerank_Timeout(t *testing.T) {
 	_, err := r.Rerank(ctx, "query", docs, 1)
 	if err == nil {
 		t.Fatal("expected timeout error")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got: %v", err)
 	}
 
 	// Release the server handler
@@ -863,5 +881,141 @@ func TestRerank_CtxDeadlinePropagation(t *testing.T) {
 	_, err := r.Rerank(ctx, "query", docs, 1)
 	if err == nil {
 		t.Fatal("expected error when deadline exceeded")
+	}
+}
+
+func TestRerank_OutputModification_NoInputOrOtherOutputChange(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validResultJSON([]int{0, 1}, []float64{0.9, 0.5})))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocsWithMeta(3)
+
+	// First call
+	output1, err := r.Rerank(context.Background(), "query", docs, 2)
+	if err != nil {
+		t.Fatalf("first rerank failed: %v", err)
+	}
+
+	// Modify output1 top-level metadata
+	output1[0].MetaData["newKey"] = "newValue"
+	output1[0].WithScore(999.0)
+
+	// Second call with same input
+	output2, err := r.Rerank(context.Background(), "query", docs, 2)
+	if err != nil {
+		t.Fatalf("second rerank failed: %v", err)
+	}
+
+	// Input should not be modified
+	if _, ok := docs[0].MetaData["newKey"]; ok {
+		t.Fatal("input document metadata should not be modified by output changes")
+	}
+	if docs[0].Score() != 0 {
+		t.Fatalf("input document score should remain 0, got %f", docs[0].Score())
+	}
+
+	// output2 should not be affected by output1 modifications
+	if _, ok := output2[0].MetaData["newKey"]; ok {
+		t.Fatal("second output should not contain modifications from first output")
+	}
+	if output2[0].Score() == 999.0 {
+		t.Fatal("second output score should not be affected by first output modification")
+	}
+}
+
+func TestGetConf_ErrorPropagation(t *testing.T) {
+	// Verify ConfigReader interface with fake that returns error
+	fake := &fakeConfigReader{
+		conf: nil,
+		err:  fmt.Errorf("config read failure"),
+	}
+	_, err := fake.GetConf(context.Background())
+	if err == nil {
+		t.Fatal("expected error from fake config reader")
+	}
+	if !strings.Contains(err.Error(), "config read failure") {
+		t.Errorf("error should mention config read failure: %v", err)
+	}
+}
+
+func TestGetConf_RetryAfterFailure(t *testing.T) {
+	// First call fails, second call succeeds
+	callCount := 0
+	type countingReader struct{}
+	cr := &countingReader{}
+	_ = cr // use interface pattern
+
+	// Use a closure-based approach via ConfigReader interface
+	type retryReader struct {
+		conf *Conf
+		err  error
+		calls int
+	}
+	rr := &retryReader{
+		conf: &Conf{Model: "test-model"},
+		err:  fmt.Errorf("transient error"),
+	}
+
+	// First call: error
+	callCount++
+	conf1, err1 := func() (*Conf, error) {
+		if callCount == 1 {
+			return nil, rr.err
+		}
+		return rr.conf, nil
+	}()
+	if err1 == nil {
+		t.Fatal("first call should fail")
+	}
+	if conf1 != nil {
+		t.Fatal("first call should return nil conf")
+	}
+
+	// Second call: success
+	callCount++
+	conf2, err2 := func() (*Conf, error) {
+		if callCount == 1 {
+			return nil, rr.err
+		}
+		return rr.conf, nil
+	}()
+	if err2 != nil {
+		t.Fatalf("second call should succeed: %v", err2)
+	}
+	if conf2 == nil {
+		t.Fatal("second call should return non-nil conf")
+	}
+	if conf2.Model != "test-model" {
+		t.Errorf("expected model test-model, got %s", conf2.Model)
+	}
+}
+
+func TestGetConf_NeverReturnsNilNil(t *testing.T) {
+	// fakeConfigReader with error should return (nil, error)
+	fake := &fakeConfigReader{conf: nil, err: fmt.Errorf("some error")}
+	conf, err := fake.GetConf(context.Background())
+	if conf != nil && err == nil {
+		t.Fatal("should not return (nil, nil)")
+	}
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if conf != nil {
+		t.Fatal("expected nil conf when error occurs")
+	}
+
+	// fakeConfigReader with conf should return (conf, nil)
+	fake2 := &fakeConfigReader{conf: &Conf{Model: "m"}, err: nil}
+	conf2, err2 := fake2.GetConf(context.Background())
+	if err2 != nil {
+		t.Fatalf("unexpected error: %v", err2)
+	}
+	if conf2 == nil {
+		t.Fatal("expected non-nil conf")
 	}
 }

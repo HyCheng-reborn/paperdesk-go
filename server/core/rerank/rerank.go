@@ -7,7 +7,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -91,30 +90,63 @@ func NewRerank(cfg *RerankConfig, client HTTPDoer) *Rerank {
 	return &Rerank{cfg: cfg, client: client}
 }
 
-var (
-	rerankCfg     *Conf
-	rerankCfgOnce sync.Once
-	rerankCfgErr  error
-)
-
 // GetConf loads the rerank config from GoFrame configuration.
-// Uses sync.Once to eliminate race condition on the cached config.
+// Each call reads config fresh; errors propagate instead of panicking.
 func GetConf(ctx context.Context) (*Conf, error) {
-	rerankCfgOnce.Do(func() {
-		baseUrl := g.Cfg().MustGet(ctx, "rerank.baseURL").String()
-		apiKey := g.Cfg().MustGet(ctx, "rerank.apiKey").String()
-		model := g.Cfg().MustGet(ctx, "rerank.model").String()
-		url := fmt.Sprintf("%s/rerank", baseUrl)
-		rerankCfg = &Conf{
-			apiKey:          apiKey,
-			Model:           model,
-			ReturnDocuments: false,
-			MaxChunksPerDoc: 1024,
-			OverlapTokens:   80,
-			url:             url,
-		}
-	})
-	return rerankCfg, rerankCfgErr
+	cfg := &Conf{
+		ReturnDocuments: false,
+		MaxChunksPerDoc: 1024,
+		OverlapTokens:   80,
+	}
+
+	v, err := g.Cfg().Get(ctx, "rerank.baseURL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rerank.baseURL: %w", err)
+	}
+	if !v.IsEmpty() {
+		cfg.url = fmt.Sprintf("%s/rerank", v.String())
+	}
+
+	v, err = g.Cfg().Get(ctx, "rerank.model")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rerank.model: %w", err)
+	}
+	if !v.IsEmpty() {
+		cfg.Model = v.String()
+	}
+
+	v, err = g.Cfg().Get(ctx, "rerank.apiKey")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rerank.apiKey: %w", err)
+	}
+	if !v.IsEmpty() {
+		cfg.apiKey = v.String()
+	}
+
+	return cfg, nil
+}
+
+// ConfigReader is the interface for loading rerank configuration.
+// Production code uses defaultConfigReader; tests inject fakes.
+type ConfigReader interface {
+	GetConf(ctx context.Context) (*Conf, error)
+}
+
+// defaultConfigReader is the production ConfigReader.
+type defaultConfigReader struct{}
+
+func (r *defaultConfigReader) GetConf(ctx context.Context) (*Conf, error) {
+	return GetConf(ctx)
+}
+
+// fakeConfigReader is a test double for ConfigReader.
+type fakeConfigReader struct {
+	conf *Conf
+	err  error
+}
+
+func (r *fakeConfigReader) GetConf(_ context.Context) (*Conf, error) {
+	return r.conf, r.err
 }
 
 // Rerank performs reranking on the given documents.
@@ -155,8 +187,9 @@ func (r *Rerank) Rerank(ctx context.Context, query string, docs []*schema.Docume
 	return r.buildOutput(docs, results)
 }
 
-// buildOutput creates independent output documents with scores,
-// ensuring input documents are not modified.
+// buildOutput generates independent output documents.
+// Copies Document structure and top-level MetaData map, isolating WithScore writes.
+// Does not recursively copy arbitrarily nested values.
 func (r *Rerank) buildOutput(docs []*schema.Document, results []*Result) ([]*schema.Document, error) {
 	output := make([]*schema.Document, len(results))
 	for i, result := range results {

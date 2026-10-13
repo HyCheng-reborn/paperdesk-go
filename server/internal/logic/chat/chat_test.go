@@ -11,6 +11,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/wangle201210/go-rag/server/internal/dao"
 	database "github.com/wangle201210/go-rag/server/internal/dao/db"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +50,7 @@ type fakeDatabase struct {
 	closeCount   int
 	migrateCount int
 	dsn          string
+	gormDB       *gorm.DB // 可注入的 gormDB，nil 时返回 nil
 }
 
 func (f *fakeDatabase) Connect() error {
@@ -77,7 +79,7 @@ func (f *fakeDatabase) AutoMigrate() error {
 }
 func (f *fakeDatabase) DSN() string { return f.dsn }
 func (f *fakeDatabase) GormDB() *gorm.DB {
-	return nil
+	return f.gormDB
 }
 
 // fakeDatabaseFactory 测试用的 DatabaseFactory 实现
@@ -124,9 +126,15 @@ func resetDAOState() {
 }
 
 // initDAOForTest 使用 fake 初始化 dao（用于需要 dao 已初始化的测试）
+// 返回的 fakeDatabase 包含真实的内存 SQLite gormDB
 func initDAOForTest(t *testing.T) func() {
 	t.Helper()
-	fakeDB := &fakeDatabase{dsn: "test-dsn"}
+	// 创建内存 SQLite 作为 gormDB
+	gormDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open test sqlite: %v", err)
+	}
+	fakeDB := &fakeDatabase{dsn: "test-dsn", gormDB: gormDB}
 	factory := &fakeDatabaseFactory{db: fakeDB}
 	cfg := &fakeConfig{cfg: &database.Config{Host: "localhost"}}
 
@@ -135,6 +143,10 @@ func initDAOForTest(t *testing.T) func() {
 	}
 	return func() {
 		resetDAOState()
+		sqlDB, _ := gormDB.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
 	}
 }
 
@@ -334,5 +346,41 @@ func TestInit_Success_WithDAO(t *testing.T) {
 	}
 	if factory.createCount != 1 {
 		t.Fatalf("expected 1 factory call, got %d", factory.createCount)
+	}
+}
+
+// --- 修复 4: Chat 初始化成功契约测试 ---
+
+// TestInit_GormDBNil_Error 验证 DAO 已初始化但 GetGormDB 返回 nil 时 chat 返回明确错误。
+func TestInit_GormDBNil_Error(t *testing.T) {
+	defer resetChatState()
+	defer resetDAOState()
+
+	// 使用不设置 gormDB 的 fakeDatabase（GormDB() 返回 nil）
+	fakeDB := &fakeDatabase{dsn: "test-dsn"} // gormDB 为 nil
+	factory := &fakeDatabaseFactory{db: fakeDB}
+	cfg := &fakeConfig{cfg: &database.Config{Host: "localhost"}}
+
+	if err := dao.InitDB(cfg, factory); err != nil {
+		t.Fatalf("failed to init DAO: %v", err)
+	}
+
+	chatCfg := &ChatConfig{APIKey: "test", BaseURL: "http://test", Model: "test"}
+	cmFactory := &fakeChatModelFactory{cm: &fakeChatModel{}}
+
+	err := InitWith(chatCfg, cmFactory)
+	if err == nil {
+		t.Fatal("expected error when GetGormDB returns nil")
+	}
+	if !strings.Contains(err.Error(), "GetGormDB returned nil") {
+		t.Fatalf("expected 'GetGormDB returned nil' error, got: %v", err)
+	}
+	// 工厂应被调用（因为 DAO 检查在工厂之后）
+	// 实际上 DAO 检查在工厂之后，所以工厂应被调用
+	if cmFactory.createCount != 1 {
+		t.Fatalf("factory should be called before gormDB check, got %d calls", cmFactory.createCount)
+	}
+	if IsInitialized() {
+		t.Fatal("should not be initialized when GetGormDB returns nil")
 	}
 }

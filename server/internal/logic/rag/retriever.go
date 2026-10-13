@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -188,8 +189,11 @@ func InitWith(cfg RagConfig, vsFactory VectorStoreFactory, ragFactory RagFactory
 	// 使用注入的 RagFactory 创建完整 RAG 服务
 	ragsvr, err := ragFactory.Create(cfg, vs)
 	if err != nil {
-		_ = vs.Close()
-		return fmt.Errorf("rag: New of rag failed: %w", err)
+		closeErr := vs.Close()
+		return errors.Join(
+			fmt.Errorf("rag: New of rag failed: %w", err),
+			closeErr,
+		)
 	}
 
 	// 成功后才赋值全局变量（原子发布）

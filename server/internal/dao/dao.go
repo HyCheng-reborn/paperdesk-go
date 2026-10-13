@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,8 +92,11 @@ func InitDB(cfg ConfigProvider, factory database.DatabaseFactory) error {
 		return fmt.Errorf("dao: connect failed: %w", err)
 	}
 	if err = newDB.Ping(); err != nil {
-		_ = newDB.Close()
-		return fmt.Errorf("dao: ping failed: %w", err)
+		closeErr := newDB.Close()
+		return errors.Join(
+			fmt.Errorf("dao: ping failed: %w", err),
+			closeErr,
+		)
 	}
 
 	// 成功后才赋值全局变量（原子发布）
@@ -222,12 +226,54 @@ func GetSqliteConfig() (*database.Config, error) {
 		return nil, fmt.Errorf("failed to create sqlite file directory: %v", err)
 	}
 
-	cfg.BusyTimeout, _ = cfgGetInt(ctx, "database.default.busy_timeout")
-	cfg.JournalMode, _ = cfgGet(ctx, "database.default.journal_mode")
-	cfg.Synchronous, _ = cfgGet(ctx, "database.default.synchronous")
-	cfg.CacheSize, _ = cfgGetInt(ctx, "database.default.cache_size")
-	cfg.MaxOpenConn, _ = cfgGetInt(ctx, "database.default.max_open_conns", 1)
-	cfg.MaxIdleConn, _ = cfgGetInt(ctx, "database.default.max_idle_conns", 1)
+	// BusyTimeout
+	busyTimeout, err := cfgGetInt(ctx, "database.default.busy_timeout")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read busyTimeout: %w", err)
+	}
+	if busyTimeout == 0 {
+		busyTimeout = 5000 // 默认值
+	}
+	cfg.BusyTimeout = busyTimeout
+
+	// JournalMode
+	journalMode, err := cfgGet(ctx, "database.default.journal_mode")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read journalMode: %w", err)
+	}
+	if journalMode == "" {
+		journalMode = "WAL"
+	}
+	cfg.JournalMode = journalMode
+
+	// Synchronous
+	synchronous, err := cfgGet(ctx, "database.default.synchronous")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read synchronous: %w", err)
+	}
+	cfg.Synchronous = synchronous
+
+	// CacheSize
+	cacheSize, err := cfgGetInt(ctx, "database.default.cache_size")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read cacheSize: %w", err)
+	}
+	cfg.CacheSize = cacheSize
+
+	// MaxOpenConn
+	maxOpenConn, err := cfgGetInt(ctx, "database.default.max_open_conns", 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read maxOpenConn: %w", err)
+	}
+	cfg.MaxOpenConn = maxOpenConn
+
+	// MaxIdleConn
+	maxIdleConn, err := cfgGetInt(ctx, "database.default.max_idle_conns", 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read maxIdleConn: %w", err)
+	}
+	cfg.MaxIdleConn = maxIdleConn
+
 	cfg.LogLevel = 4
 	return cfg, nil
 }

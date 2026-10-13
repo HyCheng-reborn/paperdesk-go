@@ -91,10 +91,16 @@ func TestHistory_MultipleMessages(t *testing.T) {
 	cr := repositories.NewConversationRepository(db)
 	h := &historyWrapper{db: db, mr: mr, cr: cr}
 
-	// 保存多条消息
-	h.SaveMessage(&schema.Message{Role: "user", Content: "msg1"}, "conv1")
-	h.SaveMessage(&schema.Message{Role: "assistant", Content: "msg2"}, "conv1")
-	h.SaveMessage(&schema.Message{Role: "user", Content: "msg3"}, "conv1")
+	// 保存多条消息，检查每次 error
+	if err := h.SaveMessage(&schema.Message{Role: "user", Content: "msg1"}, "conv1"); err != nil {
+		t.Fatalf("save msg1 failed: %v", err)
+	}
+	if err := h.SaveMessage(&schema.Message{Role: "assistant", Content: "msg2"}, "conv1"); err != nil {
+		t.Fatalf("save msg2 failed: %v", err)
+	}
+	if err := h.SaveMessage(&schema.Message{Role: "user", Content: "msg3"}, "conv1"); err != nil {
+		t.Fatalf("save msg3 failed: %v", err)
+	}
 
 	msgs, err := h.GetHistory("conv1", 10)
 	if err != nil {
@@ -122,9 +128,11 @@ func TestHistory_Limit(t *testing.T) {
 	cr := repositories.NewConversationRepository(db)
 	h := &historyWrapper{db: db, mr: mr, cr: cr}
 
-	// 保存 5 条消息
+	// 保存 5 条消息，检查每次 error
 	for i := 0; i < 5; i++ {
-		h.SaveMessage(&schema.Message{Role: "user", Content: "msg"}, "conv1")
+		if err := h.SaveMessage(&schema.Message{Role: "user", Content: "msg"}, "conv1"); err != nil {
+			t.Fatalf("save msg %d failed: %v", i, err)
+		}
 	}
 
 	// 限制取 3 条
@@ -144,11 +152,21 @@ func TestHistory_ConvIDIsolation(t *testing.T) {
 	cr := repositories.NewConversationRepository(db)
 	h := &historyWrapper{db: db, mr: mr, cr: cr}
 
-	h.SaveMessage(&schema.Message{Role: "user", Content: "conv1-msg"}, "conv1")
-	h.SaveMessage(&schema.Message{Role: "user", Content: "conv2-msg"}, "conv2")
+	if err := h.SaveMessage(&schema.Message{Role: "user", Content: "conv1-msg"}, "conv1"); err != nil {
+		t.Fatalf("save conv1 failed: %v", err)
+	}
+	if err := h.SaveMessage(&schema.Message{Role: "user", Content: "conv2-msg"}, "conv2"); err != nil {
+		t.Fatalf("save conv2 failed: %v", err)
+	}
 
-	msgs1, _ := h.GetHistory("conv1", 10)
-	msgs2, _ := h.GetHistory("conv2", 10)
+	msgs1, err := h.GetHistory("conv1", 10)
+	if err != nil {
+		t.Fatalf("get conv1 failed: %v", err)
+	}
+	msgs2, err := h.GetHistory("conv2", 10)
+	if err != nil {
+		t.Fatalf("get conv2 failed: %v", err)
+	}
 
 	if len(msgs1) != 1 || msgs1[0].Content != "conv1-msg" {
 		t.Fatalf("conv1 isolation failed: got %d messages", len(msgs1))
@@ -167,10 +185,15 @@ func TestHistory_RoleContentMapping(t *testing.T) {
 
 	roles := []schema.RoleType{schema.User, schema.Assistant, schema.System}
 	for _, role := range roles {
-		h.SaveMessage(&schema.Message{Role: role, Content: "content-" + string(role)}, "conv1")
+		if err := h.SaveMessage(&schema.Message{Role: role, Content: "content-" + string(role)}, "conv1"); err != nil {
+			t.Fatalf("save role %q failed: %v", role, err)
+		}
 	}
 
-	msgs, _ := h.GetHistory("conv1", 10)
+	msgs, err := h.GetHistory("conv1", 10)
+	if err != nil {
+		t.Fatalf("GetHistory failed: %v", err)
+	}
 	if len(msgs) != 3 {
 		t.Fatalf("expected 3 messages, got %d", len(msgs))
 	}
@@ -200,4 +223,31 @@ func TestHistory_Close_NoOp(t *testing.T) {
 	var count int64
 	db.Model(&models.Message{}).Count(&count)
 	// 如果能执行查询，说明 DB 没有被关闭
+}
+
+// TestHistory_Close_NoOp_QuerySuccess 验证 Close 后查询仍成功。
+func TestHistory_Close_NoOp_QuerySuccess(t *testing.T) {
+	db := setupTestDB(t)
+	mr := repositories.NewMessageRepository(db)
+	cr := repositories.NewConversationRepository(db)
+	h := &historyWrapper{db: db, mr: mr, cr: cr}
+
+	// 先保存一条消息
+	if err := h.SaveMessage(&schema.Message{Role: "user", Content: "hello"}, "conv1"); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	// Close 是 no-op
+	if err := h.Close(); err != nil {
+		t.Fatalf("close should be no-op: %v", err)
+	}
+
+	// 查询应仍成功
+	msgs, err := h.GetHistory("conv1", 10)
+	if err != nil {
+		t.Fatalf("get after close should succeed: %v", err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("expected 1 message after close, got %d", len(msgs))
+	}
 }

@@ -425,3 +425,35 @@ func TestInit_IndexNameEmpty(t *testing.T) {
 		t.Fatal("factory should not be called for config error")
 	}
 }
+
+// --- 修复 2: RagFactory 失败时清理错误保留测试 ---
+
+// TestInit_RagFactoryError_PreservesCloseError 验证 RagFactory 失败时 VectorStore Close 错误被保留。
+func TestInit_RagFactoryError_PreservesCloseError(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{closeErr: errors.New("vs close error")}
+	vsFactory := &fakeVectorStoreFactory{vs: fakeVS}
+	ragFctory := &fakeRagFactory{createErr: errors.New("rag create error")}
+	cfg := validRagConfig()
+
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	// 验证包含 rag 创建错误
+	if !strings.Contains(err.Error(), "rag create error") {
+		t.Fatalf("should contain rag create error, got: %v", err)
+	}
+
+	// 验证包含 vs close 错误
+	if !strings.Contains(err.Error(), "vs close error") {
+		t.Fatalf("should contain vs close error, got: %v", err)
+	}
+
+	// 验证 VS 只关闭一次
+	if fakeVS.closeCount != 1 {
+		t.Fatalf("expected 1 close, got %d", fakeVS.closeCount)
+	}
+}

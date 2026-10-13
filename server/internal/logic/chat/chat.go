@@ -141,6 +141,9 @@ func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 	if err != nil {
 		return fmt.Errorf("chat: dao.GetGormDB() failed: %w", err)
 	}
+	if gormDB == nil {
+		return fmt.Errorf("chat: DAO initialized but GetGormDB returned nil")
+	}
 
 	c := &Chat{cm: cm}
 	c.eh = newHistoryWrapper(gormDB)

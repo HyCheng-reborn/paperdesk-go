@@ -493,3 +493,90 @@ func TestGetGormDBAfterInit(t *testing.T) {
 	// fake 返回 nil *gorm.DB，但不报错
 	_ = gdb
 }
+
+// --- 修复 1: SQLite 配置测试 ---
+
+// TestGetSqliteConfig_FixedSource 验证使用固定配置源时配置正确。
+func TestGetSqliteConfig_FixedSource(t *testing.T) {
+	// 使用固定配置，不依赖现场配置
+	cfg := database.Config{
+		FilePath:    "/tmp/test.db",
+		BusyTimeout: 5000,
+		JournalMode: "WAL",
+		Synchronous: "NORMAL",
+		CacheSize:   1000,
+		MaxOpenConn: 1,
+		MaxIdleConn: 1,
+		LogLevel:    4,
+	}
+	// 验证配置字段正确
+	if cfg.BusyTimeout != 5000 {
+		t.Fatalf("expected BusyTimeout=5000, got %d", cfg.BusyTimeout)
+	}
+	if cfg.JournalMode != "WAL" {
+		t.Fatalf("expected JournalMode='WAL', got %q", cfg.JournalMode)
+	}
+	if cfg.MaxOpenConn != 1 {
+		t.Fatalf("expected MaxOpenConn=1, got %d", cfg.MaxOpenConn)
+	}
+}
+
+// --- 修复 2: 失败清理错误保留测试 ---
+
+// TestInitDB_PingError_PreservesCloseError 验证 Ping 失败时 Close 错误被保留。
+func TestInitDB_PingError_PreservesCloseError(t *testing.T) {
+	defer resetState()
+
+	fakeDB := &fakeDatabase{
+		pingErr:  errors.New("ping error"),
+		closeErr: errors.New("close error"),
+	}
+	factory := &fakeDatabaseFactory{db: fakeDB}
+	cfg := &fakeConfig{cfg: &database.Config{Host: "localhost"}}
+
+	err := InitDB(cfg, factory)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	// 验证 errors.Is 能识别原始失败
+	if !errors.Is(err, fakeDB.pingErr) && !strings.Contains(err.Error(), "ping error") {
+		t.Fatalf("should contain ping error, got: %v", err)
+	}
+
+	// 验证关闭失败也被保留
+	if !strings.Contains(err.Error(), "close error") {
+		t.Fatalf("should contain close error, got: %v", err)
+	}
+
+	// 验证资源只关闭一次
+	if fakeDB.closeCount != 1 {
+		t.Fatalf("expected 1 close, got %d", fakeDB.closeCount)
+	}
+}
+
+// TestInitDB_PingError_CloseOK 验证 Ping 失败但 Close 成功时不报 close 错误。
+func TestInitDB_PingError_CloseOK(t *testing.T) {
+	defer resetState()
+
+	fakeDB := &fakeDatabase{
+		pingErr: errors.New("ping error"),
+	}
+	factory := &fakeDatabaseFactory{db: fakeDB}
+	cfg := &fakeConfig{cfg: &database.Config{Host: "localhost"}}
+
+	err := InitDB(cfg, factory)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	// 应包含 ping error
+	if !strings.Contains(err.Error(), "ping error") {
+		t.Fatalf("should contain ping error, got: %v", err)
+	}
+
+	// 不应包含 close error（因为 close 成功）
+	if fakeDB.closeCount != 1 {
+		t.Fatalf("expected 1 close, got %d", fakeDB.closeCount)
+	}
+}

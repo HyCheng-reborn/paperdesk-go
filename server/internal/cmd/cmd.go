@@ -25,29 +25,14 @@ var (
 			// 显式初始化（顺序重要：dao → rag → chat）
 			// 注意：普通启动不执行 Migrate，避免意外改表。
 			// 需要迁移时使用 dao.InitWithMigrate() 或 dao.Migrate()。
-			// 失败时级联清理已建立资源，返回带阶段信息的错误。
-			if err := dao.InitDBWithConfig(); err != nil {
-				return fmt.Errorf("stage[dao] init failed: %w", err)
+			// 失败时 RunInitSteps 级联清理已建立资源，返回带阶段信息的错误。
+			steps := []InitStep{
+				{Name: "dao", Fn: dao.InitDBWithConfig, Cleanup: dao.Reset},
+				{Name: "rag", Fn: ragicit.InitWithRealDeps, Cleanup: ragicit.Reset},
+				{Name: "chat", Fn: chat.Init, Cleanup: func() error { chat.Reset(); return nil }},
 			}
-			if err := ragicit.Init(); err != nil {
-				if resetErr := dao.Reset(); resetErr != nil {
-					return fmt.Errorf("stage[rag] init failed: %w; dao reset also failed: %v", err, resetErr)
-				}
-				return fmt.Errorf("stage[rag] init failed: %w", err)
-			}
-			if err := chat.Init(); err != nil {
-				var errs []error
-				errs = append(errs, fmt.Errorf("stage[chat] init failed: %w", err))
-				if resetErr := ragicit.Reset(); resetErr != nil {
-					errs = append(errs, fmt.Errorf("rag reset failed: %w", resetErr))
-				}
-				if closeErr := dao.Close(); closeErr != nil {
-					errs = append(errs, fmt.Errorf("dao close failed: %w", closeErr))
-				}
-				if len(errs) > 1 {
-					return fmt.Errorf("%v", errs)
-				}
-				return errs[0]
+			if err := RunInitSteps(steps); err != nil {
+				return fmt.Errorf("initialization failed: %w", err)
 			}
 
 			s := g.Server()

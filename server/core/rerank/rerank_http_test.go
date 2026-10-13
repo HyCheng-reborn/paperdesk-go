@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -70,7 +71,7 @@ func validResultJSON(indices []int, scores []float64) string {
 	var results []map[string]interface{}
 	for i, idx := range indices {
 		results = append(results, map[string]interface{}{
-			"index":            idx,
+			"index":           idx,
 			"relevance_score": scores[i],
 		})
 	}
@@ -928,94 +929,183 @@ func TestRerank_OutputModification_NoInputOrOtherOutputChange(t *testing.T) {
 	}
 }
 
-func TestGetConf_ErrorPropagation(t *testing.T) {
-	// Verify ConfigReader interface with fake that returns error
-	fake := &fakeConfigReader{
-		conf: nil,
-		err:  fmt.Errorf("config read failure"),
-	}
-	_, err := fake.GetConf(context.Background())
-	if err == nil {
-		t.Fatal("expected error from fake config reader")
-	}
-	if !strings.Contains(err.Error(), "config read failure") {
-		t.Errorf("error should mention config read failure: %v", err)
-	}
+// fakeConfigReader is a test double for ConfigReader.
+type fakeConfigReader struct {
+	values    map[string]string
+	errs      map[string]error
+	getString func(ctx context.Context, key string) (string, error)
 }
 
-func TestGetConf_RetryAfterFailure(t *testing.T) {
-	// First call fails, second call succeeds
-	callCount := 0
-	type countingReader struct{}
-	cr := &countingReader{}
-	_ = cr // use interface pattern
-
-	// Use a closure-based approach via ConfigReader interface
-	type retryReader struct {
-		conf *Conf
-		err  error
-		calls int
+func (r *fakeConfigReader) GetString(ctx context.Context, key string) (string, error) {
+	if r.getString != nil {
+		return r.getString(ctx, key)
 	}
-	rr := &retryReader{
-		conf: &Conf{Model: "test-model"},
-		err:  fmt.Errorf("transient error"),
+	if err, ok := r.errs[key]; ok {
+		return "", err
 	}
-
-	// First call: error
-	callCount++
-	conf1, err1 := func() (*Conf, error) {
-		if callCount == 1 {
-			return nil, rr.err
-		}
-		return rr.conf, nil
-	}()
-	if err1 == nil {
-		t.Fatal("first call should fail")
-	}
-	if conf1 != nil {
-		t.Fatal("first call should return nil conf")
-	}
-
-	// Second call: success
-	callCount++
-	conf2, err2 := func() (*Conf, error) {
-		if callCount == 1 {
-			return nil, rr.err
-		}
-		return rr.conf, nil
-	}()
-	if err2 != nil {
-		t.Fatalf("second call should succeed: %v", err2)
-	}
-	if conf2 == nil {
-		t.Fatal("second call should return non-nil conf")
-	}
-	if conf2.Model != "test-model" {
-		t.Errorf("expected model test-model, got %s", conf2.Model)
-	}
+	return r.values[key], nil
 }
 
-func TestGetConf_NeverReturnsNilNil(t *testing.T) {
-	// fakeConfigReader with error should return (nil, error)
-	fake := &fakeConfigReader{conf: nil, err: fmt.Errorf("some error")}
-	conf, err := fake.GetConf(context.Background())
-	if conf != nil && err == nil {
-		t.Fatal("should not return (nil, nil)")
+func TestLoadConf_BaseURLReadError(t *testing.T) {
+	reader := &fakeConfigReader{
+		errs: map[string]error{"rerank.baseURL": errors.New("baseURL error")},
 	}
+	cfg, err := loadConf(context.Background(), reader)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if conf != nil {
-		t.Fatal("expected nil conf when error occurs")
+	if cfg != nil {
+		t.Fatal("should not return config on error")
+	}
+	if !strings.Contains(err.Error(), "baseURL error") {
+		t.Fatalf("should recognize original error, got: %v", err)
+	}
+}
+
+func TestLoadConf_ModelReadError(t *testing.T) {
+	reader := &fakeConfigReader{
+		values: map[string]string{"rerank.baseURL": "http://example.com"},
+		errs:   map[string]error{"rerank.model": errors.New("model error")},
+	}
+	cfg, err := loadConf(context.Background(), reader)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if cfg != nil {
+		t.Fatal("should not return config on error")
+	}
+	if !strings.Contains(err.Error(), "model error") {
+		t.Fatalf("should recognize original error, got: %v", err)
+	}
+}
+
+func TestLoadConf_ApiKeyReadError(t *testing.T) {
+	reader := &fakeConfigReader{
+		values: map[string]string{
+			"rerank.baseURL": "http://example.com",
+			"rerank.model":   "model-name",
+		},
+		errs: map[string]error{"rerank.apiKey": errors.New("apiKey error")},
+	}
+	cfg, err := loadConf(context.Background(), reader)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if cfg != nil {
+		t.Fatal("should not return config on error")
+	}
+	if !strings.Contains(err.Error(), "apiKey error") {
+		t.Fatalf("should recognize original error, got: %v", err)
+	}
+}
+
+func TestLoadConf_RetryAfterFailure(t *testing.T) {
+	callCount := 0
+	reader := &fakeConfigReader{
+		getString: func(ctx context.Context, key string) (string, error) {
+			callCount++
+			if callCount <= 3 {
+				return "", errors.New("temporary error")
+			}
+			switch key {
+			case "rerank.baseURL":
+				return "http://example.com", nil
+			case "rerank.model":
+				return "model-name", nil
+			case "rerank.apiKey":
+				return "api-key", nil
+			default:
+				return "", nil
+			}
+		},
 	}
 
-	// fakeConfigReader with conf should return (conf, nil)
-	fake2 := &fakeConfigReader{conf: &Conf{Model: "m"}, err: nil}
-	conf2, err2 := fake2.GetConf(context.Background())
-	if err2 != nil {
-		t.Fatalf("unexpected error: %v", err2)
+	// First call fails (baseURL read fails)
+	_, err := loadConf(context.Background(), reader)
+	if err == nil {
+		t.Fatal("expected error on first call")
 	}
-	if conf2 == nil {
-		t.Fatal("expected non-nil conf")
+
+	// Reset counter so next 3 calls succeed
+	callCount = 3
+
+	// Second call succeeds
+	cfg, err := loadConf(context.Background(), reader)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
+	if cfg == nil {
+		t.Fatal("should return config")
+	}
+	if cfg.url != "http://example.com/rerank" {
+		t.Errorf("expected url http://example.com/rerank, got %s", cfg.url)
+	}
+	if cfg.Model != "model-name" {
+		t.Errorf("expected model model-name, got %s", cfg.Model)
+	}
+	if cfg.apiKey != "api-key" {
+		t.Errorf("expected apiKey api-key, got %s", cfg.apiKey)
+	}
+}
+
+func TestLoadConf_Success(t *testing.T) {
+	reader := &fakeConfigReader{
+		values: map[string]string{
+			"rerank.baseURL": "http://example.com",
+			"rerank.model":   "model-name",
+			"rerank.apiKey":  "api-key",
+		},
+	}
+	cfg, err := loadConf(context.Background(), reader)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("should return config")
+	}
+	if cfg.url != "http://example.com/rerank" {
+		t.Errorf("baseURL mismatch: got %s", cfg.url)
+	}
+	if cfg.Model != "model-name" {
+		t.Errorf("model mismatch: got %s", cfg.Model)
+	}
+	if cfg.apiKey != "api-key" {
+		t.Errorf("apiKey mismatch: got %s", cfg.apiKey)
+	}
+	// Verify defaults
+	if cfg.ReturnDocuments != false {
+		t.Errorf("ReturnDocuments should default to false")
+	}
+	if cfg.MaxChunksPerDoc != 1024 {
+		t.Errorf("MaxChunksPerDoc should default to 1024, got %d", cfg.MaxChunksPerDoc)
+	}
+	if cfg.OverlapTokens != 80 {
+		t.Errorf("OverlapTokens should default to 80, got %d", cfg.OverlapTokens)
+	}
+}
+
+func TestLoadConf_ConcurrentCalls(t *testing.T) {
+	reader := &fakeConfigReader{
+		values: map[string]string{
+			"rerank.baseURL": "http://example.com",
+			"rerank.model":   "model-name",
+			"rerank.apiKey":  "api-key",
+		},
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cfg, err := loadConf(context.Background(), reader)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if cfg == nil {
+				t.Error("should return config")
+			}
+		}()
+	}
+	wg.Wait()
 }

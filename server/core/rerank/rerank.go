@@ -90,63 +90,61 @@ func NewRerank(cfg *RerankConfig, client HTTPDoer) *Rerank {
 	return &Rerank{cfg: cfg, client: client}
 }
 
-// GetConf loads the rerank config from GoFrame configuration.
-// Each call reads config fresh; errors propagate instead of panicking.
-func GetConf(ctx context.Context) (*Conf, error) {
+// ConfigReader 注入逐项读取字符串配置的能力
+type ConfigReader interface {
+	GetString(ctx context.Context, key string) (string, error)
+}
+
+// goFrameConfigReader 是生产环境的 GoFrame 适配器
+type goFrameConfigReader struct{}
+
+func (r *goFrameConfigReader) GetString(ctx context.Context, key string) (string, error) {
+	v, err := g.Cfg().Get(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	return v.String(), nil
+}
+
+// loadConf 实际使用的配置解析函数
+func loadConf(ctx context.Context, reader ConfigReader) (*Conf, error) {
 	cfg := &Conf{
 		ReturnDocuments: false,
 		MaxChunksPerDoc: 1024,
 		OverlapTokens:   80,
 	}
 
-	v, err := g.Cfg().Get(ctx, "rerank.baseURL")
+	baseURL, err := reader.GetString(ctx, "rerank.baseURL")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read rerank.baseURL: %w", err)
 	}
-	if !v.IsEmpty() {
-		cfg.url = fmt.Sprintf("%s/rerank", v.String())
+	if baseURL != "" {
+		cfg.url = fmt.Sprintf("%s/rerank", baseURL)
 	}
 
-	v, err = g.Cfg().Get(ctx, "rerank.model")
+	model, err := reader.GetString(ctx, "rerank.model")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read rerank.model: %w", err)
 	}
-	if !v.IsEmpty() {
-		cfg.Model = v.String()
+	if model != "" {
+		cfg.Model = model
 	}
 
-	v, err = g.Cfg().Get(ctx, "rerank.apiKey")
+	apiKey, err := reader.GetString(ctx, "rerank.apiKey")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read rerank.apiKey: %w", err)
 	}
-	if !v.IsEmpty() {
-		cfg.apiKey = v.String()
+	if apiKey != "" {
+		cfg.apiKey = apiKey
 	}
 
 	return cfg, nil
 }
 
-// ConfigReader is the interface for loading rerank configuration.
-// Production code uses defaultConfigReader; tests inject fakes.
-type ConfigReader interface {
-	GetConf(ctx context.Context) (*Conf, error)
-}
-
-// defaultConfigReader is the production ConfigReader.
-type defaultConfigReader struct{}
-
-func (r *defaultConfigReader) GetConf(ctx context.Context) (*Conf, error) {
-	return GetConf(ctx)
-}
-
-// fakeConfigReader is a test double for ConfigReader.
-type fakeConfigReader struct {
-	conf *Conf
-	err  error
-}
-
-func (r *fakeConfigReader) GetConf(_ context.Context) (*Conf, error) {
-	return r.conf, r.err
+// GetConf loads the rerank config from GoFrame configuration.
+// Each call reads config fresh; errors propagate instead of panicking.
+func GetConf(ctx context.Context) (*Conf, error) {
+	return loadConf(ctx, &goFrameConfigReader{})
 }
 
 // Rerank performs reranking on the given documents.

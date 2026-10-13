@@ -10,6 +10,8 @@ type Database interface {
 	AutoMigrate() error
 	// Ping 健康检查
 	Ping() error
+	// Close 关闭数据库连接
+	Close() error
 }
 
 type Config struct {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
@@ -15,34 +16,63 @@ import (
 	"github.com/wangle201210/go-rag/server/internal/dao"
 )
 
-var chat *Chat
+var (
+	chat    *Chat
+	chatMu  sync.Mutex
+	chatInit bool
+)
 
 type Chat struct {
 	cm model.BaseChatModel
 	eh *eino.History
 }
 
+// GetChat 返回 Chat 服务实例。未初始化时返回 nil。
 func GetChat() *Chat {
+	chatMu.Lock()
+	defer chatMu.Unlock()
+	if !chatInit {
+		return nil
+	}
 	return chat
 }
 
-// 暂时用不上chat功能，先不init
-func init() {
+// Init 初始化 Chat 服务：读取配置、创建 chat model、初始化 chat-history。
+// 必须在程序启动时显式调用，不在 init() 中自动执行，以支持离线测试隔离。
+// 注意：dao 必须先初始化，因为 chat 依赖 dao.GetDsn()。
+// 重复调用返回 error（幂等拒绝）。
+//
+// chat-history 的 NewEinoHistory(dsn) 内部会对 chat-history 自己的 4 张表执行
+// AutoMigrate（conversations, messages, attachments, message_attachments）。
+// 这是第三方包行为，当前无法跳过；后续可在 Stage 5 通过适配器替换。
+func Init() error {
+	chatMu.Lock()
+	defer chatMu.Unlock()
+
+	if chatInit {
+		return fmt.Errorf("chat: Init already called")
+	}
+
 	ctx := gctx.New()
+
+	// 使用局部变量构建完整实例
 	c, err := newChat(&openai.ChatModelConfig{
 		APIKey:  g.Cfg().MustGet(ctx, "chat.apiKey").String(),
 		BaseURL: g.Cfg().MustGet(ctx, "chat.baseURL").String(),
 		Model:   g.Cfg().MustGet(ctx, "chat.model").String(),
 	})
 	if err != nil {
-		g.Log().Fatalf(ctx, "newChat failed, err=%v", err)
-		return
+		return fmt.Errorf("newChat failed: %w", err)
 	}
 	// 使用 DSN 初始化，chat-history 包会根据 DSN 判断数据库类型
 	// 对于 SQLite: file.db?_journal_mode=WAL
 	// 对于 MySQL: user:pass@tcp(host:port)/dbname?charset=utf8mb4
 	c.eh = eino.NewEinoHistory(dao.GetDsn())
+
+	// 成功后才赋值全局变量（原子发布）
 	chat = c
+	chatInit = true
+	return nil
 }
 
 func newChat(cfg *openai.ChatModelConfig) (res *Chat, err error) {
@@ -51,6 +81,13 @@ func newChat(cfg *openai.ChatModelConfig) (res *Chat, err error) {
 		return nil, err
 	}
 	return &Chat{cm: chatModel}, nil
+}
+
+// IsInitialized 返回 Chat 服务是否已初始化。
+func IsInitialized() bool {
+	chatMu.Lock()
+	defer chatMu.Unlock()
+	return chatInit
 }
 
 func (x *Chat) GetAnswer(ctx context.Context, convID string, docs []*schema.Document, question string) (answer string, err error) {

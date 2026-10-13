@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ThinkInAIXYZ/go-mcp/server"
 	"github.com/ThinkInAIXYZ/go-mcp/transport"
@@ -9,6 +10,9 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcmd"
 	"github.com/wangle201210/go-rag/server/internal/controller/rag"
+	"github.com/wangle201210/go-rag/server/internal/dao"
+	"github.com/wangle201210/go-rag/server/internal/logic/chat"
+	ragicit "github.com/wangle201210/go-rag/server/internal/logic/rag"
 	"github.com/wangle201210/go-rag/server/internal/mcp"
 )
 
@@ -18,6 +22,24 @@ var (
 		Usage: "main",
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
+			// 显式初始化（顺序重要：dao → migrate → rag → chat）
+			// 失败时清理已建立资源，返回带阶段信息的错误。
+			if err := dao.InitDB(); err != nil {
+				return fmt.Errorf("stage[dao] init failed: %w", err)
+			}
+			if err := dao.Migrate(); err != nil {
+				dao.Close()
+				return fmt.Errorf("stage[dao] migrate failed: %w", err)
+			}
+			if err := ragicit.Init(); err != nil {
+				dao.Close()
+				return fmt.Errorf("stage[rag] init failed: %w", err)
+			}
+			if err := chat.Init(); err != nil {
+				dao.Close()
+				return fmt.Errorf("stage[chat] init failed: %w", err)
+			}
+
 			s := g.Server()
 			Mcp(ctx, s)
 			s.Group("/", func(group *ghttp.RouterGroup) {

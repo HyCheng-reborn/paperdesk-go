@@ -1,6 +1,9 @@
 package rag
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
@@ -10,9 +13,23 @@ import (
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
 
-var ragSvr = &core.Rag{}
+var (
+	ragSvr   *core.Rag
+	ragMu    sync.Mutex
+	ragInit  bool
+)
 
-func init() {
+// Init 初始化 RAG 服务：读取向量存储配置、创建向量存储连接、创建 embedding 客户端。
+// 必须在程序启动时显式调用，不在 init() 中自动执行，以支持离线测试隔离。
+// 重复调用返回 error（幂等拒绝）。
+func Init() error {
+	ragMu.Lock()
+	defer ragMu.Unlock()
+
+	if ragInit {
+		return fmt.Errorf("rag: Init already called")
+	}
+
 	ctx := gctx.New()
 
 	// 读取向量存储配置
@@ -43,8 +60,7 @@ func init() {
 	// 创建向量存储实例
 	vectorStore, err := vector.NewVectorStore(vectorCfg)
 	if err != nil {
-		g.Log().Fatalf(ctx, "NewVectorStore failed, err=%v", err)
-		return
+		return fmt.Errorf("NewVectorStore failed: %w", err)
 	}
 
 	// 根据类型获取对应的客户端
@@ -57,7 +73,8 @@ func init() {
 		qdrantClient = qdrantStore.GetClient()
 	}
 
-	ragSvr, err = core.New(ctx, &config.Config{
+	// 使用局部变量构建完整实例
+	ragsvr, err := core.New(ctx, &config.Config{
 		Client:         client,
 		QdrantClient:   qdrantClient,
 		IndexName:      indexName,
@@ -67,11 +84,28 @@ func init() {
 		ChatModel:      g.Cfg().MustGet(ctx, "chat.model").String(),
 	})
 	if err != nil {
-		g.Log().Fatalf(ctx, "New of rag failed, err=%v", err)
-		return
+		return fmt.Errorf("New of rag failed: %w", err)
 	}
+
+	// 成功后才赋值全局变量（原子发布）
+	ragSvr = ragsvr
+	ragInit = true
+	return nil
 }
 
+// GetRagSvr 返回 RAG 服务实例。未初始化时返回 nil。
 func GetRagSvr() *core.Rag {
+	ragMu.Lock()
+	defer ragMu.Unlock()
+	if !ragInit {
+		return nil
+	}
 	return ragSvr
+}
+
+// IsInitialized 返回 RAG 服务是否已初始化。
+func IsInitialized() bool {
+	ragMu.Lock()
+	defer ragMu.Unlock()
+	return ragInit
 }

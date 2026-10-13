@@ -59,3 +59,14 @@ server/manifest/config/config.yaml
 # The bare patterns above also hide this repo's own docs; keep docs/ tracked.
 !docs/
 !docs/**/*.md
+
+# Track design and verification directories
+!design/
+!design/**/*.md
+!verification/
+!verification/**/*.md
+!verification/**/*.log
+
+# Track project progress and changes logs
+!PROJECT_PROGRESS.md
+!CHANGES.md

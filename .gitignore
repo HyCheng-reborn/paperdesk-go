@@ -55,3 +55,7 @@ server/manifest/config/config.yaml
 /server/?_journal_mode=WAL
 /static/
 /releases/
+
+# The bare patterns above also hide this repo's own docs; keep docs/ tracked.
+!docs/
+!docs/**/*.md

@@ -3,9 +3,8 @@ package rerank
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,13 +16,17 @@ import (
 
 // fakeHTTPDoer is a mock HTTP client for testing.
 type fakeHTTPDoer struct {
-	response *http.Response
-	err      error
-	callCount int
+	response     *http.Response
+	err          error
+	callCount    int
+	checkRequest func(req *http.Request)
 }
 
 func (f *fakeHTTPDoer) Do(req *http.Request) (*http.Response, error) {
 	f.callCount++
+	if f.checkRequest != nil {
+		f.checkRequest(req)
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -35,6 +38,18 @@ func testDocs(n int) []*schema.Document {
 	docs := make([]*schema.Document, n)
 	for i := 0; i < n; i++ {
 		docs[i] = &schema.Document{Content: fmt.Sprintf("doc %d", i)}
+	}
+	return docs
+}
+
+// helper to create test documents with metadata
+func testDocsWithMeta(n int) []*schema.Document {
+	docs := make([]*schema.Document, n)
+	for i := 0; i < n; i++ {
+		docs[i] = &schema.Document{
+			Content:  fmt.Sprintf("doc %d", i),
+			MetaData: map[string]any{"key": fmt.Sprintf("val%d", i)},
+		}
 	}
 	return docs
 }
@@ -103,6 +118,111 @@ func TestRerank_Success(t *testing.T) {
 	}
 }
 
+func TestRerank_Success_InputUnmodified(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validResultJSON([]int{1, 0}, []float64{0.9, 0.5})))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocsWithMeta(3)
+	originalScore := docs[0].Score()
+	originalMeta := docs[0].MetaData["key"]
+
+	output, err := r.Rerank(context.Background(), "query", docs, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(output) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(output))
+	}
+
+	// Input documents should remain unchanged
+	if docs[0].Score() != originalScore {
+		t.Errorf("input document score was modified: %f -> %f", originalScore, docs[0].Score())
+	}
+	if docs[0].MetaData["key"] != originalMeta {
+		t.Errorf("input document metadata was modified: %v -> %v", originalMeta, docs[0].MetaData["key"])
+	}
+	// Output documents should have correct scores
+	if output[0].Score() != 0.9 {
+		t.Errorf("expected output score 0.9, got %f", output[0].Score())
+	}
+}
+
+func TestRerank_Success_OutputCorrect(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validResultJSON([]int{2, 0, 1}, []float64{0.95, 0.7, 0.3})))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocs(3)
+	output, err := r.Rerank(context.Background(), "query", docs, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(output) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(output))
+	}
+	// Verify order and scores
+	expectedOrder := []string{"doc 2", "doc 0", "doc 1"}
+	expectedScores := []float64{0.95, 0.7, 0.3}
+	for i := range expectedOrder {
+		if output[i].Content != expectedOrder[i] {
+			t.Errorf("result[%d]: expected %s, got %s", i, expectedOrder[i], output[i].Content)
+		}
+		if output[i].Score() != expectedScores[i] {
+			t.Errorf("result[%d]: expected score %f, got %f", i, expectedScores[i], output[i].Score())
+		}
+	}
+}
+
+func TestRerank_SharedInput_NoPollution(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validResultJSON([]int{0, 1}, []float64{0.9, 0.5})))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	// Shared input documents
+	docs := testDocsWithMeta(2)
+
+	// First rerank call
+	output1, err := r.Rerank(context.Background(), "query1", docs, 2)
+	if err != nil {
+		t.Fatalf("first rerank failed: %v", err)
+	}
+
+	// Second rerank call with same input
+	output2, err := r.Rerank(context.Background(), "query2", docs, 2)
+	if err != nil {
+		t.Fatalf("second rerank failed: %v", err)
+	}
+
+	// Input should remain unchanged
+	if docs[0].Score() != 0 {
+		t.Errorf("input doc[0] score was modified to %f", docs[0].Score())
+	}
+	if docs[0].MetaData["key"] != "val0" {
+		t.Errorf("input doc[0] metadata was modified")
+	}
+
+	// Both outputs should be independent
+	if output1[0].Score() != 0.9 {
+		t.Errorf("output1[0] score wrong: %f", output1[0].Score())
+	}
+	if output2[0].Score() != 0.9 {
+		t.Errorf("output2[0] score wrong: %f", output2[0].Score())
+	}
+}
+
 func TestRerank_ContextCancel(t *testing.T) {
 	fakeDoer := &fakeHTTPDoer{callCount: 0}
 	cfg := &RerankConfig{URL: "http://unused", APIKey: "key", Model: "model"}
@@ -118,6 +238,39 @@ func TestRerank_ContextCancel(t *testing.T) {
 	}
 	if fakeDoer.callCount != 0 {
 		t.Fatalf("HTTP should not be called on pre-cancelled ctx, but called %d times", fakeDoer.callCount)
+	}
+}
+
+func TestRerank_InFlightCancel(t *testing.T) {
+	requestStarted := make(chan struct{})
+	proceed := make(chan struct{})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(requestStarted) // signal: request has started
+		<-proceed             // wait for signal to continue
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	defer close(proceed)
+
+	cfg := &RerankConfig{URL: server.URL, APIKey: "key", Model: "model"}
+	r := NewRerank(cfg, server.Client())
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-requestStarted // wait for request to start
+		cancel()         // cancel in-flight
+		proceed <- struct{}{}
+	}()
+
+	docs := testDocs(2)
+	_, err := r.Rerank(ctx, "query", docs, 1)
+	if err == nil {
+		t.Fatal("expected error on in-flight cancel")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
 	}
 }
 
@@ -144,6 +297,80 @@ func TestRerank_Timeout(t *testing.T) {
 
 	// Release the server handler
 	trigger <- struct{}{}
+}
+
+func TestRerank_DeadlinePropagation(t *testing.T) {
+	deadlineChecked := make(chan bool, 1)
+
+	fakeDoer := &fakeHTTPDoer{
+		checkRequest: func(req *http.Request) {
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				deadlineChecked <- false
+				return
+			}
+			// Deadline should be roughly 10s from now (caller's deadline)
+			remaining := time.Until(deadline)
+			deadlineChecked <- remaining > 0 && remaining <= 11*time.Second
+		},
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       http.NoBody,
+		},
+	}
+
+	cfg := &RerankConfig{URL: "http://unused", APIKey: "key", Model: "model"}
+	r := NewRerank(cfg, fakeDoer)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	docs := testDocs(2)
+	_, _ = r.Rerank(ctx, "query", docs, 1)
+
+	select {
+	case ok := <-deadlineChecked:
+		if !ok {
+			t.Fatal("request should carry caller deadline")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("deadline check timed out")
+	}
+}
+
+func TestRerank_DefaultTimeout(t *testing.T) {
+	deadlineChecked := make(chan time.Duration, 1)
+
+	fakeDoer := &fakeHTTPDoer{
+		checkRequest: func(req *http.Request) {
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				deadlineChecked <- 0
+				return
+			}
+			deadlineChecked <- time.Until(deadline)
+		},
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       http.NoBody,
+		},
+	}
+
+	cfg := &RerankConfig{URL: "http://unused", APIKey: "key", Model: "model"}
+	r := NewRerank(cfg, fakeDoer)
+
+	// No caller deadline -> default 30s timeout
+	docs := testDocs(2)
+	_, _ = r.Rerank(context.Background(), "query", docs, 1)
+
+	select {
+	case remaining := <-deadlineChecked:
+		if remaining < 29*time.Second || remaining > 31*time.Second {
+			t.Fatalf("expected ~30s default deadline, got: %v", remaining)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("deadline check timed out")
+	}
 }
 
 func TestRerank_500Error(t *testing.T) {
@@ -187,8 +414,8 @@ func TestRerank_BadJSON(t *testing.T) {
 func TestRerank_LargeResponse(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		// Write more than 10MB
-		largeData := make([]byte, 11<<20) // 11MB
+		// Write more than 10 MiB
+		largeData := make([]byte, 11<<20) // 11 MiB
 		for i := range largeData {
 			largeData[i] = 'x'
 		}
@@ -203,7 +430,73 @@ func TestRerank_LargeResponse(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for large response")
 	}
-	if !strings.Contains(err.Error(), "too large") && !strings.Contains(err.Error(), "size") {
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("error should mention size limit: %v", err)
+	}
+}
+
+func TestRerank_ResponseSize_LimitMinus1(t *testing.T) {
+	validJSON := validResultJSON([]int{0}, []float64{0.5})
+	padding := strings.Repeat(" ", (10<<20)-1-len(validJSON))
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validJSON + padding))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocs(2)
+	output, err := r.Rerank(context.Background(), "query", docs, 1)
+	if err != nil {
+		t.Fatalf("expected success for limit-1 size, got error: %v", err)
+	}
+	if len(output) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(output))
+	}
+}
+
+func TestRerank_ResponseSize_ExactLimit(t *testing.T) {
+	validJSON := validResultJSON([]int{0}, []float64{0.5})
+	padding := strings.Repeat(" ", (10<<20)-len(validJSON))
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validJSON + padding))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocs(2)
+	output, err := r.Rerank(context.Background(), "query", docs, 1)
+	if err != nil {
+		t.Fatalf("expected success for exact limit size, got error: %v", err)
+	}
+	if len(output) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(output))
+	}
+}
+
+func TestRerank_ResponseSize_LimitPlus1(t *testing.T) {
+	validJSON := validResultJSON([]int{0}, []float64{0.5})
+	padding := strings.Repeat(" ", (10<<20)+1-len(validJSON))
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(validJSON + padding))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocs(2)
+	_, err := r.Rerank(context.Background(), "query", docs, 1)
+	if err == nil {
+		t.Fatal("expected error for limit+1 size")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
 		t.Errorf("error should mention size limit: %v", err)
 	}
 }
@@ -244,6 +537,26 @@ func TestRerank_EmptyResults(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "empty results") {
 		t.Errorf("error should mention empty results: %v", err)
+	}
+}
+
+func TestRerank_ExcessResults(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Request topK=1 but server returns 2 results
+		w.Write([]byte(validResultJSON([]int{0, 1}, []float64{0.9, 0.5})))
+	})
+
+	r, server := testRerank(handler)
+	defer server.Close()
+
+	docs := testDocs(2)
+	_, err := r.Rerank(context.Background(), "query", docs, 1)
+	if err == nil {
+		t.Fatal("expected error for excess results")
+	}
+	if !strings.Contains(err.Error(), "expected at most") {
+		t.Errorf("error should mention excess results: %v", err)
 	}
 }
 
@@ -408,11 +721,6 @@ func TestRerank_InvalidTopK(t *testing.T) {
 
 func TestRerank_PartialFailure_NoModification(t *testing.T) {
 	// Second result has out-of-range index; first result should NOT modify input docs
-	originalScores := make([]float64, 3)
-	for i := range originalScores {
-		originalScores[i] = 0
-	}
-
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// First result valid (index 0), second invalid (index 999)
@@ -422,7 +730,7 @@ func TestRerank_PartialFailure_NoModification(t *testing.T) {
 	r, server := testRerank(handler)
 	defer server.Close()
 
-	docs := testDocs(3)
+	docs := testDocsWithMeta(3)
 	for _, doc := range docs {
 		doc.WithScore(0) // reset scores
 	}
@@ -436,6 +744,13 @@ func TestRerank_PartialFailure_NoModification(t *testing.T) {
 	for i, doc := range docs {
 		if doc.Score() != 0 {
 			t.Errorf("doc[%d] score was modified to %f, expected 0 (no partial modification)", i, doc.Score())
+		}
+	}
+	// Verify metadata unchanged
+	for i, doc := range docs {
+		expected := fmt.Sprintf("val%d", i)
+		if doc.MetaData["key"] != expected {
+			t.Errorf("doc[%d] metadata was modified: got %v, expected %v", i, doc.MetaData["key"], expected)
 		}
 	}
 }
@@ -507,49 +822,24 @@ func TestRerank_ScoreInfinity(t *testing.T) {
 	}
 }
 
-func TestRerank_LargeResponse_ExactLimit(t *testing.T) {
-	// Test that responses just under the limit are accepted
+func TestRerank_TopK_GreaterThanDocs(t *testing.T) {
+	// topK > len(docs): should return all documents (sorted by score)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(validResultJSON([]int{0}, []float64{0.5})))
+		// Server returns 2 results even though topK=5
+		w.Write([]byte(validResultJSON([]int{1, 0}, []float64{0.9, 0.5})))
 	})
 
 	r, server := testRerank(handler)
 	defer server.Close()
 
 	docs := testDocs(2)
-	output, err := r.Rerank(context.Background(), "query", docs, 1)
+	output, err := r.Rerank(context.Background(), "query", docs, 5)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(output) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(output))
-	}
-}
-
-func TestRerank_MultipleResults_AllValid(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(validResultJSON([]int{2, 0, 1}, []float64{0.95, 0.7, 0.3})))
-	})
-
-	r, server := testRerank(handler)
-	defer server.Close()
-
-	docs := testDocs(3)
-	output, err := r.Rerank(context.Background(), "query", docs, 3)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(output) != 3 {
-		t.Fatalf("expected 3 results, got %d", len(output))
-	}
-	// Verify order: doc[2], doc[0], doc[1]
-	expectedOrder := []string{"doc 2", "doc 0", "doc 1"}
-	for i, exp := range expectedOrder {
-		if output[i].Content != exp {
-			t.Errorf("result[%d]: expected %s, got %s", i, exp, output[i].Content)
-		}
+	if len(output) != 2 {
+		t.Fatalf("expected 2 results (all docs), got %d", len(output))
 	}
 }
 
@@ -575,7 +865,3 @@ func TestRerank_CtxDeadlinePropagation(t *testing.T) {
 		t.Fatal("expected error when deadline exceeded")
 	}
 }
-
-// Ensure io import is used (for potential future tests)
-var _ = io.Discard
-var _ = math.IsNaN

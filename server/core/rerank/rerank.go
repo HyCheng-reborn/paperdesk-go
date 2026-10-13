@@ -7,7 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -91,26 +91,30 @@ func NewRerank(cfg *RerankConfig, client HTTPDoer) *Rerank {
 	return &Rerank{cfg: cfg, client: client}
 }
 
-var rerankCfg *Conf
+var (
+	rerankCfg     *Conf
+	rerankCfgOnce sync.Once
+	rerankCfgErr  error
+)
 
 // GetConf loads the rerank config from GoFrame configuration.
-func GetConf(ctx context.Context) *Conf {
-	if rerankCfg != nil {
-		return rerankCfg
-	}
-	baseUrl := g.Cfg().MustGet(ctx, "rerank.baseURL").String()
-	apiKey := g.Cfg().MustGet(ctx, "rerank.apiKey").String()
-	model := g.Cfg().MustGet(ctx, "rerank.model").String()
-	url := fmt.Sprintf("%s/rerank", baseUrl)
-	rerankCfg = &Conf{
-		apiKey:          apiKey,
-		Model:           model,
-		ReturnDocuments: false,
-		MaxChunksPerDoc: 1024,
-		OverlapTokens:   80,
-		url:             url,
-	}
-	return rerankCfg
+// Uses sync.Once to eliminate race condition on the cached config.
+func GetConf(ctx context.Context) (*Conf, error) {
+	rerankCfgOnce.Do(func() {
+		baseUrl := g.Cfg().MustGet(ctx, "rerank.baseURL").String()
+		apiKey := g.Cfg().MustGet(ctx, "rerank.apiKey").String()
+		model := g.Cfg().MustGet(ctx, "rerank.model").String()
+		url := fmt.Sprintf("%s/rerank", baseUrl)
+		rerankCfg = &Conf{
+			apiKey:          apiKey,
+			Model:           model,
+			ReturnDocuments: false,
+			MaxChunksPerDoc: 1024,
+			OverlapTokens:   80,
+			url:             url,
+		}
+	})
+	return rerankCfg, rerankCfgErr
 }
 
 // Rerank performs reranking on the given documents.
@@ -147,14 +151,38 @@ func (r *Rerank) Rerank(ctx context.Context, query string, docs []*schema.Docume
 		return nil, err
 	}
 
-	// Reassemble output using validated results
-	output := make([]*schema.Document, 0, len(results))
-	for _, result := range results {
-		doc := docs[*result.Index]
-		doc.WithScore(*result.RelevanceScore)
-		output = append(output, doc)
+	// Build independent output documents, preserving input unchanged
+	return r.buildOutput(docs, results)
+}
+
+// buildOutput creates independent output documents with scores,
+// ensuring input documents are not modified.
+func (r *Rerank) buildOutput(docs []*schema.Document, results []*Result) ([]*schema.Document, error) {
+	output := make([]*schema.Document, len(results))
+	for i, result := range results {
+		src := docs[*result.Index]
+		// Deep copy Document including metadata map
+		cp := &schema.Document{
+			ID:       src.ID,
+			Content:  src.Content,
+			MetaData: copyMetadata(src.MetaData),
+		}
+		// Set score on the independent copy
+		output[i] = cp.WithScore(*result.RelevanceScore)
 	}
 	return output, nil
+}
+
+// copyMetadata performs a shallow copy of a metadata map.
+func copyMetadata(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
+	c := make(map[string]any, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
 }
 
 // rerankDoHttp performs the HTTP request to the rerank API with bounded timeout,
@@ -197,15 +225,15 @@ func (r *Rerank) rerankDoHttp(ctx context.Context, data *Data, docs []*schema.Do
 		return nil, fmt.Errorf("rerank API returned status %d", resp.StatusCode)
 	}
 
-	// Bounded response body read
-	const maxRespSize = 10 << 20 // 10MB
-	resp.Body = http.MaxBytesReader(nil, resp.Body, maxRespSize+1)
-	body, err := io.ReadAll(resp.Body)
+	// Bounded response body read: precise 10 MiB limit
+	const maxRespSize = 10 << 20 // 10 MiB = 10,485,760 bytes
+	limited := io.LimitReader(resp.Body, maxRespSize+1)
+	body, err := io.ReadAll(limited)
 	if err != nil {
-		if strings.Contains(err.Error(), "size") {
-			return nil, fmt.Errorf("response too large")
-		}
 		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if len(body) > maxRespSize {
+		return nil, fmt.Errorf("response exceeds %d bytes limit", maxRespSize)
 	}
 
 	// JSON parse
@@ -220,6 +248,11 @@ func (r *Rerank) rerankDoHttp(ctx context.Context, data *Data, docs []*schema.Do
 	}
 	if len(res.Results) == 0 {
 		return nil, fmt.Errorf("empty results")
+	}
+
+	// Result count contract: server must not return more than requested
+	if len(res.Results) > data.TopN {
+		return nil, fmt.Errorf("server returned %d results, expected at most %d", len(res.Results), data.TopN)
 	}
 
 	// Validate each result

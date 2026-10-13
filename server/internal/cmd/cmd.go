@@ -26,16 +26,22 @@ var (
 			// 注意：普通启动不执行 Migrate，避免意外改表。
 			// 需要迁移时使用 dao.InitWithMigrate() 或 dao.Migrate()。
 			// 失败时级联清理已建立资源，返回带阶段信息的错误。
-			if err := dao.InitDB(); err != nil {
+			if err := dao.InitDBWithConfig(); err != nil {
 				return fmt.Errorf("stage[dao] init failed: %w", err)
 			}
 			if err := ragicit.Init(); err != nil {
-				dao.Reset()
+				if resetErr := dao.Close(); resetErr != nil {
+					g.Log().Errorf(ctx, "Failed to close DAO after RAG init failure: %v", resetErr)
+				}
 				return fmt.Errorf("stage[rag] init failed: %w", err)
 			}
 			if err := chat.Init(); err != nil {
-				ragicit.Reset()
-				dao.Reset()
+				if resetErr := ragicit.Reset(); resetErr != nil {
+					g.Log().Errorf(ctx, "Failed to reset RAG after Chat init failure: %v", resetErr)
+				}
+				if closeErr := dao.Close(); closeErr != nil {
+					g.Log().Errorf(ctx, "Failed to close DAO after Chat init failure: %v", closeErr)
+				}
 				return fmt.Errorf("stage[chat] init failed: %w", err)
 			}
 

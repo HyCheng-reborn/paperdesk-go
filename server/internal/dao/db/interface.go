@@ -1,5 +1,7 @@
 package db
 
+import "gorm.io/gorm"
+
 // Database 数据库接口
 type Database interface {
 	// Connect 连接管理
@@ -12,6 +14,8 @@ type Database interface {
 	Ping() error
 	// Close 关闭数据库连接
 	Close() error
+	// GormDB 返回底层的 *gorm.DB 实例
+	GormDB() *gorm.DB
 }
 
 type Config struct {

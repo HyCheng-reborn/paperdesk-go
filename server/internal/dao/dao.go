@@ -9,6 +9,7 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	database "github.com/wangle201210/go-rag/server/internal/dao/db"
+	"gorm.io/gorm"
 )
 
 var (
@@ -17,17 +18,16 @@ var (
 	dbInit bool
 )
 
-// InitDB 初始化数据库连接（不含迁移）。
-// 必须在程序启动时显式调用，不在 init() 中自动执行，以支持离线测试隔离。
-// 重复调用返回 error（幂等拒绝）。
-func InitDB() error {
-	dbMu.Lock()
-	defer dbMu.Unlock()
+// ConfigProvider 可注入的配置提供者接口
+// 生产环境使用 defaultConfig，测试使用 fakeConfig
+type ConfigProvider interface {
+	GetDBConfig() (*database.Config, error)
+}
 
-	if dbInit {
-		return fmt.Errorf("dao: InitDB already called")
-	}
+// defaultConfig 生产环境的配置实现
+type defaultConfig struct{}
 
+func (c *defaultConfig) GetDBConfig() (*database.Config, error) {
 	ctx := context.Background()
 	dbType, _ := g.Cfg().Get(ctx, "database.default.type")
 	dbTypeStr := dbType.String()
@@ -35,32 +35,59 @@ func InitDB() error {
 		dbTypeStr = "mysql"
 	}
 
-	var (
-		cfg *database.Config
-		err error
-	)
 	switch dbTypeStr {
 	case "mysql":
-		cfg, err = GetMysqlConfig()
-		if err != nil {
-			return fmt.Errorf("dao: mysql config error: %w", err)
-		}
+		return GetMysqlConfig()
 	case "sqlite":
-		cfg, err = GetSqliteConfig()
-		if err != nil {
-			return fmt.Errorf("dao: sqlite config error: %w", err)
-		}
+		return GetSqliteConfig()
 	default:
-		return fmt.Errorf("dao: unsupported database type: %s", dbTypeStr)
+		return nil, fmt.Errorf("unsupported database type: %s", dbTypeStr)
+	}
+}
+
+// InitDBWithConfig 使用默认配置初始化数据库（生产入口）
+func InitDBWithConfig() error {
+	return InitDB(&defaultConfig{})
+}
+
+// InitDB 初始化数据库连接（不含迁移）。
+// 必须在程序启动时显式调用，不在 init() 中自动执行，以支持离线测试隔离。
+// 重复调用返回 error（幂等拒绝）。
+// cfg 参数允许注入配置提供者，生产环境传 &defaultConfig{}，测试使用 fake。
+func InitDB(cfg ConfigProvider) error {
+	dbMu.Lock()
+	defer dbMu.Unlock()
+
+	if dbInit {
+		return fmt.Errorf("dao: InitDB already called")
+	}
+
+	// 使用注入的配置提供者获取配置
+	var (
+		dbCfg *database.Config
+		err   error
+	)
+	if cfg != nil {
+		dbCfg, err = cfg.GetDBConfig()
+		if err != nil {
+			return fmt.Errorf("dao: config error: %w", err)
+		}
+	} else {
+		// 兼容旧调用：如果 cfg 为 nil，使用默认配置
+		dbCfg, err = (&defaultConfig{}).GetDBConfig()
+		if err != nil {
+			return fmt.Errorf("dao: config error: %w", err)
+		}
 	}
 
 	// 使用局部变量构建新实例，成功后才赋值全局
 	var newDB database.Database
-	switch dbTypeStr {
-	case "sqlite":
-		newDB = database.NewSqlite(cfg)
-	default:
-		newDB = database.NewMysql(cfg)
+	if dbCfg.FilePath != "" {
+		// SQLite
+		newDB = database.NewSqlite(dbCfg)
+	} else {
+		// MySQL
+		newDB = database.NewMysql(dbCfg)
 	}
 
 	if err = newDB.Connect(); err != nil {
@@ -90,7 +117,7 @@ func Migrate() error {
 
 // InitWithMigrate 连接数据库并执行迁移（兼容入口，等价于 InitDB + Migrate）。
 func InitWithMigrate() error {
-	if err := InitDB(); err != nil {
+	if err := InitDB(nil); err != nil {
 		return err
 	}
 	return Migrate()
@@ -135,6 +162,17 @@ func IsInitialized() bool {
 	dbMu.RLock()
 	defer dbMu.RUnlock()
 	return dbInit
+}
+
+// GetGormDB 返回底层的 *gorm.DB 实例，供需要 GORM 的模块使用。
+// 未初始化时返回错误。
+func GetGormDB() (*gorm.DB, error) {
+	dbMu.RLock()
+	defer dbMu.RUnlock()
+	if db == nil {
+		return nil, fmt.Errorf("dao: database not initialized")
+	}
+	return db.GormDB(), nil
 }
 
 // ensureSQLiteFileDir 确保 SQLite 文件的父目录存在

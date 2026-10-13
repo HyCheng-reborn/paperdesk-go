@@ -130,10 +130,19 @@ func IsInitialized() bool {
 	return ragInit
 }
 
-// Reset 重置 RAG 服务状态，清理全局变量。用于初始化失败时的级联清理。
-func Reset() {
+// Reset 重置 RAG 服务状态，释放资源。用于初始化失败时的级联清理。
+func Reset() error {
 	ragMu.Lock()
 	defer ragMu.Unlock()
+	
+	if ragSvr == nil {
+		ragInit = false
+		return nil
+	}
+	
+	// Rag 结构不直接暴露底层资源，设置为 nil 让 GC 回收
+	// 底层的 ES/Qdrant 客户端连接会在进程结束时释放
 	ragSvr = nil
 	ragInit = false
+	return nil
 }

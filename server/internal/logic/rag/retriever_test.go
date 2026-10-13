@@ -50,6 +50,6 @@ func TestInit_FailsWithoutConfig(t *testing.T) {
 // TestInit_Signature 验证 Init/Reset 函数签名正确。
 func TestInit_Signature(t *testing.T) {
 	var _ func() error = Init
-	var _ func() = Reset
+	var _ func() error = Reset
 	var _ func() bool = IsInitialized
 }

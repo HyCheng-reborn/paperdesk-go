@@ -12,6 +12,10 @@ import (
 // TestYouComRetrieverIntegration 是唯一一个会真正访问 You.com 线上接口的测试，
 // 未设置 YDC_API_KEY 时自动跳过，避免 CI / 无 key 环境失败。
 func TestYouComRetrieverIntegration(t *testing.T) {
+	// 显式许可检查：API key 存在不等于许可
+	if os.Getenv("ONLINE_TEST_PERMITTED") != "true" {
+		t.Skip("Online tests require ONLINE_TEST_PERMITTED=true")
+	}
 	if os.Getenv("YDC_API_KEY") == "" {
 		t.Skip("YDC_API_KEY 未设置，跳过 you.com 线上集成测试")
 	}

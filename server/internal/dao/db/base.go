@@ -40,3 +40,8 @@ func (b *Base) Close() error {
 	}
 	return sqlDB.Close()
 }
+
+// GormDB 返回底层的 *gorm.DB 实例
+func (b *Base) GormDB() *gorm.DB {
+	return b.DB
+}

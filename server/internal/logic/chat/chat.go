@@ -12,7 +12,6 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
-	"github.com/wangle201210/chat-history/eino"
 	"github.com/wangle201210/go-rag/server/internal/dao"
 )
 
@@ -24,7 +23,7 @@ var (
 
 type Chat struct {
 	cm model.BaseChatModel
-	eh *eino.History
+	eh *historyWrapper
 }
 
 // GetChat 返回 Chat 服务实例。未初始化时返回 nil。
@@ -84,15 +83,20 @@ func Init() error {
 		return fmt.Errorf("chat: newChat failed: %w", err)
 	}
 
-	// 获取 DSN（dao 必须先初始化）
-	dsn, err := dao.GetDsn()
+	// 验证 dao 已初始化（chat 依赖 dao）
+	_, err = dao.GetDsn()
 	if err != nil {
 		return fmt.Errorf("chat: dao.GetDsn() failed (is dao initialized?): %w", err)
 	}
 
-	// 使用 DSN 初始化 chat-history
-	// 注意：NewEinoHistory 内部会 AutoMigrate 4 张表（第三方包行为）
-	c.eh = eino.NewEinoHistory(dsn)
+	// 获取 dao 的 GORM DB 实例，创建 History 包装器
+	// 注意：这里不再调用 NewEinoHistory（它会创建独立连接并 AutoMigrate）
+	// 而是复用 dao 的连接，迁移通过 MigrateChatHistoryTables() 显式控制
+	gormDB, err := dao.GetGormDB()
+	if err != nil {
+		return fmt.Errorf("chat: dao.GetGormDB() failed: %w", err)
+	}
+	c.eh = newHistoryWrapper(gormDB)
 
 	// 成功后才赋值全局变量（原子发布）
 	chat = c

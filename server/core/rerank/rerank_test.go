@@ -11,6 +11,10 @@ import (
 )
 
 func TestRerank(t *testing.T) {
+	// 显式许可检查：API key 存在不等于许可
+	if os.Getenv("ONLINE_TEST_PERMITTED") != "true" {
+		t.Skip("Online tests require ONLINE_TEST_PERMITTED=true")
+	}
 	// 该测试会真实调用 rerank 在线接口，未配置 RERANK_API_KEY 时跳过，
 	// 保证 go test ./... 可以离线通过
 	apiKey := os.Getenv("RERANK_API_KEY")

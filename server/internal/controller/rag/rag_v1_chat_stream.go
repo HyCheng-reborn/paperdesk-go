@@ -13,6 +13,10 @@ import (
 
 // ChatStream 流式输出接口
 func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (res *v1.ChatStreamRes, err error) {
+	// 派生 context，可主动取消模型和后台消费
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// 解析注入边界，nil 时回退生产默认（运行期间只读）
 	retrieve := c.chatRetrieve
 	if retrieve == nil {
@@ -39,20 +43,31 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 		return
 	}
 	// 获取流式响应；建流失败返回 error，不返回空成功、不进入 SSE 输出
-	streamReader, err := answerStream(ctx, req.ConvID, retriever.Document, req.Question)
+	streamReader, cleanup, err := answerStream(ctx, req.ConvID, retriever.Document, req.Question)
 	if err != nil {
 		return nil, fmt.Errorf("get answer stream: %w", err)
 	}
-	defer streamReader.Close()
+	// 清理：通知后台 goroutine 结果 + 关闭所有流分支
+	cleanupDone := false
+	defer func() {
+		if !cleanupDone {
+			cleanup(chat.StreamResult{}) // 默认零值：Success=false → 不保存
+		}
+	}()
+
 	err = sseWrite(ctx, streamReader, retriever.Document)
 	if err != nil {
 		return nil, fmt.Errorf("stream response: %w", err)
 	}
+
+	// SSE 正常完成：通知后台保存
+	cleanupDone = true
+	cleanup(chat.StreamResult{Success: true})
 	return &v1.ChatStreamRes{}, nil
 }
 
 // defaultAnswerStream 生产建流实现：调用 chat 单例。运行期间只读。
-func defaultAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], error) {
+func defaultAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
 	return chat.GetChat().GetAnswerStream(ctx, convID, docs, question)
 }
 

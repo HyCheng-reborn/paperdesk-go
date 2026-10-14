@@ -514,10 +514,10 @@ func newTestChat(cm model.BaseChatModel, saver *fakeMessageSaver) *Chat {
 	}
 }
 
-// drainStream consumes all chunks from a StreamReader and returns the concatenated content.
-func drainStream(t *testing.T, sr *schema.StreamReader[*schema.Message]) string {
+// drainStreamContent consumes all chunks from a StreamReader and returns the concatenated content.
+// Does NOT close the reader; caller must invoke the cleanup function.
+func drainStreamContent(t *testing.T, sr *schema.StreamReader[*schema.Message]) string {
 	t.Helper()
-	defer sr.Close()
 	var sb strings.Builder
 	for {
 		chunk, err := sr.Recv()
@@ -533,17 +533,17 @@ func drainStream(t *testing.T, sr *schema.StreamReader[*schema.Message]) string 
 	}
 }
 
-// waitForSave polls until the saver has been called or timeout.
-func waitForSave(t *testing.T, saver *fakeMessageSaver, timeout time.Duration) {
+// waitForSave polls until the saver has been called at least `count` times or timeout.
+func waitForSave(t *testing.T, saver *fakeMessageSaver, count int, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if saver.getSaveCount() > 0 {
+		if saver.getSaveCount() >= count {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	t.Fatalf("timeout waiting for save (count=%d)", saver.getSaveCount())
+	t.Fatalf("timeout waiting for save (count=%d, want>=%d)", saver.getSaveCount(), count)
 }
 
 // TestGetAnswerStream_ModelReceivesContext verifies the model's Stream method
@@ -556,10 +556,11 @@ func TestGetAnswerStream_ModelReceivesContext(t *testing.T) {
 	type ctxKey struct{}
 	ctx := context.WithValue(context.Background(), ctxKey{}, "test-value")
 
-	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	sr, cleanup, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer cleanup(StreamResult{})
 
 	// Wait for model to receive context
 	select {
@@ -573,8 +574,14 @@ func TestGetAnswerStream_ModelReceivesContext(t *testing.T) {
 		t.Fatal("model did not receive the caller's context value")
 	}
 
-	// Drain the stream to let the save goroutine finish
-	drainStream(t, sr)
+	// Drain the stream
+	content := drainStreamContent(t, sr)
+	if content != "hello" {
+		t.Errorf("expected 'hello', got %q", content)
+	}
+
+	// Signal success so save goroutine can proceed
+	cleanup(StreamResult{Success: true})
 }
 
 // TestGetAnswerStream_StreamCancelErrorChain verifies that when stream creation
@@ -589,7 +596,7 @@ func TestGetAnswerStream_StreamCancelErrorChain(t *testing.T) {
 	saver := &fakeMessageSaver{}
 	c := newTestChat(fm, saver)
 
-	_, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	_, _, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -607,10 +614,11 @@ func TestGetAnswerStream_BlockingRecvCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	sr, cleanup, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer cleanup(StreamResult{})
 
 	// Wait for model to start
 	select {
@@ -622,9 +630,8 @@ func TestGetAnswerStream_BlockingRecvCancel(t *testing.T) {
 	// Cancel context
 	cancel()
 
-	// The stream reader should return an error (context cancelled propagated through model)
+	// The stream reader should return an error or EOF (context cancelled propagated through model)
 	_, recvErr := sr.Recv()
-	sr.Close()
 	if recvErr == nil || (!errors.Is(recvErr, context.Canceled) && !errors.Is(recvErr, io.EOF)) {
 		// Depending on timing, Recv may return context.Canceled or EOF
 		// Either is acceptable as long as it returns
@@ -638,28 +645,22 @@ func TestGetAnswerStream_NormalEOF_SaveOnce(t *testing.T) {
 	saver := &fakeMessageSaver{}
 	c := newTestChat(fm, saver)
 
-	sr, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	content := drainStream(t, sr)
+	content := drainStreamContent(t, sr)
 	if content != "hello world" {
 		t.Errorf("expected 'hello world', got: %q", content)
 	}
 
+	// Signal success: foreground SSE completed normally
+	cleanup(StreamResult{Success: true})
+
 	// Wait for save goroutine: docsMessages saves user question (1 save),
 	// then the goroutine saves assistant answer (2nd save).
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if saver.getSaveCount() >= 2 {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	if saver.getSaveCount() < 2 {
-		t.Fatalf("expected at least 2 saves (user question + assistant answer), got %d", saver.getSaveCount())
-	}
+	waitForSave(t, saver, 2, 5*time.Second)
 
 	// Full saved content should include user question + assistant answer
 	fullContent := saver.getSavedContent()
@@ -704,10 +705,11 @@ func TestGetAnswerStream_PartialThenError_NoSave(t *testing.T) {
 	saver := &fakeMessageSaver{}
 	c := newTestChat(fm, saver)
 
-	sr, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer cleanup(StreamResult{}) // failure: default zero value
 
 	// Consume stream: should get "partial" then error
 	var gotContent string
@@ -720,21 +722,19 @@ func TestGetAnswerStream_PartialThenError_NoSave(t *testing.T) {
 			gotContent += chunk.Content
 		}
 	}
-	sr.Close()
 
 	if gotContent != "partial" {
 		t.Errorf("expected 'partial' content, got: %q", gotContent)
 	}
 
-	// Wait a bit for save goroutine to finish processing
+	// Wait for save goroutine to process
 	time.Sleep(100 * time.Millisecond)
 
 	// docsMessages saves user question (1 save), but the stream goroutine
-	// should NOT save the assistant answer (non-EOF error).
+	// should NOT save the assistant answer (non-EOF error → Success=false).
 	if saver.getSaveCount() != 1 {
 		t.Errorf("expected 1 save (only user question from docsMessages) on error, got %d", saver.getSaveCount())
 	}
-	// Saved content should only be the user question
 	if strings.Contains(saver.getSavedContent(), "partial") {
 		t.Error("saved content should NOT contain partial assistant answer")
 	}
@@ -749,10 +749,11 @@ func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	_, cleanup, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer cleanup(StreamResult{})
 
 	// Wait for model to start
 	select {
@@ -764,19 +765,14 @@ func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 	// Cancel context
 	cancel()
 
-	// Drain stream (should get error/EOF quickly)
-	sr.Close()
-
 	// Wait for save goroutine to finish
 	time.Sleep(200 * time.Millisecond)
 
 	// docsMessages saves user question (1 save), but cancel should prevent
 	// the assistant answer from being saved.
-	// At most 1 save (user question only).
 	if saver.getSaveCount() > 1 {
 		t.Errorf("expected at most 1 save (user question) on cancel, got %d", saver.getSaveCount())
 	}
-	// Saved content should NOT contain assistant answer chunks
 	if strings.Contains(saver.getSavedContent(), "chunk") {
 		t.Error("saved content should NOT contain assistant answer on cancel")
 	}
@@ -785,16 +781,13 @@ func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 // TestGetAnswerStream_WriteFailure_Convergence verifies that SSE write failure
 // triggers convergence of generation and consumption.
 func TestGetAnswerStream_WriteFailure_Convergence(t *testing.T) {
-	// This test verifies at the chat level that when the context is cancelled
-	// (simulating SSE write failure causing controller to stop), the save
-	// goroutine exits without saving the assistant answer.
 	fm := newStreamingChatModel(nil) // blocks on ctx.Done()
 	saver := &fakeMessageSaver{}
 	c := newTestChat(fm, saver)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	_, cleanup, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -808,13 +801,12 @@ func TestGetAnswerStream_WriteFailure_Convergence(t *testing.T) {
 
 	// Simulate write failure: cancel context (controller would cancel on write failure)
 	cancel()
-	sr.Close()
+	// cleanup with failure (Success=false)
+	cleanup(StreamResult{})
 
 	// Wait for save goroutine
 	time.Sleep(200 * time.Millisecond)
 
-	// docsMessages saves user question (1 save), but cancel should prevent
-	// the assistant answer from being saved.
 	if saver.getSaveCount() > 1 {
 		t.Errorf("expected at most 1 save (user question) after cancel, got %d", saver.getSaveCount())
 	}
@@ -831,20 +823,18 @@ func TestGetAnswerStream_CancelThenEOF_NoDONE(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before streaming
 
-	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	sr, cleanup, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
 	if err != nil {
-		// If stream creation fails due to context, that's acceptable
-		return
+		return // stream creation may fail due to context
 	}
+	defer cleanup(StreamResult{})
 
-	// Drain stream
-	sr.Close()
+	// Drain foreground
+	drainStreamContent(t, sr)
 
 	// Wait for goroutine
 	time.Sleep(200 * time.Millisecond)
 
-	// docsMessages may or may not have saved user question before cancel.
-	// The key assertion: no assistant answer should be saved.
 	if strings.Contains(saver.getSavedContent(), "data") {
 		t.Error("saved content should NOT contain assistant answer when context cancelled")
 	}
@@ -858,6 +848,7 @@ func TestGetAnswerStream_ConcurrentSessions_Isolation(t *testing.T) {
 	savers := make([]*fakeMessageSaver, n)
 	chats := make([]*Chat, n)
 	srs := make([]*schema.StreamReader[*schema.Message], n)
+	cleanups := make([]func(StreamResult), n)
 
 	for i := 0; i < n; i++ {
 		fms[i] = newStreamingChatModel([]string{fmt.Sprintf("session%d-", i), "answer"})
@@ -871,12 +862,13 @@ func TestGetAnswerStream_ConcurrentSessions_Isolation(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			sr, err := chats[idx].GetAnswerStream(context.Background(), fmt.Sprintf("conv-%d", idx), nil, "q")
+			sr, cl, err := chats[idx].GetAnswerStream(context.Background(), fmt.Sprintf("conv-%d", idx), nil, "q")
 			if err != nil {
 				t.Errorf("session %d: unexpected error: %v", idx, err)
 				return
 			}
 			srs[idx] = sr
+			cleanups[idx] = cl
 		}(i)
 	}
 	wg.Wait()
@@ -886,22 +878,23 @@ func TestGetAnswerStream_ConcurrentSessions_Isolation(t *testing.T) {
 		if srs[i] == nil {
 			t.Fatalf("session %d: nil stream reader", i)
 		}
-		content := drainStream(t, srs[i])
+		content := drainStreamContent(t, srs[i])
 		expected := fmt.Sprintf("session%d-answer", i)
 		if content != expected {
 			t.Errorf("session %d: expected %q, got %q", i, expected, content)
 		}
 	}
 
+	// Signal success for all sessions
+	for i := 0; i < n; i++ {
+		if cleanups[i] != nil {
+			cleanups[i](StreamResult{Success: true})
+		}
+	}
+
 	// Wait for all saves (each session: 1 user question + 1 assistant answer = 2)
 	for i := 0; i < n; i++ {
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			if savers[i].getSaveCount() >= 2 {
-				break
-			}
-			time.Sleep(5 * time.Millisecond)
-		}
+		waitForSave(t, savers[i], 2, 5*time.Second)
 	}
 
 	// Verify each saver got the correct content

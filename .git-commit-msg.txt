@@ -1,0 +1,29 @@
+Stage 1C-2 fix: lifecycle coordination, save contract, SSE cancel
+
+- Verify Eino v0.6.0 Copy/Close/Recv semantics
+  - Copy child Close does not affect other children
+  - Only when ALL children close does parent close upstream
+  - Blocking Recv has no context; cancellation via model only
+- Derived context with cancel for active cancellation
+- SSE write failure cancels model and stops consumption
+- GetAnswerStream returns cleanup func(StreamResult)
+  - cleanup closes both stream branches (parent closes upstream)
+  - cleanup carries foreground result for save decision
+- Controller cleanup: cleanupDone flag prevents double call
+- Save contract: only on foreground success + no cancel + no error
+- Background EOF alone does not trigger save
+- Foreground completion result notifies save decision via resultCh
+- No partial answer save on failure/cancel/timeout
+- Document History context support limitations
+- SSE cancel: check ctx before send, no DONE on cancel
+- Blocking Recv exit by real lifecycle mechanism (all children close)
+- Real behavior tests with injectable boundaries
+- Cover: SSE write failure → cleanup Success=false
+- Cover: normal complete → cleanup Success=true
+- Cover: cancel propagation to model context
+- Cover: model receives parent deadline and context value
+- Remove empty assertions and fixed sleep
+- Update all existing stream tests for new 3-return signature
+
+Baseline: d21879c (Stage 1C-2 initial)
+See verification/stage1c2/ for test logs.

@@ -1,5 +1,50 @@
 # 变更记录
 
+## 2026-10-15 Stage 1C-2：生命周期协调、保存契约及 SSE 取消强化
+
+**基线**：`d21879c2f571eb75e9a259319a3172cee50bd12d`（Stage 1C-2 initial）
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| Eino Copy/Close 语义核实 | Copy 分支关闭不影响其他分支；只有所有分支关闭时 parent 才关闭上游 |
+| 派生 context + cancel | Controller 派生 ctx，SSE 失败时主动取消模型和后台消费 |
+| GetAnswerStream 返回 cleanup | 新增 `func(StreamResult)` 返回值，关闭所有流分支并通知保存决定 |
+| 保存契约强化 | 前台成功 + ctx 未取消 + 无写入失败 → 才保存；后台 EOF 不足以触发保存 |
+| resultCh 前台结果通知 | 后台 goroutine 等待前台结果 channel，避免抢先保存 |
+| cleanupDone 标志 | 防止 cleanup 被调用两次（defer + 显式） |
+| SSE 取消强化 | EOF 时检查 ctx.Err()，取消后不发 DONE |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/internal/logic/chat/chat.go | 新增 StreamResult 类型；GetAnswerStream 返回 cleanup；resultCh 协调保存 |
+| server/internal/controller/rag/rag_v1_chat_stream.go | 派生 ctx；cleanupDone 标志；cleanup 调用逻辑 |
+| server/internal/controller/rag/rag_new.go | chatAnswerStream 字段类型更新 |
+| server/internal/logic/chat/chat_test.go | 更新所有流式测试适配新签名；新增 cleanup 调用 |
+| server/internal/controller/rag/rag_v1_chat_stream_test.go | 新增 4 个协调测试 |
+
+### 测试覆盖（新增 4 个）
+
+| 测试 | 说明 |
+|---|---|
+| TestChatStream_SSEWriteFailure_CleanupWithFailure | SSE 写入失败 → cleanup Success=false |
+| TestChatStream_NormalComplete_CleanupWithSuccess | 正常完成 → cleanup Success=true |
+| TestChatStream_CancelPropagation | 派生 ctx 取消传播 |
+| TestChatStream_ModelReceivesDeadlineAndValue | 模型收到父 ctx 值和 deadline |
+
+### 验证结果
+
+- `go build ./...` — exit 0
+- `go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，50 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race` — core/common 0xc0000139（Windows 预存在平台问题），其余 pass
+
+---
+
 ## 2026-10-15 Stage 1C-2：F03 请求 context 传播、流消费退出及完整回答保存（待独立复核）
 
 **基线**：`c022ccdba3a9bc38c6516534a31844ca1598ec58`（Stage 1C-1 定点收尾 HEAD）

@@ -11,6 +11,7 @@ import (
 	"github.com/wangle201210/go-rag/server/api/rag"
 
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
+	"github.com/wangle201210/go-rag/server/internal/logic/chat"
 )
 
 // ControllerV1 ChatStream 的依赖注入边界为实例级字段，运行期间只读：
@@ -18,7 +19,7 @@ import (
 // 测试可注入这些字段以离线运行（不连接真实服务、不替换可变全局函数）。
 type ControllerV1 struct {
 	chatRetrieve     func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error)
-	chatAnswerStream func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], error)
+	chatAnswerStream func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error)
 	chatSSEWrite     func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error
 }
 

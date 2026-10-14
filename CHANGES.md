@@ -1,5 +1,63 @@
 # 变更记录
 
+## 2026-10-14 Stage 1C-1：F04 SSE 流语义与 Controller 错误处理
+
+**基线**：`ae5d5b0cd2dca625d7834a780dc43e9399c550ae`（Stage 1C plan HEAD）
+
+### 计划修正
+
+- 核实 GoFrame v2.9.0 Writeln/Flush 无返回值，改用 `RawWriter()` 检测写入错误
+- 核实中间件已保护 SSE：BytesWritten>0 和 Content-Type 检查阻止 JSON 追加
+- 明确 Eino v0.6.0 StreamReader Recv/Copy/Close 语义
+- 流消费保持请求 context 可取消，不用 WithoutCancel
+- 不为初始化阶段 Background 扩大 ChatModelFactory 接口
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/core/common/stream.go | 引入 `sseWriter` 封装写入错误检测；SteamResponse 区分 EOF/错误；错误时不发 DONE；返回 error；nil chunk 返回 error；SSE error 数据安全编码 |
+| server/internal/controller/rag/rag_v1_chat_stream.go | 建流失败返回 error；%w 错误链保留 |
+| server/core/common/stream_test.go | 新增 17 个离线测试 |
+| design/stage1c-plan.md | 修正计划：API 核实、context 策略、Eino 语义 |
+
+### 测试覆盖（17 个新增）
+
+| 测试 | 说明 |
+|---|---|
+| TestSteamResponse_NormalEOF | 多 chunk + EOF → 数据事件 + DONE |
+| TestSteamResponse_EmptyStream | 空流 → 只发 DONE |
+| TestSteamResponse_EmptyContentChunks | 空内容 chunk 被跳过 |
+| TestSteamResponse_StreamError_NoDone | chunk 后错误 → 数据 + error 事件，无 DONE |
+| TestSteamResponse_NilChunk | nil chunk → error |
+| TestSteamResponse_ErrorChain | errors.Is 识别原始错误 |
+| TestSteamResponse_SafeErrorEncoding | 换行符安全编码 |
+| TestSteamResponse_WriteFail_Documents | documents 写入失败 |
+| TestSteamResponse_WriteFail_Data | data 写入失败 |
+| TestSteamResponse_WriteFail_Done | DONE 写入失败 |
+| TestSteamResponse_WriteFail_ErrorEvent | error 事件写入失败 |
+| TestSteamResponse_SubsequentWriteAfterFailure | 失败后后续写入返回 errWriteFailed |
+| TestSteamResponse_WithDocuments | documents 事件输出 |
+| TestSteamResponse_EventFormat | SSE 事件格式 |
+| TestSSEError_EventFormat | error 事件格式 |
+| TestMiddleware_NoJSONAppend_AfterSSEStarted | 中间件条件验证 |
+| TestMiddleware_Integration_GoFrameServer | GoFrame HTTP 服务集成测试 |
+
+### 验证结果
+
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test ./core/common/... ./internal/controller/rag/... -count=1 -v` — 退出码 0，28 个测试全部通过
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- `go test -race ./internal/controller/rag/...` — 退出码 0
+- `go test -race ./core/common/...` — Windows 环境 race detector DLL 问题（非代码问题）
+
+### 回滚说明
+
+回滚 `stream.go`、`rag_v1_chat_stream.go` 到基线 `ae5d5b0`，删除 `stream_test.go`。
+
+---
+
 ## 2026-10-14 Stage 1C 计划制定：F03/F04 Chat context 与流式语义
 
 **基线**：`eb27ba2ed6638f2d4d717bce1305dac92ff6b0ae`（Stage 1B 完成后的 HEAD）

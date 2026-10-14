@@ -36,7 +36,7 @@
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **计划已制定，待实施** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已完成，1C-2 待实施** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -212,6 +212,43 @@
 **Stage 1B 整体状态**：三个批次（1B-1 F05、1B-2 F01、1B-3 F02）均已通过复核，可标记完成。
 
 **race 证据说明**：`core/retriever`、`core/rerank` 两个子包此前 Windows race 检测异常仍未补证，普通测试通过不代表其 race 通过，二者 race 结论保持待验证。
+
+### Stage 1C-1 完成记录
+
+**日期**：2026-10-14
+**基线**：`ae5d5b0cd2dca625d7834a780dc43e9399c550ae`（Stage 1C plan HEAD）
+**状态**：✅ 已完成
+
+**修改文件**：
+- `server/core/common/stream.go` — 引入 `sseWriter` 封装写入错误检测；SteamResponse 区分 EOF/错误；错误时不发 DONE；返回 error；nil chunk 返回 error；SSE error 数据安全编码
+- `server/internal/controller/rag/rag_v1_chat_stream.go` — 建流失败返回 error；%w 错误链保留
+- `server/core/common/stream_test.go` — 新增 17 个离线测试
+- `design/stage1c-plan.md` — 修正计划：API 核实、context 策略、Eino 语义
+
+**修复内容**：
+
+| 修复项 | 说明 |
+|---|---|
+| 正常 EOF 才发 DONE | 只有 `io.EOF` 才发送 `[DONE]`，错误时不发 |
+| 非 EOF 错误返回 error | 带错误链的 `fmt.Errorf("stream read failed: %w", err)` |
+| 建流失败返回 error | 不再返回 `&ChatStreamRes{}, nil` 空成功 |
+| 写入错误检测 | 通过 `RawWriter()` 直接写入，检测底层写入失败 |
+| 写入失败后停止 | `writeFailed` 标志，后续写入返回 `errWriteFailed` |
+| nil chunk 返回 error | 不 panic，返回 `"nil chunk received"` |
+| SSE error 安全编码 | 换行符替换为空格，防止破坏事件帧 |
+| documents/content 编码失败 | 检查 `sonic.Marshal` 错误并返回 |
+| 日志使用请求 ctx | 移除 `context.Background()` 日志，错误返回调用方 |
+| SSE 已开始后错误 | 中间件检测 BytesWritten>0 和 Content-Type，不追加 JSON |
+
+**验证结果**：
+- `go build ./...` — 退出码 0
+- `go vet ./...` — 退出码 0
+- `go test ./core/common/... ./internal/controller/rag/... -count=1 -v` — 退出码 0，17 个新增测试 + 11 个已有测试全部通过
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- `go test -race ./internal/controller/rag/...` — 退出码 0
+- `go test -race ./core/common/...` — Windows 环境 race detector DLL 问题（非代码问题，已有测试也失败）
+
+**证据目录**：[verification/stage1c1/](verification/stage1c1/)
 
 ### Stage 1C 计划记录
 

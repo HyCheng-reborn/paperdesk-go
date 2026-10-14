@@ -13,7 +13,45 @@ Stage 1C 目标：修复 Chat 流式问答中的 context 丢失、EOF/错误处�
 
 **前置条件**：Stage 1A 已完成（确保测试不触发真实连接）
 
-**基线**：`eb27ba2ed6638f2d4d717bce1305dac92ff6b0ae`（Stage 1B-3 完成后的 HEAD）
+**基线**：`ae5d5b0cd2dca625d7834a780dc43e9399c550ae`（Stage 1C plan HEAD）
+
+## API 核实记录（1C-1 实施前）
+
+### GoFrame v2.9.0 Writeln/Flush API
+
+- `Response.Writeln(content ...interface{})` — **无返回值**，内部写入 `bytes.Buffer`，不会失败
+- `Response.Flush()` — **无返回值**，将 buffer 刷到底层 `http.ResponseWriter`，错误被静默丢弃
+- `Response.Write(content ...interface{})` — **无返回值**，同上
+
+**结论**：GoFrame 标准写入 API 无法检测写入错误。需通过 `httpResp.RawWriter()` 获取底层 `http.ResponseWriter`，其 `Write([]byte)` 返回 `(int, error)`。
+
+### 响应中间件 SSE 保护
+
+`MiddlewareHandlerResponse`（`cmd/middleware.go`）：
+1. 第 30 行：`r.Response.BufferLength() > 0 || r.Response.Writer.BytesWritten() > 0` → 已有数据写出时直接 return
+2. 第 35-39 行：`Content-Type == text/event-stream` → 直接 return
+
+**结论**：SSE 已开始后（Content-Type 已设置、数据已写出），handler 返回 error 不会触发中间件追加 JSON 响应。
+
+### Eino v0.6.0 StreamReader 语义
+
+- `Recv() (T, error)` — 阻塞读取，`io.EOF` 表示流正常结束
+- `Close()` — 关闭读取端，释放资源
+- `Copy(n int)` — 复制 n 个独立 reader，各自独立消费
+- `StreamReaderFromArray(arr []T)` — 从数组创建 reader，用于测试
+- `Pipe[T](cap int)` — 创建 reader/writer 对
+
+**关闭所有权**：StreamReader 的 Close 由消费方负责调用。Controller 中 `defer streamReader.Close()` 确保释放。
+
+### context 策略修正
+
+- 流消费保持请求 context 可取消，**不得**用 `context.WithoutCancel`
+- 正常 EOF 且未取消时才允许保存完整回答
+- defer 只做清理（Close reader），不能无条件保存
+- 若正常完成后需要短暂脱离请求保存，另定有界保存策略（1C-2 详述）
+- 不为初始化阶段 Background 单独扩大 `ChatModelFactory` 接口
+
+---
 
 ## 调用链追踪
 
@@ -300,71 +338,47 @@ fullMsgs = append(fullMsgs, chunk)  // ← ★ F04-5: 非 EOF 错误时 chunk �
 
 ---
 
-## 1C-1：F04 SSE 流语义修复
+### 1C-1：F04 SSE 流语义修复
 
-### 修改文件
+**修改文件**：
 
 | 文件 | 变更 |
 |---|---|
-| `server/core/common/stream.go` | SteamResponse 区分 EOF/错误；错误时不发 DONE；返回 error；writeSSE* 函数传入 ctx 并检查写入错误 |
-| `server/internal/controller/rag/rag_v1_chat_stream.go` | 建流失败返回 error 而非空成功 |
-| `server/core/common/stream_test.go` | 新增测试 |
+| `server/core/common/stream.go` | 引入 `sseWriter` 封装写入错误检测；SteamResponse 区分 EOF/错误；错误时不发 DONE；返回 error；nil chunk 返回 error；SSE error 数据安全编码 |
+| `server/internal/controller/rag/rag_v1_chat_stream.go` | 建流失败返回 error 而非空成功；%v → %w 错误链修复 |
+| `server/core/common/stream_test.go` | 新增离线测试 |
 
-### 修改内容
-
-#### 1. SteamResponse 区分正常/错误结束
+**核心设计**：
 
 ```go
-func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schema.Message], docs []*schema.Document) (err error) {
-    // ... 设置响应头 ...
-    
-    for {
-        chunk, err := streamReader.Recv()
-        if err == io.EOF {
-            writeSSEDone(httpResp)  // 正常结束才发 DONE
-            return nil
-        }
-        if err != nil {
-            writeSSEError(ctx, httpResp, err)  // 传入 ctx
-            return fmt.Errorf("stream recv failed: %w", err)  // 返回 error，不发 DONE
-        }
-        // ... 发送 chunk ...
-        if writeErr := writeSSEData(ctx, httpResp, string(marshal)); writeErr != nil {
-            return fmt.Errorf("stream write failed: %w", writeErr)
-        }
-    }
+// sseWriter 封装 http.ResponseWriter 用于 SSE 写入，检测写入失败。
+type sseWriter struct {
+    w       http.ResponseWriter
+    failed  bool
+}
+
+func (s *sseWriter) writeEvent(data string) error {
+    if s.failed { return errWriteFailed }
+    _, err := s.w.Write([]byte(data))
+    if err != nil { s.failed = true; return err }
+    if f, ok := s.w.(http.Flusher); ok { f.Flush() }
+    return nil
 }
 ```
 
-#### 2. writeSSE* 函数传入 ctx 并检查写入错误
+**行为表**：
 
-```go
-func writeSSEData(ctx context.Context, resp *ghttp.Response, data string) error {
-    if len(data) == 0 {
-        return nil
-    }
-    _, err := resp.Writeln(fmt.Sprintf("data:%s\n", data))
-    if err != nil {
-        return err
-    }
-    return resp.Flush()
-}
-
-func writeSSEError(ctx context.Context, resp *ghttp.Response, err error) {
-    g.Log().Error(ctx, err)  // 使用请求 ctx 而非 Background
-    resp.Writeln(fmt.Sprintf("event: error\ndata: %s\n\n", err.Error()))
-    resp.Flush()
-}
-```
-
-#### 3. Controller 建流失败返回 error
-
-```go
-streamReader, err = chatI.GetAnswerStream(ctx, req.ConvID, retriever.Document, req.Question)
-if err != nil {
-    return nil, err  // 传递 error 而非返回空成功
-}
-```
+| 场景 | 行为 |
+|---|---|
+| 正常 EOF | 发送 DONE，返回 nil |
+| 非 EOF 读取错误 | 发送 error 事件，**不发送 DONE**，返回 error（%w 保留链） |
+| 建流失败 | 返回 error，不返回空成功 |
+| documents 编码失败 | 返回 encode error |
+| content 编码失败 | 返回 encode error |
+| 写入失败 | 设置 writeFailed，后续写入返回 error |
+| nil chunk | 返回 error，不 panic |
+| SSE error 数据 | 换行符替换为空格，防止破坏事件帧 |
+| SSE 已开始后错误 | 中间件检测 BytesWritten>0 和 Content-Type，不追加 JSON |
 
 ### 测试
 
@@ -412,92 +426,23 @@ go test -race ./core/common/... -count=1
 
 ---
 
-## 1C-2：F03 Chat context 修复
+### 1C-2：F03 Chat context 修复
 
-### 修改文件
+**修改文件**：
 
 | 文件 | 变更 |
 |---|---|
-| `server/internal/logic/chat/chat.go` | 移除 `ctx = context.Background()`；后台保存 goroutine 使用独立 context 策略；修复非 EOF 错误时 append 零值 chunk |
+| `server/internal/logic/chat/chat.go` | 移除 `ctx = context.Background()`；后台保存 goroutine context 策略；修复非 EOF 错误时 append 零值 chunk；`stream()` 中 `%v` → `%w` 错误链修复 |
 | `server/internal/logic/chat/chat_test.go` | 新增 context 传递测试 |
 
-### 修改内容
+**关键决策**：
+- 流消费保持请求 context 可取消，不用 WithoutCancel
+- 正常 EOF 且 ctx 未取消时才保存
+- defer 只做 Close 清理，不无条件保存
+- 不为 `defaultChatModelFactory.Create` 的 Background 扩大接口
+- `stream()` 中 `%v` → `%w` 保留错误链
 
-#### 1. 移除 context.Background() 替换
-
-```go
-func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (...) {
-    messages, err := x.docsMessages(ctx, convID, docs, question)
-    if err != nil {
-        return
-    }
-    // 使用传入的 ctx 调用模型，客户端断开时模型调用可取消
-    streamData, err := stream(ctx, x.cm, messages)
-```
-
-#### 2. 后台保存 goroutine 使用 context.WithoutCancel
-
-后台保存 goroutine 需要确保即使 HTTP ctx 取消，保存操作仍能完成（用户已收到数据，消息应持久化）。使用 `context.WithoutCancel(parentCtx)` 派生独立 ctx：
-
-```go
-// Go 1.21+ 提供 context.WithoutCancel
-bgCtx := context.WithoutCancel(ctx)
-
-go func() {
-    fullMsgs := make([]*schema.Message, 0)
-    defer func() {
-        srs[1].Close()
-        fullMsg, concatErr := schema.ConcatMessages(fullMsgs)
-        if concatErr != nil {
-            g.Log().Error(bgCtx, "error concatenating messages: %v", concatErr)
-            return
-        }
-        save_err := x.eh.SaveMessage(fullMsg, convID)
-        if save_err != nil {
-            g.Log().Error(bgCtx, "save assistant message err: %v", save_err)
-        }
-    }()
-    // ...
-}()
-```
-
-**注意**：如果 Go 版本不支持 `context.WithoutCancel`（需要 Go 1.21+），可使用 `context.Background()` 但明确注释意图：
-
-```go
-// 后台保存使用独立 context，不随 HTTP 请求取消
-// 确保用户已收到的消息能持久化保存
-bgCtx := context.Background() // intentional: save must complete even if request is cancelled
-```
-
-#### 3. 修复非 EOF 错误时 append 零值 chunk
-
-```go
-chunk, err := srs[1].Recv()
-if err != nil {
-    if errors.Is(err, io.EOF) {
-        break outer
-    }
-    // 非 EOF 错误：记录日志，停止消费但不保存不完整消息
-    g.Log().Error(bgCtx, "stream recv error: %v", err)
-    break outer
-}
-fullMsgs = append(fullMsgs, chunk)  // 只在无错误时 append
-```
-
-#### 4. defaultChatModelFactory.Create 传入 ctx
-
-```go
-type ChatModelFactory interface {
-    Create(ctx context.Context, apiKey, baseURL, modelName string) (model.BaseChatModel, error)
-}
-
-func (f *defaultChatModelFactory) Create(ctx context.Context, apiKey, baseURL, modelName string) (model.BaseChatModel, error) {
-    return openai.NewChatModel(ctx, &openai.ChatModelConfig{
-```
-
-**注意**：这改变了 `ChatModelFactory` 接口签名，需要同步更新测试中的 fake。
-
-### 测试
+### 1C-2 测试
 
 ```go
 // chat_test.go
@@ -512,14 +457,8 @@ func TestGetAnswerStream_ContextPassedToModel(t *testing.T) {
     // 取消父 ctx 后 fake 应观察到 ctx.Done()
 }
 
-func TestGetAnswerStream_BackgroundSave_CompletesAfterCancel(t *testing.T) {
-    // 验证即使 HTTP ctx 取消，后台保存 goroutine 仍完成消息保存
-    // 使用注入的 fake history 验证 SaveMessage 被调用
-}
-
-func TestGetAnswerStream_NonEOFError_NoPanic(t *testing.T) {
+func TestGetAnswerStream_NonEOFError_NoAppendZeroChunk(t *testing.T) {
     // 验证非 EOF 错误时不 append 零值 chunk
-    // 后台 goroutine 正常退出不 panic
 }
 ```
 
@@ -534,7 +473,7 @@ go test -race ./internal/logic/chat/... -count=1
 
 ### 回滚边界
 
-修改涉及 `ChatModelFactory` 接口签名变化，回滚需同时恢复 fake 实现。
+修改涉及 `chat.go` 内部逻辑变化，无接口签名变化。
 
 ---
 
@@ -542,9 +481,10 @@ go test -race ./internal/logic/chat/... -count=1
 
 | 批次 | 接口变化 | 影响范围 |
 |---|---|---|
-| 1C-1 | `writeSSEData`/`writeSSEError`/`writeSSEDone`/`writeSSEDocuments` 新增 ctx 参数 | 仅 `stream.go` 内部函数，无外部 API 变化 |
+| 1C-1 | 新增内部 `sseWriter` 封装写入错误检测 | 仅 `stream.go` 内部，无外部 API 变化 |
 | 1C-1 | `SteamResponse` 返回值语义变化（错误时返回 error 而非 nil） | `rag_v1_chat_stream.go` 调用方 |
-| 1C-2 | `ChatModelFactory.Create` 新增 ctx 参数 | `chat.go` 和测试 fake |
+| 1C-1 | Controller 建流失败返回 error（不再返回空成功） | 客户端行为变化：收到错误而非空成功 |
+| 1C-2 | `stream()` 内部 `%v` → `%w` 错误链修复 | 错误消息格式变化 |
 | 1C-2 | `GetAnswerStream` 行为变化（context 正确传递） | 无接口签名变化 |
 
 ---
@@ -553,8 +493,10 @@ go test -race ./internal/logic/chat/... -count=1
 
 ### 1C-1 测试
 
-- **mock StreamReader**：创建 `schema.StreamReader[*schema.Message]` 的 fake 实现，控制返回的 chunk 和错误
-- **httptest**：使用 GoFrame 测试框架或模拟 HTTP response 验证 SSE 输出
+- **真实 StreamReader**：使用 `schema.StreamReaderFromArray` 构造测试流，无需 mock 接口
+- **httptest**：使用 `httptest.NewRecorder` 作为底层 `http.ResponseWriter`
+- **failingWriter**：自定义 writer 包装 `http.ResponseWriter`，在指定次数后返回错误，模拟确定性写入失败
+- **GoFrame HTTP 服务**：验证中间件路径，SSE 开始后错误不追加 JSON
 - 不连接真实模型
 
 ### 1C-2 测试

@@ -1,0 +1,8 @@
+﻿CMD: go test -race ./internal/controller/rag/... ./internal/cmd/... -count=1
+GOFLAGS=[]  (untagged default)
+---- stdout ----
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	1.298s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	5.271s
+
+---- stderr ----
+---- EXIT: 0 ----

@@ -1,5 +1,52 @@
 # 变更记录
 
+## 2026-10-15 Stage 1C-1 定点收尾：SSE 前端帧兼容恢复 + Controller 建流失败测试（待独立复核）
+
+**基线**：`11e021a3cca840b2225c6228be6a19aaa6a03f55`。不实施 1C-2，不改前端协议，不重构共享 SSE 编排。
+
+### 收尾内容
+
+| 项目 | 说明 |
+|---|---|
+| 前端帧格式恢复 | `writeDocuments` 从 `event: documents`+`data:` 恢复为 `documents:<JSON>\n\n`；content 为 `data:<JSON>\n\n`；DONE 为 `data:[DONE]\n\n`；error 保留 `event: error`+`data:` 原格式（chat.vue 按行前缀 `documents:`/`data:` 提取） |
+| 保留机制 | 统一写入 `writeFrame`、短写检查（`io.ErrShortWrite`）、`failed` 状态与 `errors.Join` 双错误链不变 |
+| 精确帧测试 | `TestRealSSEWriter_FrontendCompatFrames` 逐帧断言 `documents:` 行+双换行边界，并从该行切前缀后 `json.Unmarshal` 验证含 document；断言不出现 `event: documents` 帧（非仅字符串包含） |
+| Controller 注入边界 | ChatStream 新增实例级、运行期只读的 `chatRetrieve`/`chatAnswerStream`/`chatSSEWrite`，nil 回退生产默认（非可变全局函数） |
+| 建流失败测试 | `TestChatStream_AnswerStreamError` 调用实际 ChatStream：离线检索+建流 sentinel；断言 err 非 nil、errors.Is 识别、不返回空成功、不进入 SSE |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/core/common/stream.go | 恢复前端兼容帧格式；flush 错误边界注释修正 |
+| server/core/common/stream_test.go | 新增 frameRecorder 与 `TestRealSSEWriter_FrontendCompatFrames` |
+| server/internal/controller/rag/rag_new.go | ControllerV1 新增三个实例级只读注入字段 |
+| server/internal/controller/rag/rag_v1_chat_stream.go | ChatStream 解析注入边界/回退默认；新增 `defaultAnswerStream`/`defaultSSEWrite` |
+| server/internal/controller/rag/rag_v1_chat_stream_test.go | 新增 ChatStream 建流失败测试 |
+
+### 验证边界（如实保留）
+
+- 保留真实 `MiddlewareHandlerResponse` + `SteamResponse` 集成测试（真实 GoFrame 服务器）
+- 刷新错误当前只能经由无返回值 Flusher 调用，“部分刷新错误无法检测”为已知边界，不宣称已全面验证
+- content 编码字段实际是 `StreamData.Content`（string），编码不自然失败，未制造无意义测试
+
+### 验证结果（server/，GOFLAGS 空）
+
+- `gofmt -w` 目标文件已格式化，`gofmt -l` 无输出
+- `go build ./...` / `go vet ./...` — exit 0
+- `go test ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，41 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 0（本次新增代码无 race）
+- `go test -race ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 1：`core/common` 触发 Windows 预存在 `0xc0000139`（race detector DLL 入口点）问题，非代码数据竞争，根因待确认，该包 race 视为未完成
+
+**race 未验证项**：`core/common` race 因平台 `0xc0000139` 未完成；`core/retriever`、`core/rerank` 亦仍未补证。普通测试通过不写成 race 通过。
+
+### 回滚说明
+
+回滚 `stream.go`、`stream_test.go`、`rag_new.go`、`rag_v1_chat_stream.go` 到基线 `11e021a`，删除 `rag_v1_chat_stream_test.go`；不涉及前端协议或共享 SSE 编排重构。
+
+---
+
 ## 2026-10-14 Stage 1C-1：F04 SSE 流语义与 Controller 错误处理
 
 **基线**：`ae5d5b0cd2dca625d7834a780dc43e9399c550ae`（Stage 1C plan HEAD）

@@ -13,9 +13,22 @@ import (
 
 // ChatStream 流式输出接口
 func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (res *v1.ChatStreamRes, err error) {
-	var streamReader *schema.StreamReader[*schema.Message]
+	// 解析注入边界，nil 时回退生产默认（运行期间只读）
+	retrieve := c.chatRetrieve
+	if retrieve == nil {
+		retrieve = c.Retriever
+	}
+	answerStream := c.chatAnswerStream
+	if answerStream == nil {
+		answerStream = defaultAnswerStream
+	}
+	sseWrite := c.chatSSEWrite
+	if sseWrite == nil {
+		sseWrite = defaultSSEWrite
+	}
+
 	// 获取检索结果
-	retriever, err := c.Retriever(ctx, &v1.RetrieverReq{
+	retriever, err := retrieve(ctx, &v1.RetrieverReq{
 		Question:      req.Question,
 		TopK:          req.TopK,
 		Score:         req.Score,
@@ -25,17 +38,25 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 		g.Log().Error(ctx, err)
 		return
 	}
-	// 获取Chat实例
-	chatI := chat.GetChat()
-	// 获取流式响应
-	streamReader, err = chatI.GetAnswerStream(ctx, req.ConvID, retriever.Document, req.Question)
+	// 获取流式响应；建流失败返回 error，不返回空成功、不进入 SSE 输出
+	streamReader, err := answerStream(ctx, req.ConvID, retriever.Document, req.Question)
 	if err != nil {
 		return nil, fmt.Errorf("get answer stream: %w", err)
 	}
 	defer streamReader.Close()
-	err = common.SteamResponse(ctx, streamReader, retriever.Document)
+	err = sseWrite(ctx, streamReader, retriever.Document)
 	if err != nil {
 		return nil, fmt.Errorf("stream response: %w", err)
 	}
 	return &v1.ChatStreamRes{}, nil
+}
+
+// defaultAnswerStream 生产建流实现：调用 chat 单例。运行期间只读。
+func defaultAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], error) {
+	return chat.GetChat().GetAnswerStream(ctx, convID, docs, question)
+}
+
+// defaultSSEWrite 生产 SSE 写入实现。运行期间只读。
+func defaultSSEWrite(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+	return common.SteamResponse(ctx, reader, docs)
 }

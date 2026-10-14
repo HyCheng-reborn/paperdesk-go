@@ -36,7 +36,7 @@
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已完成，1C-2 待实施** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 定点收尾完成，待独立复核；1C-2 待实施** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -217,7 +217,7 @@
 
 **日期**：2026-10-14
 **基线**：`ae5d5b0cd2dca625d7834a780dc43e9399c550ae`（Stage 1C plan HEAD）
-**状态**：✅ 已完成
+**状态**：✅ 已完成（另见下方“Stage 1C-1 定点收尾记录”，当前总状态为待独立复核）
 
 **修改文件**：
 - `server/core/common/stream.go` — 引入 `sseWriter` 封装写入错误检测；SteamResponse 区分 EOF/错误；错误时不发 DONE；返回 error；nil chunk 返回 error；SSE error 数据安全编码
@@ -236,7 +236,8 @@
 | 写入失败后停止 | `writeFailed` 标志，后续写入返回 `errWriteFailed` |
 | nil chunk 返回 error | 不 panic，返回 `"nil chunk received"` |
 | SSE error 安全编码 | 换行符替换为空格，防止破坏事件帧 |
-| documents/content 编码失败 | 检查 `sonic.Marshal` 错误并返回 |
+| documents 编码失败 | 检查 `sonic.Marshal` 错误并返回（MetaData 含不可编码值时可触发，已测试） |
+| content 编码 | content 实际写入字段是 `StreamData.Content`（string），编码不会自然失败，未制造无意义测试（已知边界） |
 | 日志使用请求 ctx | 移除 `context.Background()` 日志，错误返回调用方 |
 | SSE 已开始后错误 | 中间件检测 BytesWritten>0 和 Content-Type，不追加 JSON |
 
@@ -247,6 +248,37 @@
 - `go test -p 1 ./... -count=1` — 退出码 0，全量通过
 - `go test -race ./internal/controller/rag/...` — 退出码 0
 - `go test -race ./core/common/...` — Windows 环境 race detector DLL 问题（非代码问题，已有测试也失败）
+
+**证据目录**：[verification/stage1c1/](verification/stage1c1/)
+
+### Stage 1C-1 定点收尾记录
+
+**日期**：2026-10-15
+**基线**：`11e021a3cca840b2225c6228be6a19aaa6a03f55`（1C-1 fix 提交）
+**状态**：✅ 定点收尾完成，待独立复核
+**范围约束**：不实施 1C-2，不改前端协议，不重构共享 SSE 编排。
+
+**修改文件**：
+- `server/core/common/stream.go` — 恢复前端兼容帧格式：documents `documents:<JSON>\n\n`、content `data:<JSON>\n\n`、DONE `data:[DONE]\n\n`；error 保留 `event: error` + `data:` 原格式；保留统一写入 writeFrame、短写检查、failed 状态与 errors.Join 双错误链
+- `server/core/common/stream_test.go` — 新增 `TestRealSSEWriter_FrontendCompatFrames`：断言 documents: 行、双换行边界、从该行切片提取的 JSON 含 document，并断言不出现 event: documents 帧
+- `server/internal/controller/rag/rag_new.go` + `rag_v1_chat_stream.go` — 为 ChatStream 增加实例级、运行期只读的注入边界（chatRetrieve/chatAnswerStream/chatSSEWrite），nil 回退生产默认
+- `server/internal/controller/rag/rag_v1_chat_stream_test.go` — 新增 `TestChatStream_AnswerStreamError`：调用实际 ChatStream，检索返回离线文档、建流返回 sentinel；断言 err 非 nil、errors.Is 识别 sentinel、不返回空成功、不进入 SSE
+
+**验证边界（如实保留）**：
+- 保留真实 `MiddlewareHandlerResponse` + `SteamResponse` 集成测试（真实 GoFrame 服务器）
+- 刷新错误当前只能经由无返回值 Flusher 调用，“部分刷新错误无法检测”保持为已知边界，不宣称已全面验证
+- content 编码字段实际是 `StreamData.Content`（string），编码不自然失败，未制造无意义测试
+
+**验证结果（server/，GOFLAGS 空）**：
+- `go build ./...` / `go vet ./...` — exit 0
+- `go test ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，41 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 0（本次新增代码无 race）
+- `go test -race ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 1：`core/common` 触发 Windows 预存在 `0xc0000139`（race detector DLL 入口点）问题，非代码数据竞争，根因待确认，该包 race 视为未完成
+
+**race 范围**：`core/common` race 因平台 `0xc0000139` 未完成；`core/retriever`、`core/rerank` 亦仍未补证。普通测试通过不写成 race 通过。
+
+**证据命令记录**：`verification/stage1c1/` 每个 `-final` 日志头部记录实际命令、GOFLAGS 与退出码。
 
 **证据目录**：[verification/stage1c1/](verification/stage1c1/)
 

@@ -1,0 +1,110 @@
+﻿CMD: go test ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v
+GOFLAGS=[]  (untagged default)
+---- stdout ----
+=== RUN   TestChatModelConfigMapping
+--- PASS: TestChatModelConfigMapping (0.00s)
+=== RUN   TestRemoveDuplicates
+    slices_test.go:32: i: 0, doc_id: 1
+    slices_test.go:32: i: 1, doc_id: 2
+    slices_test.go:32: i: 2, doc_id: 3
+--- PASS: TestRemoveDuplicates (0.00s)
+=== RUN   TestStreamResponse_NormalEOF
+--- PASS: TestStreamResponse_NormalEOF (0.00s)
+=== RUN   TestStreamResponse_EmptyStream
+--- PASS: TestStreamResponse_EmptyStream (0.00s)
+=== RUN   TestStreamResponse_EmptyContentChunks
+--- PASS: TestStreamResponse_EmptyContentChunks (0.00s)
+=== RUN   TestStreamResponse_StreamError_NoDone
+--- PASS: TestStreamResponse_StreamError_NoDone (0.00s)
+=== RUN   TestStreamResponse_NilChunk
+--- PASS: TestStreamResponse_NilChunk (0.00s)
+=== RUN   TestStreamResponse_ErrorChain
+--- PASS: TestStreamResponse_ErrorChain (0.00s)
+=== RUN   TestStreamResponse_SafeErrorEncoding
+--- PASS: TestStreamResponse_SafeErrorEncoding (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Documents
+--- PASS: TestStreamResponse_WriteFail_Documents (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Data
+--- PASS: TestStreamResponse_WriteFail_Data (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Done
+--- PASS: TestStreamResponse_WriteFail_Done (0.00s)
+=== RUN   TestStreamResponse_ErrorEventWriteFailure
+--- PASS: TestStreamResponse_ErrorEventWriteFailure (0.00s)
+=== RUN   TestStreamResponse_NoContinueAfterWriteFailure
+--- PASS: TestStreamResponse_NoContinueAfterWriteFailure (0.00s)
+=== RUN   TestStreamResponse_WithDocuments
+--- PASS: TestStreamResponse_WithDocuments (0.00s)
+=== RUN   TestStreamResponse_DocumentsEncodeFailure
+--- PASS: TestStreamResponse_DocumentsEncodeFailure (0.00s)
+=== RUN   TestStreamResponse_EventFrameBoundary
+--- PASS: TestStreamResponse_EventFrameBoundary (0.00s)
+=== RUN   TestStreamResponse_ErrorEventFormat
+--- PASS: TestStreamResponse_ErrorEventFormat (0.00s)
+=== RUN   TestRealSSEWriter_ShortWrite
+--- PASS: TestRealSSEWriter_ShortWrite (0.00s)
+=== RUN   TestRealSSEWriter_WriteFailure
+--- PASS: TestRealSSEWriter_WriteFailure (0.00s)
+=== RUN   TestRealSSEWriter_FrontendCompatFrames
+--- PASS: TestRealSSEWriter_FrontendCompatFrames (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/common	0.160s
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestValidateIndexerInput_NoFileNoURL
+--- PASS: TestValidateIndexerInput_NoFileNoURL (0.00s)
+=== RUN   TestValidateIndexerInput_FileOnly
+--- PASS: TestValidateIndexerInput_FileOnly (0.00s)
+=== RUN   TestValidateIndexerInput_URLOnly_DefaultMode
+--- PASS: TestValidateIndexerInput_URLOnly_DefaultMode (0.00s)
+=== RUN   TestValidateIndexerInput_FileAndURL_DefaultMode
+--- PASS: TestValidateIndexerInput_FileAndURL_DefaultMode (0.00s)
+=== RUN   TestValidateIndexerInput_URLOnly_PaperDeskMode
+--- PASS: TestValidateIndexerInput_URLOnly_PaperDeskMode (0.00s)
+=== RUN   TestValidateIndexerInput_FileAndURL_PaperDeskMode
+--- PASS: TestValidateIndexerInput_FileAndURL_PaperDeskMode (0.00s)
+=== RUN   TestValidateIndexerInput_FileOnly_PaperDeskMode
+--- PASS: TestValidateIndexerInput_FileOnly_PaperDeskMode (0.00s)
+=== RUN   TestValidateIndexerInput_EmptyFilenameTreatedAsNoFile
+--- PASS: TestValidateIndexerInput_EmptyFilenameTreatedAsNoFile (0.00s)
+=== RUN   TestValidateIndexerInput_WhitespaceURLTreatedAsNoURL
+--- PASS: TestValidateIndexerInput_WhitespaceURLTreatedAsNoURL (0.00s)
+=== RUN   TestIndexer_NoSideEffects_OnValidationError
+--- PASS: TestIndexer_NoSideEffects_OnValidationError (0.00s)
+=== RUN   TestIndexer_NoSideEffects_OnValidationError_PaperDeskMode
+--- PASS: TestIndexer_NoSideEffects_OnValidationError_PaperDeskMode (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	0.197s
+=== RUN   TestRunInitSteps_AllSuccess
+--- PASS: TestRunInitSteps_AllSuccess (0.00s)
+=== RUN   TestRunInitSteps_FailureStopsAndCleans
+--- PASS: TestRunInitSteps_FailureStopsAndCleans (0.00s)
+=== RUN   TestRunInitSteps_CleanupErrorPreserved
+--- PASS: TestRunInitSteps_CleanupErrorPreserved (0.00s)
+=== RUN   TestRunInitSteps_EmptySteps
+--- PASS: TestRunInitSteps_EmptySteps (0.00s)
+=== RUN   TestRunInitSteps_FirstStepFails
+--- PASS: TestRunInitSteps_FirstStepFails (0.00s)
+=== RUN   TestRunInitSteps_ErrorContainsStageName
+--- PASS: TestRunInitSteps_ErrorContainsStageName (0.00s)
+=== RUN   TestMiddleware_SSEStarted_NoJSONAppend
+2026-10-15T01:07:01.907+08:00 [INFO] pid[45972]: http server started listening on [:53184]
+2026-10-15T01:07:01.907+08:00 [INFO] openapi specification is disabled
+2026-10-15T01:07:01.910+08:00 {88483cbc5774de181ab14612d7c62526} 200 "GET http 127.0.0.1:53184 /test/stream HTTP/1.1" 1039.200, 127.0.0.1, "", "Go-http-client/1.1", -1, "", ""
+Stack:
+model_failure
+2026-10-15T01:07:03.910+08:00 45972: http server [:0] shutdown error: context deadline exceeded
+2026-10-15T01:07:03.910+08:00 pid[45972]: all servers shutdown
+--- PASS: TestMiddleware_SSEStarted_NoJSONAppend (2.01s)
+=== RUN   TestMiddleware_NoSSE_WithError
+2026-10-15T01:07:03.913+08:00 [INFO] pid[45972]: http server started listening on [:53188]
+2026-10-15T01:07:03.913+08:00 [INFO] openapi specification is disabled
+2026-10-15T01:07:03.914+08:00 {7cc0c1335874de181cb14612efb20251} 200 "GET http 127.0.0.1:53188 /test/error HTTP/1.1" 521.500, 127.0.0.1, "", "Go-http-client/1.1", -1, "", ""
+Stack:
+handler error
+2026-10-15T01:07:03.914+08:00 pid[45972]: all servers shutdown
+--- PASS: TestMiddleware_NoSSE_WithError (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	2.189s
+
+---- stderr ----
+---- EXIT: 0 ----

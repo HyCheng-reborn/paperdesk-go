@@ -45,13 +45,12 @@ type realSSEWriter struct {
 	failed bool
 }
 
-// writeEvent writes a standard SSE event frame and flushes.
-func (s *realSSEWriter) writeEvent(event, data string) error {
+// writeFrame writes one raw SSE frame and flushes. Frame layout is chosen by
+// each caller to stay compatible with the existing frontend parser.
+func (s *realSSEWriter) writeFrame(frame string) error {
 	if s.failed {
 		return errWriteFailed
 	}
-	// Standard SSE frame format with double newline boundary
-	frame := fmt.Sprintf("event: %s\ndata: %s\n\n", event, data)
 	n, err := s.w.Write([]byte(frame))
 	if err != nil {
 		s.failed = true
@@ -62,32 +61,38 @@ func (s *realSSEWriter) writeEvent(event, data string) error {
 		s.failed = true
 		return io.ErrShortWrite
 	}
-	// NOTE: 标准 http.Flusher 不返回刷新错误。
-	// GoFrame RawWriter 和 ResponseController 的刷新错误支持取决于底层实现。
-	// 当前无法检测所有刷新错误，仅记录此边界。
+	// NOTE: 刷新错误检测边界——标准 http.Flusher.Flush() 无返回值，
+	// 部分刷新（flush）错误无法在此检测。GoFrame RawWriter / ResponseController
+	// 的刷新错误支持取决于底层实现，当前仅记录此已知边界，不宣称已全面验证。
 	if f, ok := s.w.(http.Flusher); ok {
 		f.Flush()
 	}
 	return nil
 }
 
+// writeDocuments emits the frontend-recognized documents frame:
+// "documents:<JSON>\n\n". The Vue chat page extracts references from a line
+// beginning with the literal "documents:" prefix, so this prefix must be kept.
 func (s *realSSEWriter) writeDocuments(data string) error {
-	return s.writeEvent("documents", data)
+	return s.writeFrame("documents:" + data + "\n\n")
 }
 
+// writeData emits a content frame: "data:<JSON>\n\n".
 func (s *realSSEWriter) writeData(jsonData string) error {
-	return s.writeEvent("data", jsonData)
+	return s.writeFrame("data:" + jsonData + "\n\n")
 }
 
+// writeDone emits the stream terminator: "data:[DONE]\n\n".
 func (s *realSSEWriter) writeDone() error {
-	return s.writeEvent("data", "[DONE]")
+	return s.writeFrame("data:[DONE]\n\n")
 }
 
+// writeError keeps the original error frame format: "event: error\ndata: ...".
 func (s *realSSEWriter) writeError(err error) error {
 	// Safely encode error text (no line breaks)
 	safeErr := strings.ReplaceAll(err.Error(), "\n", " ")
 	safeErr = strings.ReplaceAll(safeErr, "\r", " ")
-	return s.writeEvent("error", safeErr)
+	return s.writeFrame("event: error\ndata: " + safeErr + "\n\n")
 }
 
 // streamResponse is the shared orchestration function called by both production and tests.

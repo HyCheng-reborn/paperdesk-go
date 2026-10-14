@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -531,3 +533,83 @@ func (f *failingHTTPWriter) Header() http.Header {
 func (f *failingHTTPWriter) WriteHeader(statusCode int) {}
 
 func (f *failingHTTPWriter) Flush() {}
+
+// frameRecorder captures the exact bytes realSSEWriter produces (frontend view).
+type frameRecorder struct {
+	buf bytes.Buffer
+}
+
+func (r *frameRecorder) Write(b []byte) (int, error) { return r.buf.Write(b) }
+func (r *frameRecorder) Header() http.Header         { return make(http.Header) }
+func (r *frameRecorder) WriteHeader(statusCode int)  {}
+func (r *frameRecorder) Flush()                      {}
+
+// TestRealSSEWriter_FrontendCompatFrames verifies the exact wire format the
+// existing frontend parser depends on: a "documents:" line ending with a blank
+// line (double newline), content "data:" lines, and a "data:[DONE]" terminator.
+// It asserts on the real frames (not merely that the substring "documents"
+// appears) and verifies the JSON extracted from the documents: line contains a
+// document, mirroring how chat.vue slices the prefix and JSON-parses the rest.
+func TestRealSSEWriter_FrontendCompatFrames(t *testing.T) {
+	docs := []*schema.Document{
+		{Content: "reftext", MetaData: map[string]any{"k": "v"}},
+	}
+	sr := schema.StreamReaderFromArray([]*schema.Message{msg("answer")})
+	defer sr.Close()
+
+	rec := &frameRecorder{}
+	sw := &realSSEWriter{w: rec}
+	if err := streamResponse(sw, sr, docs, sonic.ConfigDefault); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := rec.buf.String()
+	lines := strings.Split(out, "\n")
+
+	// 1) documents frame: prefix line + blank line boundary (\n\n)
+	docsIdx := -1
+	for i, ln := range lines {
+		if strings.HasPrefix(ln, "documents:") {
+			docsIdx = i
+			break
+		}
+	}
+	if docsIdx < 0 {
+		t.Fatalf("no documents: frame line found in output: %q", out)
+	}
+	if docsIdx+1 >= len(lines) || lines[docsIdx+1] != "" {
+		t.Errorf("documents frame is not terminated by a blank line (missing \\n\\n boundary): %q", out)
+	}
+	// Never emit an "event: documents" frame (that breaks the frontend parser).
+	if strings.Contains(out, "event: documents") {
+		t.Errorf("output must not contain 'event: documents' frame format: %q", out)
+	}
+
+	// 2) Extract JSON after the literal "documents:" prefix (frontend: slice(10))
+	//    and verify it parses and carries a document.
+	payload := strings.TrimSpace(strings.TrimPrefix(lines[docsIdx], "documents:"))
+	var sd StreamData
+	if err := json.Unmarshal([]byte(payload), &sd); err != nil {
+		t.Fatalf("documents: line JSON not parseable: %v (payload=%q)", err, payload)
+	}
+	if len(sd.Document) != 1 || sd.Document[0].Content != "reftext" {
+		t.Fatalf("documents: line JSON must contain the referenced document, got: %+v", sd)
+	}
+
+	// 3) content frame: a data: line (not DONE) carrying the answer JSON
+	contentOK := false
+	for _, ln := range lines {
+		if strings.HasPrefix(ln, "data:") && ln != "data:[DONE]" {
+			if strings.Contains(ln, "answer") {
+				contentOK = true
+			}
+		}
+	}
+	if !contentOK {
+		t.Errorf("expected a data: content frame containing the answer, got: %q", out)
+	}
+
+	// 4) DONE frame is exactly data:[DONE] followed by blank line
+	if !strings.HasSuffix(out, "data:[DONE]\n\n") {
+		t.Errorf("stream must end with 'data:[DONE]\\n\\n', got: %q", out)
+	}
+}

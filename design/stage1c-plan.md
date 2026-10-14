@@ -373,8 +373,8 @@ func (s *sseWriter) writeEvent(data string) error {
 | 正常 EOF | 发送 DONE，返回 nil |
 | 非 EOF 读取错误 | 发送 error 事件，**不发送 DONE**，返回 error（%w 保留链） |
 | 建流失败 | 返回 error，不返回空成功 |
-| documents 编码失败 | 返回 encode error |
-| content 编码失败 | 返回 encode error |
+| documents 编码失败 | 返回 encode error（MetaData 含不可编码值时可触发，已测试） |
+| content 编码失败 | content 实际写入字段是 `StreamData.Content`（string 类型），编码不会自然失败；不制造无意义测试，标记为已知边界 |
 | 写入失败 | 设置 writeFailed，后续写入返回 error |
 | nil chunk | 返回 error，不 panic |
 | SSE error 数据 | 换行符替换为空格，防止破坏事件帧 |

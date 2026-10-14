@@ -1,5 +1,60 @@
 # 变更记录
 
+## 2026-10-14 Stage 1C 计划制定：F03/F04 Chat context 与流式语义
+
+**基线**：`eb27ba2ed6638f2d4d717bce1305dac92ff6b0ae`（Stage 1B 完成后的 HEAD）
+
+### 计划摘要
+
+Stage 1C 覆盖两个问题：
+- **F03**：`GetAnswerStream` 将请求 ctx 替换为 `context.Background()`，用户取消后模型/保存协程继续工作
+- **F04**：`SteamResponse` 读流失败后仍发 `[DONE]` 并返回 nil；Controller 建流失败可返回空成功
+
+### 调用链追踪
+
+完整调用链：Controller.ChatStream(ctx) → chat.GetAnswerStream(ctx) → **ctx = context.Background()** → llm.Stream(ctx, messages) → StreamReader → SteamResponse(ctx, reader, docs) → SSE 写入
+
+### 问题清单
+
+| 问题 | 文件 | 行号 | 描述 |
+|---|---|---|---|
+| F03-1 | chat.go | 202 | `ctx = context.Background()` 替换调用方 ctx |
+| F03-2 | chat.go | 227 | 后台 goroutine 监听 Background ctx，永远不会取消 |
+| F03-3 | chat.go | 39 | defaultChatModelFactory.Create 使用 Background |
+| F04-1 | stream.go | 63 | 错误时仍发送 DONE |
+| F04-2 | stream.go | 68-92 | SSE 写入不检查错误 |
+| F04-3 | stream.go | 89 | writeSSEError 使用 Background 记日志 |
+| F04-4 | rag_v1_chat_stream.go | 33 | 建流失败返回空成功 |
+| F04-5 | chat.go | 237 | 非 EOF 错误时 append 零值 chunk |
+
+### 批次划分
+
+- **1C-1（F04 SSE 流语义修复）**：推荐首批，修改集中在 stream.go 和 controller
+- **1C-2（F03 Chat context 修复）**：第二批，涉及 context 传递和后台 goroutine 生命周期
+
+### 详细计划
+
+[design/stage1c-plan.md](design/stage1c-plan.md)
+
+---
+
+## 2026-10-14 Stage 1B-3 独立复核通过
+
+**复核基线**：`eb27ba2ed6638f2d4d717bce1305dac92ff6b0ae`
+**复核方式**：源码与提交日志复核，未独立重跑 Go 测试
+
+**复核结论**：
+- F02 异步闭包竞态修复正确
+- 后台输入快照机制正确
+- 同步/异步边界行为正确
+- `asyncWait` 注入机制设计合理
+
+**Stage 1B 整体状态**：三个批次均已完成，可标记完成。
+
+**race 证据说明**：`core/retriever`、`core/rerank` 两个子包此前 race 检测异常仍未补证。
+
+---
+
 ## 2026-10-14 Stage 1B-3：F02 Indexer 异步闭包定点收尾（待独立复核）
 
 **基线**：`f26b3a90b97b26bf2220b677dbddd689b0cb4002`（1B-3 实现提交）。保留已实现的后台局部错误与输入快照，不实施 Stage 1C/1D，不引入持久化任务系统。本批为定点收尾：默认测试、等待注入、int64、完成边界与并发隔离。

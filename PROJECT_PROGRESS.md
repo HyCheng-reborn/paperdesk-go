@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-14
-**阶段**：Stage 1B-3 定点收尾完成（待独立复核），Stage 1B-2 已通过独立源码与提交日志复核（通过基线 98770d3），Stage 1B-1 已完成，Stage 1-Pre 已完成，Stage 1A 待独立复核
+**阶段**：Stage 1C 计划已制定（基线 eb27ba2），Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核
 
 ## Stage 0：事实基线与只读核对
 
@@ -35,8 +35,8 @@
 | 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第三轮修复已完成，待独立复核** |
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 定点收尾完成，待独立复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
+| 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **计划已制定，待实施** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -195,6 +195,39 @@
 **证据命令记录**：`verification/stage1b3/` 每个日志头部记录实际命令、GOFLAGS 与退出码；旧 `-tags offline` 的 test-core.log、race.log 已删除，避免将带标签执行记成无标签通过。
 
 **证据目录**：[verification/stage1b3/](verification/stage1b3/)
+
+### Stage 1B-3 独立复核记录
+
+**日期**：2026-10-14
+**复核基线**：`eb27ba2ed6638f2d4d717bce1305dac92ff6b0ae`（Stage 1B 完成后的 HEAD）
+**复核方式**：源码与提交日志复核，未独立重跑 Go 测试
+
+**复核结论**：
+- F02 异步闭包竞态修复正确：goroutine 使用局部 `localErr`，不再写外层命名返回变量
+- 后台输入快照机制正确：goroutine 启动前复制标量，不读取共享 `req` 或 `ids` 切片
+- 同步失败不启动后台、同步成功不等待后台的行为正确
+- `asyncWait` 注入机制设计合理，测试覆盖充分（9 个 Indexer 测试）
+- documentsID 全程 int64，删除字符串往返转换
+
+**Stage 1B 整体状态**：三个批次（1B-1 F05、1B-2 F01、1B-3 F02）均已通过复核，可标记完成。
+
+**race 证据说明**：`core/retriever`、`core/rerank` 两个子包此前 Windows race 检测异常仍未补证，普通测试通过不代表其 race 通过，二者 race 结论保持待验证。
+
+### Stage 1C 计划记录
+
+**日期**：2026-10-14
+**基线**：`eb27ba2ed6638f2d4d717bce1305dac92ff6b0ae`
+**状态**：✅ 计划已制定，待实施
+
+**覆盖问题**：
+- F03：`GetAnswerStream` 将请求 ctx 替换为 `context.Background()`，用户取消后模型/保存协程继续工作
+- F04：`SteamResponse` 读流失败后仍发 `[DONE]` 并返回 nil；Controller 建流失败可返回空成功
+
+**批次划分**：
+- 1C-1（F04 SSE 流语义修复）：推荐首批，修改集中在 `stream.go` 和 controller
+- 1C-2（F03 Chat context 修复）：第二批，涉及 context 传递和后台 goroutine 生命周期
+
+**详细计划**：[design/stage1c-plan.md](design/stage1c-plan.md)
 
 ### Stage 1-Pre 独立复核记录
 

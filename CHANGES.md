@@ -1,63 +1,69 @@
 # 变更记录
 
-## 2026-10-14 Stage 1B-3：F02 Indexer 异步闭包共享变量修复（待独立复核）
+## 2026-10-14 Stage 1B-3：F02 Indexer 异步闭包定点收尾（待独立复核）
 
-**基线**：`98770d33ee18c280bbb8c771acdeb44749182ef8`。修复 Indexer.Index 异步闭包竞态、固定后台输入快照、新增可注入边界和离线行为测试。
+**基线**：`f26b3a90b97b26bf2220b677dbddd689b0cb4002`（1B-3 实现提交）。保留已实现的后台局部错误与输入快照，不实施 Stage 1C/1D，不引入持久化任务系统。本批为定点收尾：默认测试、等待注入、int64、完成边界与并发隔离。
 
-### 修复内容
+### 收尾内容
 
-| 修复项 | 说明 |
+| 项目 | 说明 |
 |---|---|
-| 异步闭包竞态 | goroutine 使用局部 `localErr`，不再写外层命名返回变量 `err` |
-| 后台输入快照 | goroutine 启动前复制 `knowledgeName`、`documentsID`、`docsIDs`；goroutine 不读取 `req` 或共享 `ids` 切片 |
-| 同步失败不启动后台 | 同步索引失败直接返回 error，不启动后台任务 |
-| 同步成功不等待后台 | 同步成功返回 `ids`，后台独立执行 QA/embedding |
-| 误导注释删除 | 删除“崩溃场景几乎不会出现、可以忽略”，改为“当前内存 goroutine 无持久化恢复，仍由后续 Stage 4 解决” |
-| 可注入边界 | `syncIndexer`/`asyncIndexer` 接口支持测试 fake；`asyncWait` 可注入等待机制 |
+| 默认测试 | 移除 indexer_test.go 的 `//go:build offline`，9 个 Indexer 行为测试改为默认运行，无需标签 |
+| 等待注入 | 后台等待优先调用注入的 `asyncWait`，未注入时回退生产默认一秒；不再先固定 Sleep 再调用注入函数 |
+| recover 范围 | recover 移到 goroutine 顶部（`ctxN` 之后、等待与执行之前），覆盖整个后台函数 |
+| 注入引用快照 | 启动 goroutine 前将 `x.asyncWait`、`x.asyncIndexer` 保存为局部只读引用 |
+| DocumentsId int64 | `asyncIndexer` 接口、`prodAsyncIndexer`、fake 的 documentsID 参数直接用 int64，删除 Sprintf/Sscanf 与被忽略的解析错误 |
+| 完成边界 | AsyncFailure 等待后台确实返回失败后再断言同步结果；启动后台的测试均在 cleanup 释放阻塞并等待完成，超时报告失败 |
+| 错误检查 | 所有 Index 返回错误都检查，去掉 `ids, _` |
+| 标量快照 | 修改 req 测试同时改 KnowledgeName 与 DocumentsId，验证后台收到原值 |
+| 并发隔离 | 同一 Rag 并发不同 URI/KnowledgeName/DocumentsId，同步 fake 按输入返回不同 IDs，后台逐项记录参数验证一一对应、恰好一次、无串用；用 channel/完成信号，删除固定 sleep 与计数验证 |
 
 ### 修改文件
 
 | 文件 | 变更 |
 |---|---|
-| server/core/indexer.go | 新增 `syncIndexer`/`asyncIndexer` 接口及 `prodSyncIndexer`/`prodAsyncIndexer` 生产实现；重构 `Index` 方法：异步闭包使用局部错误变量、固定后台输入快照、删除误导注释 |
-| server/core/rag.go | `Rag` 结构体新增 `syncIndexer`、`asyncIndexer`、`asyncWait` 字段；`New()` 初始化注入边界 |
-| server/core/indexer_test.go | 新增 8 个离线行为测试 |
-| PROJECT_PROGRESS.md | 更新进度 |
-| CHANGES.md | 添加本记录 |
-| design/stage1b-plan.md | 标记 1B-3 为已完成 |
+| server/core/indexer.go | 等待注入优先/回退一秒；recover 前置覆盖全函数；goroutine 启动前快照 `waitFn`/`asyncIdx`；documentsID 全程 int64，删除字符串往返 |
+| server/core/indexer_test.go | 去掉 offline 标签；9 个测试注入 `asyncWait` 与 int64 参数；修正完成边界与 cleanup；新增 AsyncWait/BackgroundPanic/并发隔离测试 |
 
-### 测试覆盖
+### 测试覆盖（默认运行，共 9 个）
 
 | 测试 | 说明 |
 |---|---|
-| TestIndex_SyncFailure_NoAsync | 同步失败不启动后台任务 |
-| TestIndex_SyncSuccess_AsyncStillBlocked | 同步成功时后台仍阻塞，Index 已返回 |
-| TestIndex_AsyncFailure_SyncReturnUnchanged | 后台失败不改变同步返回的 ids/error |
-| TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot | 修改调用方 req 后，后台仍收到原始标量快照 |
-| TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged | 修改返回 ids 元素后，后台 DocsIDs 不变 |
-| TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged | 后台修改自己的 DocsIDs 后，调用方返回 ids 不变 |
-| TestIndex_ConcurrentCalls_NoCrossContamination | 多次并发 Index 的结果和后台任务互不串用 |
-| TestIndex_WithCleanup | t.Cleanup 保证释放阻塞后台 |
+| TestIndex_SyncFailure_NoAsync | 同步失败不启动后台 |
+| TestIndex_SyncSuccess_AsyncStillBlocked | Index 先返回，后台阻塞期间未完成 |
+| TestIndex_AsyncFailure_SyncReturnUnchanged | 等待后台真实返回失败后断言同步 ids/err 不变，且后台恰好一次 |
+| TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot | 返回后同时改 KnowledgeName+DocumentsId，后台收到原始标量快照 |
+| TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged | 改返回 ids，后台 docsIDs 为原始快照 |
+| TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged | 后台改自己 docsIDs，调用方 ids 不变 |
+| TestIndex_AsyncWaitInvoked_BeforeBackground | 注入等待被调用且先于后台执行（替代固定 sleep） |
+| TestIndex_BackgroundPanic_Recovered | 等待阶段 panic 被 recover 覆盖，不影响 Index 返回 |
+| TestIndex_ConcurrentCalls_Isolation | 同一 Rag 并发不同输入，逐项验证一一对应、恰好一次、无串用 |
 
-### 验证结果
+### 验证结果（server/ 目录，默认无标签；GOFLAGS 为空）
 
-- `go test ./core -count=1 -v -tags offline` — 退出码 0，27 个测试全部通过（8 Indexer + 19 Retrieve）
-- `go test -race ./core -count=1 -tags offline` — 退出码 0，core 包 race 通过
-- `go test -p 1 ./... -count=1 -tags offline` — 退出码 0，全量通过
+- `gofmt -w` 目标文件已格式化，`gofmt -l` 无输出
+- `go test ./core -count=1 -v` — 退出码 0，28 个测试全部通过（9 Indexer + 19 Retrieve），0 失败；默认 core 日志同时含 Indexer 与 Retrieve
+- `go test -race ./core -count=1` — 退出码 0，core 包 race 通过
+- `go test -race ./core -count=25 -run TestIndex_` — 退出码 0，无 FAIL / DATA RACE
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
 - `go vet ./...` — 退出码 0
 - `go build ./...` — 退出码 0
 
-**race 证据范围**：本轮 race 在 `core` 包通过并给出证据；`core/retriever`、`core/rerank` 此前 race 异常仍未补证。
+**race 证据范围**：race 仅在 `core` 包（`go test -race ./core`）通过并给出证据。`core/retriever`、`core/rerank` 两个子包此前 race 检测异常仍未补证，普通测试通过不写成 race 通过。
+
+**证据命令记录**：`verification/stage1b3/` 下每个日志头部记录实际命令、GOFLAGS 与退出码；旧 `-tags offline` 运行结果（旧 test-core.log、race.log）已删除，避免把带标签执行记成无标签通过。
 
 ### 回滚说明
 
-修改涉及 `indexer.go`、`rag.go` 和新增测试文件，回滚需同时恢复两个源文件并删除测试文件。
+回滚 `indexer.go`、`indexer_test.go` 到基线 `f26b3a9` 即可；不涉及 Stage 1C/1D 或持久化任务系统。
 
 ---
 
 ## 2026-10-14 Stage 1B-2：F01 Retriever 并发测试收尾（已通过独立源码与提交日志复核）
 
 **基线**：`d3e3e07ebbc7b73569e8afeb1b0f677a5d98517a`。仅测试收尾，保持已修正的 `Retrieve` 编排逻辑，不重新设计并发方案，不实施 1B-3。
+
+**复核通过基线（1B-2 完成提交）**：`98770d33ee18c280bbb8c771acdeb44749182ef8`。
 
 ### 收尾内容
 

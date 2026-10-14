@@ -262,11 +262,11 @@ go test -race ./core -count=1
 
 单文件修改，回滚简单。
 
-**1B-3 已完成**：见 `CHANGES.md` 和 `PROJECT_PROGRESS.md` Stage 1B-3 记录。
+**1B-3 定点收尾完成（待独立复核）**：见 `CHANGES.md` 和 `PROJECT_PROGRESS.md` Stage 1B-3 记录。
 
 ---
 
-## 1B-3：F02 Indexer 异步闭包修复（✅ 已完成）
+## 1B-3：F02 Indexer 异步闭包修复（✅ 定点收尾完成，待独立复核）
 
 ### 问题描述
 
@@ -321,13 +321,22 @@ go test -race ./core -count=1
 
 单文件修改，回滚简单。
 
+### 定点收尾补充（基于 f26b3a9）
+
+保留已实现的后台局部错误与输入快照，不实施 1C/1D、不引入持久化任务系统，仅做以下收尾：
+- **默认测试**：移除 `//go:build offline`，Indexer 行为测试随 `go test ./core` 默认执行（无标签）。
+- **等待注入**：后台优先调用注入的 `asyncWait`，未注入才回退生产默认一秒；不再先固定 Sleep 再调用注入函数。
+- **recover 范围**：recover 前置到 goroutine 顶部，覆盖等待与后台执行。
+- **DocumentsId int64**：接口/适配器/fake 的 documentsID 全程 int64，删除 `fmt.Sprintf`/`fmt.Sscanf` 与被忽略的解析错误。
+- **完成边界与隔离**：AsyncFailure 等后台真返回失败再断言；cleanup 释放+等待完成并报告超时；新增并发隔离测试逐项验证一一对应、恰好一次、无串用。
+
 ---
 
 ### 实施顺序
 
 1. **1B-1（F05 Rerank）** — ✅ 已完成
 2. **1B-2（F01 Retriever）** — ✅ 已通过独立源码与提交日志复核
-3. **1B-3（F02 Indexer）** — ✅ 已完成，待独立复核
+3. **1B-3（F02 Indexer）** — ✅ 定点收尾完成，待独立复核
 
 ## 全局验证命令
 

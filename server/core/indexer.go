@@ -41,9 +41,9 @@ type syncIndexer interface {
 	invoke(ctx context.Context, knowledgeName string, source document.Source) ([]string, error)
 }
 
-// asyncIndexer 异步索引边界：QA 生成 + embedding
+// asyncIndexer 异步索引边界：QA 生成 + embedding。documentsID 直接使用 int64，避免字符串往返转换
 type asyncIndexer interface {
-	indexAsyncByDocsID(knowledgeName, documentsID string, docsIDs []string) error
+	indexAsyncByDocsID(knowledgeName string, documentsID int64, docsIDs []string) error
 }
 
 // prodSyncIndexer 生产同步索引实现
@@ -61,12 +61,12 @@ type prodAsyncIndexer struct {
 	rag *Rag
 }
 
-func (p *prodAsyncIndexer) indexAsyncByDocsID(knowledgeName, documentsID string, docsIDs []string) error {
+func (p *prodAsyncIndexer) indexAsyncByDocsID(knowledgeName string, documentsID int64, docsIDs []string) error {
 	ctxN := gctx.New()
 	_, err := p.rag.indexAsyncByDocsID(ctxN, &IndexAsyncByDocsIDReq{
 		DocsIDs:       docsIDs,
 		KnowledgeName: knowledgeName,
-		DocumentsId:   func() int64 { var id int64; fmt.Sscanf(documentsID, "%d", &id); return id }(),
+		DocumentsId:   documentsID,
 		try:           esTryFindDoc,
 	})
 	return err
@@ -86,28 +86,35 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 	g.Log().Infof(ctx, "Index success, generated %d chunks with IDs: %v", len(ids), ids)
 
 	// 同步成功，启动后台任务
-	// 固定后台输入快照
+	// 固定后台输入快照，goroutine 不读取 req 或共享 ids
 	knowledgeName := req.KnowledgeName
-	documentsID := fmt.Sprintf("%d", req.DocumentsId)
+	documentsID := req.DocumentsId
 	docsIDs := make([]string, len(ids))
 	copy(docsIDs, ids)
 
+	// 启动 goroutine 前将等待函数和 asyncIndexer 保存为局部只读引用，运行期不再读共享字段
+	waitFn := x.asyncWait
+	asyncIdx := x.asyncIndexer
+
 	go func() {
-		// 后台局部变量，不写外层 err
-		// 测试下来这里必须 sleep 一段时间，否则下面的 indexAsyncByDocsID 在es里面搜索不到该条数据，应该是es本身会有一定延迟
-		time.Sleep(time.Second)
-		if x.asyncWait != nil {
-			x.asyncWait()
-		}
 		ctxN := gctx.New()
+		// recover 放在等待和后台执行之前，覆盖整个后台函数
 		defer func() {
 			if e := recover(); e != nil {
 				g.Log().Errorf(ctxN, "recover indexAsyncByDocsID failed, err=%v", e)
 			}
 		}()
-		localErr := x.asyncIndexer.indexAsyncByDocsID(knowledgeName, documentsID, docsIDs)
+		// 等待：优先使用注入函数，否则生产默认一秒
+		// 测试下来这里必须等待一段时间，否则 indexAsyncByDocsID 在 es 里搜不到该条数据（ES 同步本身有延迟）
+		if waitFn != nil {
+			waitFn()
+		} else {
+			time.Sleep(time.Second)
+		}
+		// 后台局部变量，不写外层 err
+		localErr := asyncIdx.indexAsyncByDocsID(knowledgeName, documentsID, docsIDs)
 		if localErr != nil {
-			// 后台失败仅通过日志报告
+			// 后台失败仅通过日志报告，不影响同步返回
 			g.Log().Errorf(ctxN, "indexAsyncByDocsID failed, err=%v", localErr)
 		}
 	}()

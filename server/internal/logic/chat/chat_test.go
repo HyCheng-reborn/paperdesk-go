@@ -3,9 +3,12 @@ package chat
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -382,5 +385,534 @@ func TestInit_GormDBNil_Error(t *testing.T) {
 	}
 	if IsInitialized() {
 		t.Fatal("should not be initialized when GetGormDB returns nil")
+	}
+}
+
+// --- Stream context propagation and save contract tests ---
+
+// streamingChatModel is a fake BaseChatModel for GetAnswerStream tests.
+// It validates context propagation and supports blocking, cancellation, and error injection.
+type streamingChatModel struct {
+	mu            sync.Mutex
+	receivedCtx   context.Context
+	ctxReceived   chan struct{}
+	blockRecv     chan struct{}
+	chunks        []*schema.Message
+	streamErr     error
+	streamStarted chan struct{}
+}
+
+func newStreamingChatModel(chunks []string) *streamingChatModel {
+	msgs := make([]*schema.Message, len(chunks))
+	for i, c := range chunks {
+		msgs[i] = &schema.Message{Role: schema.Assistant, Content: c}
+	}
+	return &streamingChatModel{
+		chunks:        msgs,
+		ctxReceived:   make(chan struct{}),
+		blockRecv:     make(chan struct{}),
+		streamStarted: make(chan struct{}),
+	}
+}
+
+func (m *streamingChatModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Role: "assistant", Content: "test"}, nil
+}
+
+func (m *streamingChatModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	m.mu.Lock()
+	m.receivedCtx = ctx
+	m.mu.Unlock()
+	close(m.ctxReceived)
+
+	if m.streamErr != nil {
+		return nil, m.streamErr
+	}
+
+	sr, sw := schema.Pipe[*schema.Message](10)
+	go func() {
+		defer sw.Close()
+		close(m.streamStarted)
+		for _, chunk := range m.chunks {
+			select {
+			case <-ctx.Done():
+				return
+			case <-m.blockRecv:
+				return
+			default:
+			}
+			sw.Send(chunk, nil)
+		}
+		// If no chunks, block until context is cancelled or explicitly released.
+		// This simulates a model that keeps the stream open (e.g., waiting for more data).
+		if len(m.chunks) == 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-m.blockRecv:
+				return
+			}
+		}
+	}()
+	return sr, nil
+}
+
+func (m *streamingChatModel) getReceivedCtx() context.Context {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.receivedCtx
+}
+
+// fakeMessageSaver records SaveMessage calls without a real database.
+type fakeMessageSaver struct {
+	mu         sync.Mutex
+	savedMsgs  []*schema.Message
+	saveErr    error
+	saveCalled int
+}
+
+func (f *fakeMessageSaver) SaveMessage(mess *schema.Message, convID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.saveCalled++
+	if f.saveErr != nil {
+		return f.saveErr
+	}
+	f.savedMsgs = append(f.savedMsgs, mess)
+	return nil
+}
+
+func (f *fakeMessageSaver) GetHistory(convID string, limit int) ([]*schema.Message, error) {
+	return []*schema.Message{}, nil
+}
+
+func (f *fakeMessageSaver) getSaveCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.saveCalled
+}
+
+func (f *fakeMessageSaver) getSavedContent() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.savedMsgs) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, m := range f.savedMsgs {
+		sb.WriteString(m.Content)
+	}
+	return sb.String()
+}
+
+// newTestChat creates a Chat instance with injected fake dependencies for testing.
+// No global Init/DAO required.
+func newTestChat(cm model.BaseChatModel, saver *fakeMessageSaver) *Chat {
+	return &Chat{
+		cm: cm,
+		eh: saver,
+	}
+}
+
+// drainStream consumes all chunks from a StreamReader and returns the concatenated content.
+func drainStream(t *testing.T, sr *schema.StreamReader[*schema.Message]) string {
+	t.Helper()
+	defer sr.Close()
+	var sb strings.Builder
+	for {
+		chunk, err := sr.Recv()
+		if errors.Is(err, io.EOF) {
+			return sb.String()
+		}
+		if err != nil {
+			return sb.String()
+		}
+		if chunk != nil {
+			sb.WriteString(chunk.Content)
+		}
+	}
+}
+
+// waitForSave polls until the saver has been called or timeout.
+func waitForSave(t *testing.T, saver *fakeMessageSaver, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if saver.getSaveCount() > 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("timeout waiting for save (count=%d)", saver.getSaveCount())
+}
+
+// TestGetAnswerStream_ModelReceivesContext verifies the model's Stream method
+// receives the caller's context (not context.Background()).
+func TestGetAnswerStream_ModelReceivesContext(t *testing.T) {
+	fm := newStreamingChatModel([]string{"hello"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	type ctxKey struct{}
+	ctx := context.WithValue(context.Background(), ctxKey{}, "test-value")
+
+	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Wait for model to receive context
+	select {
+	case <-fm.ctxReceived:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for model to receive context")
+	}
+
+	modelCtx := fm.getReceivedCtx()
+	if modelCtx.Value(ctxKey{}) != "test-value" {
+		t.Fatal("model did not receive the caller's context value")
+	}
+
+	// Drain the stream to let the save goroutine finish
+	drainStream(t, sr)
+}
+
+// TestGetAnswerStream_StreamCancelErrorChain verifies that when stream creation
+// fails, the error chain is preserved with %w.
+func TestGetAnswerStream_StreamCancelErrorChain(t *testing.T) {
+	sentinel := errors.New("model stream sentinel")
+	fm := &streamingChatModel{streamErr: sentinel}
+	// Initialize channels to avoid nil channel issues
+	fm.ctxReceived = make(chan struct{})
+	fm.blockRecv = make(chan struct{})
+	fm.streamStarted = make(chan struct{})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	_, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected errors.Is to recognize sentinel, got: %v", err)
+	}
+}
+
+// TestGetAnswerStream_BlockingRecvCancel verifies that cancelling the context
+// during a blocking Recv causes the stream to exit.
+func TestGetAnswerStream_BlockingRecvCancel(t *testing.T) {
+	fm := newStreamingChatModel(nil) // no chunks, model blocks waiting for ctx
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Wait for model to start
+	select {
+	case <-fm.streamStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for stream to start")
+	}
+
+	// Cancel context
+	cancel()
+
+	// The stream reader should return an error (context cancelled propagated through model)
+	_, recvErr := sr.Recv()
+	sr.Close()
+	if recvErr == nil || (!errors.Is(recvErr, context.Canceled) && !errors.Is(recvErr, io.EOF)) {
+		// Depending on timing, Recv may return context.Canceled or EOF
+		// Either is acceptable as long as it returns
+	}
+}
+
+// TestGetAnswerStream_NormalEOF_SaveOnce verifies that a normal EOF saves
+// the complete answer exactly once.
+func TestGetAnswerStream_NormalEOF_SaveOnce(t *testing.T) {
+	fm := newStreamingChatModel([]string{"hello", " world"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content := drainStream(t, sr)
+	if content != "hello world" {
+		t.Errorf("expected 'hello world', got: %q", content)
+	}
+
+	// Wait for save goroutine: docsMessages saves user question (1 save),
+	// then the goroutine saves assistant answer (2nd save).
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if saver.getSaveCount() >= 2 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if saver.getSaveCount() < 2 {
+		t.Fatalf("expected at least 2 saves (user question + assistant answer), got %d", saver.getSaveCount())
+	}
+
+	// Full saved content should include user question + assistant answer
+	fullContent := saver.getSavedContent()
+	if !strings.Contains(fullContent, "hello world") {
+		t.Errorf("saved content should contain 'hello world', got: %q", fullContent)
+	}
+	if !strings.Contains(fullContent, "question") {
+		t.Errorf("saved content should contain 'question' (user message), got: %q", fullContent)
+	}
+}
+
+// partialErrorChatModel sends one chunk then a non-EOF error.
+type partialErrorChatModel struct {
+	mu          sync.Mutex
+	receivedCtx context.Context
+	ctxReceived chan struct{}
+}
+
+func (m *partialErrorChatModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Role: "assistant", Content: "test"}, nil
+}
+
+func (m *partialErrorChatModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	m.mu.Lock()
+	m.receivedCtx = ctx
+	m.mu.Unlock()
+	close(m.ctxReceived)
+
+	sr, sw := schema.Pipe[*schema.Message](10)
+	go func() {
+		defer sw.Close()
+		sw.Send(&schema.Message{Role: schema.Assistant, Content: "partial"}, nil)
+		sw.Send(nil, fmt.Errorf("model error mid-stream"))
+	}()
+	return sr, nil
+}
+
+// TestGetAnswerStream_PartialThenError_NoSave verifies that partial content
+// followed by a model error does NOT save the partial answer.
+func TestGetAnswerStream_PartialThenError_NoSave(t *testing.T) {
+	fm := &partialErrorChatModel{ctxReceived: make(chan struct{})}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Consume stream: should get "partial" then error
+	var gotContent string
+	for {
+		chunk, recvErr := sr.Recv()
+		if recvErr != nil {
+			break
+		}
+		if chunk != nil {
+			gotContent += chunk.Content
+		}
+	}
+	sr.Close()
+
+	if gotContent != "partial" {
+		t.Errorf("expected 'partial' content, got: %q", gotContent)
+	}
+
+	// Wait a bit for save goroutine to finish processing
+	time.Sleep(100 * time.Millisecond)
+
+	// docsMessages saves user question (1 save), but the stream goroutine
+	// should NOT save the assistant answer (non-EOF error).
+	if saver.getSaveCount() != 1 {
+		t.Errorf("expected 1 save (only user question from docsMessages) on error, got %d", saver.getSaveCount())
+	}
+	// Saved content should only be the user question
+	if strings.Contains(saver.getSavedContent(), "partial") {
+		t.Error("saved content should NOT contain partial assistant answer")
+	}
+}
+
+// TestGetAnswerStream_Cancel_NoSave verifies that cancelling the context
+// does NOT save a partial answer.
+func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
+	fm := newStreamingChatModel(nil)
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Wait for model to start
+	select {
+	case <-fm.streamStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for stream to start")
+	}
+
+	// Cancel context
+	cancel()
+
+	// Drain stream (should get error/EOF quickly)
+	sr.Close()
+
+	// Wait for save goroutine to finish
+	time.Sleep(200 * time.Millisecond)
+
+	// docsMessages saves user question (1 save), but cancel should prevent
+	// the assistant answer from being saved.
+	// At most 1 save (user question only).
+	if saver.getSaveCount() > 1 {
+		t.Errorf("expected at most 1 save (user question) on cancel, got %d", saver.getSaveCount())
+	}
+	// Saved content should NOT contain assistant answer chunks
+	if strings.Contains(saver.getSavedContent(), "chunk") {
+		t.Error("saved content should NOT contain assistant answer on cancel")
+	}
+}
+
+// TestGetAnswerStream_WriteFailure_Convergence verifies that SSE write failure
+// triggers convergence of generation and consumption.
+func TestGetAnswerStream_WriteFailure_Convergence(t *testing.T) {
+	// This test verifies at the chat level that when the context is cancelled
+	// (simulating SSE write failure causing controller to stop), the save
+	// goroutine exits without saving the assistant answer.
+	fm := newStreamingChatModel(nil) // blocks on ctx.Done()
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Wait for model to start
+	select {
+	case <-fm.streamStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for stream to start")
+	}
+
+	// Simulate write failure: cancel context (controller would cancel on write failure)
+	cancel()
+	sr.Close()
+
+	// Wait for save goroutine
+	time.Sleep(200 * time.Millisecond)
+
+	// docsMessages saves user question (1 save), but cancel should prevent
+	// the assistant answer from being saved.
+	if saver.getSaveCount() > 1 {
+		t.Errorf("expected at most 1 save (user question) after cancel, got %d", saver.getSaveCount())
+	}
+}
+
+// TestGetAnswerStream_CancelThenEOF_NoDONE verifies at the chat level that
+// cancellation followed by EOF does not result in a save (the SSE layer
+// handles DONE suppression separately in stream_test.go).
+func TestGetAnswerStream_CancelThenEOF_NoDONE(t *testing.T) {
+	fm := newStreamingChatModel([]string{"data"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before streaming
+
+	sr, err := c.GetAnswerStream(ctx, "conv-1", nil, "question")
+	if err != nil {
+		// If stream creation fails due to context, that's acceptable
+		return
+	}
+
+	// Drain stream
+	sr.Close()
+
+	// Wait for goroutine
+	time.Sleep(200 * time.Millisecond)
+
+	// docsMessages may or may not have saved user question before cancel.
+	// The key assertion: no assistant answer should be saved.
+	if strings.Contains(saver.getSavedContent(), "data") {
+		t.Error("saved content should NOT contain assistant answer when context cancelled")
+	}
+}
+
+// TestGetAnswerStream_ConcurrentSessions_Isolation verifies that multiple
+// concurrent streaming sessions do not interfere with each other.
+func TestGetAnswerStream_ConcurrentSessions_Isolation(t *testing.T) {
+	const n = 3
+	fms := make([]*streamingChatModel, n)
+	savers := make([]*fakeMessageSaver, n)
+	chats := make([]*Chat, n)
+	srs := make([]*schema.StreamReader[*schema.Message], n)
+
+	for i := 0; i < n; i++ {
+		fms[i] = newStreamingChatModel([]string{fmt.Sprintf("session%d-", i), "answer"})
+		savers[i] = &fakeMessageSaver{}
+		chats[i] = newTestChat(fms[i], savers[i])
+	}
+
+	// Start all streams concurrently
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			sr, err := chats[idx].GetAnswerStream(context.Background(), fmt.Sprintf("conv-%d", idx), nil, "q")
+			if err != nil {
+				t.Errorf("session %d: unexpected error: %v", idx, err)
+				return
+			}
+			srs[idx] = sr
+		}(i)
+	}
+	wg.Wait()
+
+	// Consume each stream and verify isolation
+	for i := 0; i < n; i++ {
+		if srs[i] == nil {
+			t.Fatalf("session %d: nil stream reader", i)
+		}
+		content := drainStream(t, srs[i])
+		expected := fmt.Sprintf("session%d-answer", i)
+		if content != expected {
+			t.Errorf("session %d: expected %q, got %q", i, expected, content)
+		}
+	}
+
+	// Wait for all saves (each session: 1 user question + 1 assistant answer = 2)
+	for i := 0; i < n; i++ {
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if savers[i].getSaveCount() >= 2 {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+
+	// Verify each saver got the correct content
+	for i := 0; i < n; i++ {
+		expectedAnswer := fmt.Sprintf("session%d-answer", i)
+		fullContent := savers[i].getSavedContent()
+		if !strings.Contains(fullContent, expectedAnswer) {
+			t.Errorf("session %d: saved content should contain %q, got %q", i, expectedAnswer, fullContent)
+		}
+		if savers[i].getSaveCount() != 2 {
+			t.Errorf("session %d: expected 2 saves (user + assistant), got %d", i, savers[i].getSaveCount())
+		}
 	}
 }

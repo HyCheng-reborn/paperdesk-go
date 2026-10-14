@@ -1,5 +1,61 @@
 # 变更记录
 
+## 2026-10-15 Stage 1C-2：F03 请求 context 传播、流消费退出及完整回答保存（待独立复核）
+
+**基线**：`c022ccdba3a9bc38c6516534a31844ca1598ec58`（Stage 1C-1 定点收尾 HEAD）
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| F03-1 context 替换 | 移除 `ctx = context.Background()`，模型调用使用调用方 ctx |
+| F03-2 后台 goroutine 无效 ctx | 移除 `select ctx.Done()` 轮询，改为纯 Recv 循环；ctx 取消通过模型传播 |
+| 保存契约 | 只有 `cleanEOF && ctx.Err() == nil` 才保存完整回答；defer 只做清理 |
+| 非 EOF 错误 append 零值 | 非 EOF 错误立即退出，不 append nil/零值 chunk |
+| stream() 错误链 | `%v` → `%w` 保留错误链 |
+| SSE 层协同 | EOF 时检查 `ctx.Err()`，已取消不发 DONE 而返回 `ctx.Err()` |
+| messageSaver 接口化 | `Chat.eh` 从 `*historyWrapper` 改为 `messageSaver` 接口，支持测试注入 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/core/common/stream.go | `streamResponse` 新增 ctx 参数；EOF 时检查 ctx.Err() |
+| server/internal/logic/chat/chat.go | 新增 messageSaver 接口；移除 Background()；保存契约；%w 错误链 |
+| server/core/common/stream_test.go | 所有调用新增 ctx 参数；新增 CancelThenEOF_NoDONE 测试 |
+| server/internal/logic/chat/chat_test.go | 新增注入边界；9 个流式行为测试 |
+
+### 测试覆盖（新增 10 个）
+
+| 测试 | 说明 |
+|---|---|
+| TestStreamResponse_CancelThenEOF_NoDONE | SSE 层取消后 EOF 不发 DONE |
+| TestGetAnswerStream_ModelReceivesContext | 模型收到调用方 ctx |
+| TestGetAnswerStream_StreamCancelErrorChain | 建流失败错误链保留 |
+| TestGetAnswerStream_BlockingRecvCancel | 阻塞读取期间取消后退出 |
+| TestGetAnswerStream_NormalEOF_SaveOnce | 正常 EOF 保存一次 |
+| TestGetAnswerStream_PartialThenError_NoSave | 部分后错误不保存 |
+| TestGetAnswerStream_Cancel_NoSave | 取消不保存 |
+| TestGetAnswerStream_WriteFailure_Convergence | 写入失败收敛 |
+| TestGetAnswerStream_CancelThenEOF_NoDONE | 取消后 EOF 不保存 |
+| TestGetAnswerStream_ConcurrentSessions_Isolation | 并发会话隔离 |
+
+### History context 边界
+
+`historyWrapper.SaveMessage` 不接受 context（第三方 chat-history 包接口），无法施加有界 timeout。当前通过“只在正常完成时触发保存”约束。
+
+### 验证结果（server/，GOFLAGS 空）
+
+- `go build ./...` / `go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，70 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/... ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 0
+- `go test -race ./core/common/...` — exit 1：Windows 预存在 `0xc0000139`（与 1C-1 一致），根因待确认
+
+**race 未验证项**：`core/common` race 因平台 `0xc0000139` 未完成；`core/retriever`、`core/rerank` 亦仍未补证。
+
+---
+
 ## 2026-10-15 Stage 1C-1 定点收尾：SSE 前端帧兼容恢复 + Controller 建流失败测试（待独立复核）
 
 **基线**：`11e021a3cca840b2225c6228be6a19aaa6a03f55`。不实施 1C-2，不改前端协议，不重构共享 SSE 编排。

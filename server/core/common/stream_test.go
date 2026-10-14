@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -68,7 +69,7 @@ func TestStreamResponse_NormalEOF(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err != nil {
 		t.Fatalf("expected nil error, got: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestStreamResponse_EmptyStream(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err != nil {
 		t.Fatalf("expected nil error, got: %v", err)
 	}
@@ -118,7 +119,7 @@ func TestStreamResponse_EmptyContentChunks(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestStreamResponse_StreamError_NoDone(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -177,7 +178,7 @@ func TestStreamResponse_NilChunk(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err == nil {
 		t.Fatal("expected error for nil chunk")
 	}
@@ -199,7 +200,7 @@ func TestStreamResponse_ErrorChain(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -221,7 +222,7 @@ func TestStreamResponse_SafeErrorEncoding(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	_ = streamResponse(fw, sr, nil, enc)
+	_ = streamResponse(context.Background(), fw, sr, nil, enc)
 
 	// Should have error event
 	if len(fw.events) != 1 {
@@ -249,7 +250,7 @@ func TestStreamResponse_WriteFail_Documents(t *testing.T) {
 	writeErr := errors.New("simulated write failure")
 	fw := &fakeSSEWriter{writeErr: writeErr, failOnCall: 0}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, docs, enc)
+	err := streamResponse(context.Background(), fw, sr, docs, enc)
 	if err == nil {
 		t.Fatal("expected write error for documents")
 	}
@@ -265,7 +266,7 @@ func TestStreamResponse_WriteFail_Data(t *testing.T) {
 	writeErr := errors.New("simulated write failure")
 	fw := &fakeSSEWriter{writeErr: writeErr, failOnCall: 0}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err == nil {
 		t.Fatal("expected write error for data")
 	}
@@ -281,7 +282,7 @@ func TestStreamResponse_WriteFail_Done(t *testing.T) {
 	writeErr := errors.New("simulated write failure")
 	fw := &fakeSSEWriter{writeErr: writeErr, failOnCall: 1} // first write succeeds
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err == nil {
 		t.Fatal("expected write error for DONE")
 	}
@@ -305,7 +306,7 @@ func TestStreamResponse_ErrorEventWriteFailure(t *testing.T) {
 	// failOnCall:1 → first write (data "partial") succeeds, second write (error event) fails
 	fw := &fakeSSEWriter{writeErr: writeErr, failOnCall: 1}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 
 	// errors.Is should recognize both read and write sentinels
 	if !errors.Is(err, readErr) {
@@ -328,7 +329,7 @@ func TestStreamResponse_NoContinueAfterWriteFailure(t *testing.T) {
 	writeErr := errors.New("write failed")
 	fw := &fakeSSEWriter{writeErr: writeErr, failOnCall: 1} // first succeeds, second fails
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -351,7 +352,7 @@ func TestStreamResponse_WithDocuments(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, docs, enc)
+	err := streamResponse(context.Background(), fw, sr, docs, enc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -386,7 +387,7 @@ func TestStreamResponse_DocumentsEncodeFailure(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, docs, enc)
+	err := streamResponse(context.Background(), fw, sr, docs, enc)
 	if err == nil {
 		t.Fatal("expected encode error")
 	}
@@ -408,7 +409,7 @@ func TestStreamResponse_EventFrameBoundary(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	err := streamResponse(fw, sr, nil, enc)
+	err := streamResponse(context.Background(), fw, sr, nil, enc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -445,7 +446,7 @@ func TestStreamResponse_ErrorEventFormat(t *testing.T) {
 
 	fw := &fakeSSEWriter{}
 	enc := sonic.ConfigDefault
-	_ = streamResponse(fw, sr, nil, enc)
+	_ = streamResponse(context.Background(), fw, sr, nil, enc)
 
 	if len(fw.events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(fw.events))
@@ -559,7 +560,7 @@ func TestRealSSEWriter_FrontendCompatFrames(t *testing.T) {
 
 	rec := &frameRecorder{}
 	sw := &realSSEWriter{w: rec}
-	if err := streamResponse(sw, sr, docs, sonic.ConfigDefault); err != nil {
+	if err := streamResponse(context.Background(), sw, sr, docs, sonic.ConfigDefault); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	out := rec.buf.String()
@@ -611,5 +612,41 @@ func TestRealSSEWriter_FrontendCompatFrames(t *testing.T) {
 	// 4) DONE frame is exactly data:[DONE] followed by blank line
 	if !strings.HasSuffix(out, "data:[DONE]\n\n") {
 		t.Errorf("stream must end with 'data:[DONE]\\n\\n', got: %q", out)
+	}
+}
+
+// --- Context cancellation tests ---
+
+// TestStreamResponse_CancelThenEOF_NoDONE verifies that when the request context
+// is cancelled and the reader returns EOF, no [DONE] is sent and ctx.Err() is returned.
+func TestStreamResponse_CancelThenEOF_NoDONE(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	sr := schema.StreamReaderFromArray([]*schema.Message{msg("data")})
+	defer sr.Close()
+
+	fw := &fakeSSEWriter{}
+	enc := sonic.ConfigDefault
+	err := streamResponse(ctx, fw, sr, nil, enc)
+
+	if err == nil {
+		t.Fatal("expected error when context is cancelled")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got: %v", err)
+	}
+
+	// Data event should be sent, but NO DONE
+	if len(fw.events) != 1 {
+		t.Fatalf("expected 1 event (data only, no DONE), got %d: %+v", len(fw.events), fw.events)
+	}
+	if fw.events[0].event != "data" {
+		t.Errorf("expected data event, got: %+v", fw.events[0])
+	}
+	for _, ev := range fw.events {
+		if ev.data == "[DONE]" {
+			t.Fatal("must NOT send [DONE] when context is cancelled")
+		}
 	}
 }

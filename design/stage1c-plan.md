@@ -336,6 +336,8 @@ fullMsgs = append(fullMsgs, chunk)  // ← ★ F04-5: 非 EOF 错误时 chunk �
 - 依赖 1C-1 的 SSE 错误语义（后台 goroutine 的错误处理需要与 SSE 层一致）
 - 需要可注入的模型工厂来测试 context 传递
 
+**状态**：✅ 已完成（见下方 1C-2 实施记录）
+
 ---
 
 ### 1C-1：F04 SSE 流语义修复
@@ -591,6 +593,6 @@ go test -p 1 ./... -count=1                             # 退出码 0
 
 ## 实施顺序
 
-1. **1C-1（F04 SSE 流语义）** — ✅ 推荐首批
-2. **1C-2（F03 Chat context）** — 第二批
+1. **1C-1（F04 SSE 流语义）** — ✅ 已完成
+2. **1C-2（F03 Chat context）** — ✅ 已完成
 

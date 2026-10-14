@@ -97,7 +97,10 @@ func (s *realSSEWriter) writeError(err error) error {
 
 // streamResponse is the shared orchestration function called by both production and tests.
 // It handles the complete SSE streaming flow: documents → data chunks → DONE/error.
-func streamResponse(w sseWriter, reader *schema.StreamReader[*schema.Message], docs []*schema.Document, enc jsonEncoder) error {
+// ctx is used to detect cancellation: if the request context is cancelled when the
+// reader returns EOF, no [DONE] is sent and ctx.Err() is returned instead.
+// A nil ctx is treated as non-cancellable (for backward-compatible tests).
+func streamResponse(ctx context.Context, w sseWriter, reader *schema.StreamReader[*schema.Message], docs []*schema.Document, enc jsonEncoder) error {
 	sd := &StreamData{
 		Id:      uuid.NewString(),
 		Created: time.Now().Unix(),
@@ -120,7 +123,12 @@ func streamResponse(w sseWriter, reader *schema.StreamReader[*schema.Message], d
 	for {
 		chunk, recvErr := reader.Recv()
 		if recvErr == io.EOF {
-			// Normal completion: send DONE
+			// Normal EOF: only send DONE if the request context is not cancelled.
+			// If cancelled, the downstream model or consumer was interrupted —
+			// this is NOT a normal completion.
+			if ctx != nil && ctx.Err() != nil {
+				return ctx.Err()
+			}
 			if writeErr := w.writeDone(); writeErr != nil {
 				return writeErr
 			}
@@ -165,5 +173,5 @@ func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schem
 
 	sw := &realSSEWriter{w: httpResp.RawWriter()}
 	// Use sonic encoder (same as tests)
-	return streamResponse(sw, streamReader, docs, sonic.ConfigDefault)
+	return streamResponse(ctx, sw, streamReader, docs, sonic.ConfigDefault)
 }

@@ -23,7 +23,14 @@ var (
 
 type Chat struct {
 	cm model.BaseChatModel
-	eh *historyWrapper
+	eh messageSaver // messageSaver 接口支持测试注入；生产使用 *historyWrapper
+}
+
+// messageSaver 定义消息存储接口，生产实现为 *historyWrapper。
+// 接口化允许测试注入 fake 实现，不依赖真实数据库。
+type messageSaver interface {
+	SaveMessage(mess *schema.Message, convID string) error
+	GetHistory(convID string, limit int) ([]*schema.Message, error)
 }
 
 // ChatModelFactory 创建 BaseChatModel 的工厂接口
@@ -193,54 +200,58 @@ func (x *Chat) GetAnswer(ctx context.Context, convID string, docs []*schema.Docu
 	return result.Content, nil
 }
 
-// GetAnswerStream 流式生成答案
+// GetAnswerStream 流式生成答案。
+// 使用调用方 ctx 传递给模型，确保客户端断开/取消时模型调用能退出。
+// 后台保存 goroutine 使用同一 ctx：取消时停止消费，不保存部分回答。
+// 只有正常 EOF 且 ctx 未取消时才保存完整回答。
 func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (answer *schema.StreamReader[*schema.Message], err error) {
 	messages, err := x.docsMessages(ctx, convID, docs, question)
 	if err != nil {
 		return
 	}
-	ctx = context.Background()
+	// 使用调用方 ctx（不再替换为 context.Background()）
 	streamData, err := stream(ctx, x.cm, messages)
 	if err != nil {
 		return nil, fmt.Errorf("生成答案失败: %w", err)
 	}
 	srs := streamData.Copy(2)
+
+	// 后台保存 goroutine：消费 srs[1]，只有正常 EOF 且 ctx 未取消时才保存。
+	// 取消/超时/模型失败/提前关闭 → 不保存部分回答。
 	go func() {
-		// for save
 		fullMsgs := make([]*schema.Message, 0)
+		cleanEOF := false
+
 		defer func() {
 			srs[1].Close()
-			fullMsg, err := schema.ConcatMessages(fullMsgs)
-			if err != nil {
-				g.Log().Error(ctx, "error concatenating messages: %v", err)
-				return
-			}
-			err = x.eh.SaveMessage(fullMsg, convID)
-			if err != nil {
-				g.Log().Error(ctx, "save assistant message err: %v", err)
-				return
-			}
-		}()
-	outer:
-		for {
-			select {
-			case <-ctx.Done():
-				fmt.Println("context done", ctx.Err())
-				return
-			default:
-				chunk, err := srs[1].Recv()
-				if err != nil {
-					if errors.Is(err, io.EOF) {
-						break outer
-					}
+			// 只有正常 EOF 且 ctx 未取消时才保存完整回答
+			if cleanEOF && ctx.Err() == nil {
+				fullMsg, concatErr := schema.ConcatMessages(fullMsgs)
+				if concatErr != nil {
+					g.Log().Error(ctx, "error concatenating messages: %v", concatErr)
+					return
 				}
-				fullMsgs = append(fullMsgs, chunk)
+				if saveErr := x.eh.SaveMessage(fullMsg, convID); saveErr != nil {
+					g.Log().Error(ctx, "save assistant message err: %v", saveErr)
+				}
 			}
+			// 非 cleanEOF 或 ctx 已取消：不保存，仅清理
+		}()
+
+		for {
+			chunk, recvErr := srs[1].Recv()
+			if recvErr != nil {
+				if errors.Is(recvErr, io.EOF) {
+					cleanEOF = true
+				}
+				// 非 EOF 错误：不 append 零值 chunk，直接退出
+				return
+			}
+			fullMsgs = append(fullMsgs, chunk)
 		}
 	}()
 
 	return srs[0], nil
-
 }
 
 func generate(ctx context.Context, llm model.BaseChatModel, in []*schema.Message) (message *schema.Message, err error) {
@@ -255,7 +266,7 @@ func generate(ctx context.Context, llm model.BaseChatModel, in []*schema.Message
 func stream(ctx context.Context, llm model.BaseChatModel, in []*schema.Message) (res *schema.StreamReader[*schema.Message], err error) {
 	res, err = llm.Stream(ctx, in)
 	if err != nil {
-		err = fmt.Errorf("llm generate failed: %v", err)
+		err = fmt.Errorf("llm generate failed: %w", err)
 		return
 	}
 	return

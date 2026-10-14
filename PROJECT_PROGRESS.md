@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-14
-**阶段**：Stage 1B-2 测试收尾完成（待独立复核），Stage 1B-1 已完成，Stage 1-Pre 已完成，Stage 1A 待独立复核
+**阶段**：Stage 1B-3 已完成（待独立复核），Stage 1B-2 已通过独立源码与提交日志复核，Stage 1B-1 已完成，Stage 1-Pre 已完成，Stage 1A 待独立复核
 
 ## Stage 0：事实基线与只读核对
 
@@ -34,8 +34,8 @@
 | 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | **✅ 已完成** |
 | 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第三轮修复已完成，待独立复核** |
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
-| 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 测试收尾完成，待独立复核** |
-| 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | 待实施 |
+| 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
+| 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已完成，待独立复核** |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
@@ -142,6 +142,52 @@
 **race 证据范围说明**：本轮 race 仅在 `core` 包通过并给出证据。`core/retriever`、`core/rerank` 此前 Windows race 检测异常仍未补证，普通测试通过不代表其 race 通过，二者 race 结论保持待验证。
 
 **证据目录**：[verification/stage1b2/](verification/stage1b2/)
+
+### Stage 1B-3 完成记录
+
+**日期**：2026-10-14
+**基线**：`98770d33ee18c280bbb8c771acdeb44749182ef8`（Stage 1B-2 final）
+**状态**：✅ 已完成，待独立复核
+
+**修改文件**：
+- `server/core/indexer.go` — 新增 `syncIndexer`/`asyncIndexer` 接口及生产实现；重构 `Index` 方法：异步闭包使用局部错误变量、固定后台输入快照、删除误导注释
+- `server/core/rag.go` — `Rag` 结构体新增 `syncIndexer`、`asyncIndexer`、`asyncWait` 字段；`New()` 初始化注入边界
+- `server/core/indexer_test.go` — 新增 8 个离线行为测试
+
+**修复内容**：
+
+| 修复项 | 说明 |
+|---|---|
+| 异步闭包竞态 | goroutine 使用局部 `localErr`，不再写外层命名返回变量 `err` |
+| 后台输入快照 | goroutine 启动前复制 `knowledgeName`、`documentsID`、`docsIDs`；goroutine 不读取 `req` 或共享 `ids` 切片 |
+| 同步失败不启动后台 | 同步索引失败直接返回 error，不启动后台任务 |
+| 同步成功不等待后台 | 同步成功返回 `ids`，后台独立执行 QA/embedding |
+| 误导注释删除 | 删除“崩溃场景几乎不会出现、可以忽略”，改为“当前内存 goroutine 无持久化恢复，仍由后续 Stage 4 解决” |
+| 可注入边界 | `syncIndexer`/`asyncIndexer` 接口支持测试 fake；`asyncWait` 可注入等待机制 |
+
+**测试覆盖**：
+
+| 测试 | 说明 |
+|---|---|
+| TestIndex_SyncFailure_NoAsync | 同步失败不启动后台任务 |
+| TestIndex_SyncSuccess_AsyncStillBlocked | 同步成功时后台仍阻塞，Index 已返回 |
+| TestIndex_AsyncFailure_SyncReturnUnchanged | 后台失败不改变同步返回的 ids/error |
+| TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot | 修改调用方 req 后，后台仍收到原始标量快照 |
+| TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged | 修改返回 ids 元素后，后台 DocsIDs 不变 |
+| TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged | 后台修改自己的 DocsIDs 后，调用方返回 ids 不变 |
+| TestIndex_ConcurrentCalls_NoCrossContamination | 多次并发 Index 的结果和后台任务互不串用 |
+| TestIndex_WithCleanup | t.Cleanup 保证释放阻塞后台 |
+
+**验证结果**：
+- `go test ./core -count=1 -v -tags offline` — 退出码 0，27 个测试全部通过（8 Indexer + 19 Retrieve）
+- `go test -race ./core -count=1 -tags offline` — 退出码 0，core 包 race 通过
+- `go test -p 1 ./... -count=1 -tags offline` — 退出码 0，全量通过
+- `go vet ./...` — 退出码 0
+- `go build ./...` — 退出码 0
+
+**race 证据范围说明**：本轮 race 在 `core` 包通过并给出证据。`core/retriever`、`core/rerank` 此前 race 异常仍未补证。
+
+**证据目录**：[verification/stage1b3/](verification/stage1b3/)
 
 ### Stage 1-Pre 独立复核记录
 

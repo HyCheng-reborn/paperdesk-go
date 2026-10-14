@@ -1,6 +1,61 @@
 # 变更记录
 
-## 2026-10-14 Stage 1B-2：F01 Retriever 并发测试收尾（待独立复核）
+## 2026-10-14 Stage 1B-3：F02 Indexer 异步闭包共享变量修复（待独立复核）
+
+**基线**：`98770d33ee18c280bbb8c771acdeb44749182ef8`。修复 Indexer.Index 异步闭包竞态、固定后台输入快照、新增可注入边界和离线行为测试。
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| 异步闭包竞态 | goroutine 使用局部 `localErr`，不再写外层命名返回变量 `err` |
+| 后台输入快照 | goroutine 启动前复制 `knowledgeName`、`documentsID`、`docsIDs`；goroutine 不读取 `req` 或共享 `ids` 切片 |
+| 同步失败不启动后台 | 同步索引失败直接返回 error，不启动后台任务 |
+| 同步成功不等待后台 | 同步成功返回 `ids`，后台独立执行 QA/embedding |
+| 误导注释删除 | 删除“崩溃场景几乎不会出现、可以忽略”，改为“当前内存 goroutine 无持久化恢复，仍由后续 Stage 4 解决” |
+| 可注入边界 | `syncIndexer`/`asyncIndexer` 接口支持测试 fake；`asyncWait` 可注入等待机制 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/core/indexer.go | 新增 `syncIndexer`/`asyncIndexer` 接口及 `prodSyncIndexer`/`prodAsyncIndexer` 生产实现；重构 `Index` 方法：异步闭包使用局部错误变量、固定后台输入快照、删除误导注释 |
+| server/core/rag.go | `Rag` 结构体新增 `syncIndexer`、`asyncIndexer`、`asyncWait` 字段；`New()` 初始化注入边界 |
+| server/core/indexer_test.go | 新增 8 个离线行为测试 |
+| PROJECT_PROGRESS.md | 更新进度 |
+| CHANGES.md | 添加本记录 |
+| design/stage1b-plan.md | 标记 1B-3 为已完成 |
+
+### 测试覆盖
+
+| 测试 | 说明 |
+|---|---|
+| TestIndex_SyncFailure_NoAsync | 同步失败不启动后台任务 |
+| TestIndex_SyncSuccess_AsyncStillBlocked | 同步成功时后台仍阻塞，Index 已返回 |
+| TestIndex_AsyncFailure_SyncReturnUnchanged | 后台失败不改变同步返回的 ids/error |
+| TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot | 修改调用方 req 后，后台仍收到原始标量快照 |
+| TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged | 修改返回 ids 元素后，后台 DocsIDs 不变 |
+| TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged | 后台修改自己的 DocsIDs 后，调用方返回 ids 不变 |
+| TestIndex_ConcurrentCalls_NoCrossContamination | 多次并发 Index 的结果和后台任务互不串用 |
+| TestIndex_WithCleanup | t.Cleanup 保证释放阻塞后台 |
+
+### 验证结果
+
+- `go test ./core -count=1 -v -tags offline` — 退出码 0，27 个测试全部通过（8 Indexer + 19 Retrieve）
+- `go test -race ./core -count=1 -tags offline` — 退出码 0，core 包 race 通过
+- `go test -p 1 ./... -count=1 -tags offline` — 退出码 0，全量通过
+- `go vet ./...` — 退出码 0
+- `go build ./...` — 退出码 0
+
+**race 证据范围**：本轮 race 在 `core` 包通过并给出证据；`core/retriever`、`core/rerank` 此前 race 异常仍未补证。
+
+### 回滚说明
+
+修改涉及 `indexer.go`、`rag.go` 和新增测试文件，回滚需同时恢复两个源文件并删除测试文件。
+
+---
+
+## 2026-10-14 Stage 1B-2：F01 Retriever 并发测试收尾（已通过独立源码与提交日志复核）
 
 **基线**：`d3e3e07ebbc7b73569e8afeb1b0f677a5d98517a`。仅测试收尾，保持已修正的 `Retrieve` 编排逻辑，不重新设计并发方案，不实施 1B-3。
 

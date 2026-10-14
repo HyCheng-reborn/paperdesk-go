@@ -7,6 +7,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/eino/components/document"
+	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
@@ -35,42 +36,83 @@ type IndexAsyncByDocsIDReq struct {
 	try           int    // es 数据同步会有部分延迟，尝试多次
 }
 
+// syncIndexer 同步索引边界：读取文档、分割、合并、存储，返回 chunk IDs
+type syncIndexer interface {
+	invoke(ctx context.Context, knowledgeName string, source document.Source) ([]string, error)
+}
+
+// asyncIndexer 异步索引边界：QA 生成 + embedding
+type asyncIndexer interface {
+	indexAsyncByDocsID(knowledgeName, documentsID string, docsIDs []string) error
+}
+
+// prodSyncIndexer 生产同步索引实现
+type prodSyncIndexer struct {
+	runnable compose.Runnable[any, []string]
+}
+
+func (p *prodSyncIndexer) invoke(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
+	ctx = context.WithValue(ctx, coretypes.KnowledgeName, knowledgeName)
+	return p.runnable.Invoke(ctx, source)
+}
+
+// prodAsyncIndexer 生产异步索引实现
+type prodAsyncIndexer struct {
+	rag *Rag
+}
+
+func (p *prodAsyncIndexer) indexAsyncByDocsID(knowledgeName, documentsID string, docsIDs []string) error {
+	ctxN := gctx.New()
+	_, err := p.rag.indexAsyncByDocsID(ctxN, &IndexAsyncByDocsIDReq{
+		DocsIDs:       docsIDs,
+		KnowledgeName: knowledgeName,
+		DocumentsId:   func() int64 { var id int64; fmt.Sscanf(documentsID, "%d", &id); return id }(),
+		try:           esTryFindDoc,
+	})
+	return err
+}
+
 // Index
 // 这里处理文档的读取、分割、合并和存储
 // 真正的embedding 和 QA 异步执行
+// 当前内存 goroutine 无持久化恢复，仍由后续 Stage 4 解决
 func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error) {
-	s := document.Source{
-		URI: req.URI,
-	}
-	ctx = context.WithValue(ctx, coretypes.KnowledgeName, req.KnowledgeName)
-	ids, err = x.idxer.Invoke(ctx, s)
+	// 同步索引
+	ids, err = x.syncIndexer.invoke(ctx, req.KnowledgeName, document.Source{URI: req.URI})
 	if err != nil {
 		g.Log().Errorf(ctx, "Index idxer.Invoke failed, err=%v", err)
-		return
+		return nil, err
 	}
 	g.Log().Infof(ctx, "Index success, generated %d chunks with IDs: %v", len(ids), ids)
+
+	// 同步成功，启动后台任务
+	// 固定后台输入快照
+	knowledgeName := req.KnowledgeName
+	documentsID := fmt.Sprintf("%d", req.DocumentsId)
+	docsIDs := make([]string, len(ids))
+	copy(docsIDs, ids)
+
 	go func() {
+		// 后台局部变量，不写外层 err
 		// 测试下来这里必须 sleep 一段时间，否则下面的 indexAsyncByDocsID 在es里面搜索不到该条数据，应该是es本身会有一定延迟
-		// 这里会有一定隐患，刚提交index后项目就崩了，可能会有几条chunk没有生成QA
-		// 但是这个场景几乎不会出现，且不影响用户使用，可以忽略
 		time.Sleep(time.Second)
+		if x.asyncWait != nil {
+			x.asyncWait()
+		}
 		ctxN := gctx.New()
 		defer func() {
 			if e := recover(); e != nil {
 				g.Log().Errorf(ctxN, "recover indexAsyncByDocsID failed, err=%v", e)
 			}
 		}()
-		_, err = x.indexAsyncByDocsID(ctxN, &IndexAsyncByDocsIDReq{
-			DocsIDs:       ids,
-			KnowledgeName: req.KnowledgeName,
-			DocumentsId:   req.DocumentsId,
-			try:           esTryFindDoc,
-		})
-		if err != nil {
-			g.Log().Errorf(ctxN, "indexAsyncByDocsID failed, err=%v", err)
+		localErr := x.asyncIndexer.indexAsyncByDocsID(knowledgeName, documentsID, docsIDs)
+		if localErr != nil {
+			// 后台失败仅通过日志报告
+			g.Log().Errorf(ctxN, "indexAsyncByDocsID failed, err=%v", localErr)
 		}
 	}()
-	return
+
+	return ids, nil
 }
 
 // IndexAsync

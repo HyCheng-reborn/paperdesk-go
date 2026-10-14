@@ -262,9 +262,11 @@ go test -race ./core -count=1
 
 单文件修改，回滚简单。
 
+**1B-3 已完成**：见 `CHANGES.md` 和 `PROJECT_PROGRESS.md` Stage 1B-3 记录。
+
 ---
 
-## 1B-3：F02 Indexer 异步闭包修复
+## 1B-3：F02 Indexer 异步闭包修复（✅ 已完成）
 
 ### 问题描述
 
@@ -321,11 +323,11 @@ go test -race ./core -count=1
 
 ---
 
-## 实施顺序
+### 实施顺序
 
-1. **1B-1（F05 Rerank）** — 最小首批，单文件，测试简单
-2. **1B-2（F01 Retriever）** — 并发修复，需仔细测试
-3. **1B-3（F02 Indexer）** — 异步闭包，需明确错误模型
+1. **1B-1（F05 Rerank）** — ✅ 已完成
+2. **1B-2（F01 Retriever）** — ✅ 已通过独立源码与提交日志复核
+3. **1B-3（F02 Indexer）** — ✅ 已完成，待独立复核
 
 ## 全局验证命令
 

@@ -24,18 +24,20 @@ const (
 )
 
 type Rag struct {
-	idxer      compose.Runnable[any, []string]
-	idxerAsync compose.Runnable[[]*schema.Document, []string]
-	rtrvr      compose.Runnable[string, []*schema.Document]
-	qaRtrvr    compose.Runnable[string, []*schema.Document]
-	client     *elasticsearch.Client // 保留用于兼容
-	cm         model.BaseChatModel
+	syncIndexer  syncIndexer       // 注入边界：同步索引
+	asyncIndexer asyncIndexer      // 注入边界：异步索引
+	idxerAsync   compose.Runnable[[]*schema.Document, []string] // 异步文档索引器
+	rtrvr        compose.Runnable[string, []*schema.Document]
+	qaRtrvr      compose.Runnable[string, []*schema.Document]
+	client       *elasticsearch.Client // 保留用于兼容
+	cm           model.BaseChatModel
 
 	grader *grader.Grader // 暂时先弃用，使用 grader 会严重影响rag的速度
 	conf   *config.Config
 
-	docRet  docRetriever       // 注入边界：用于测试替换
-	rwModel model.BaseChatModel // 注入边界：用于测试替换 rewrite model
+	docRet    docRetriever       // 注入边界：用于测试替换
+	rwModel   model.BaseChatModel // 注入边界：用于测试替换 rewrite model
+	asyncWait func()            // 可注入等待机制，测试用
 }
 
 func New(ctx context.Context, conf *config.Config) (*Rag, error) {
@@ -76,7 +78,6 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		return nil, err
 	}
 	rag := &Rag{
-		idxer:      buildIndex,
 		idxerAsync: buildIndexAsync,
 		rtrvr:      buildRetriever,
 		qaRtrvr:    qaRetriever,
@@ -85,7 +86,9 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		conf:       conf,
 		// grader:  grader.NewGrader(cm),
 	}
-	rag.docRet = &prodDocRetriever{rag: rag} // 发布前设置注入字段，运行期间只读
+	rag.syncIndexer = &prodSyncIndexer{runnable: buildIndex}   // 发布前设置注入字段，运行期间只读
+	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}              // 发布前设置注入字段，运行期间只读
+	rag.docRet = &prodDocRetriever{rag: rag}                    // 发布前设置注入字段，运行期间只读
 	return rag, nil
 }
 

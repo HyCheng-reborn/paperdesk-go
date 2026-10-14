@@ -1,5 +1,47 @@
 # 变更记录
 
+## 2026-10-14 Stage 1B-2：F01 Retriever 并发测试收尾（待独立复核）
+
+**基线**：`d3e3e07ebbc7b73569e8afeb1b0f677a5d98517a`。仅测试收尾，保持已修正的 `Retrieve` 编排逻辑，不重新设计并发方案，不实施 1B-3。
+
+### 收尾内容
+
+| 项目 | 说明 |
+|---|---|
+| 字段范围恢复 | 公开字段 `ExcludeIDs` 恢复为原有私有字段 `excludeIDs`，同步 retriever.go 内所有引用；测试属 package core，无需公开接口 |
+| WorkerFails_OthersCanceled | 定点重写：三轮 worker/Generate 事件编排，释放第一轮返回 sentinel；断言取消被观察、已启动 worker 在返回前完成、`errors.Is` 识别 sentinel |
+| Round1WorkerBlocked_Round2RewriteFails | 定点重写：worker 先观察取消再等待独立释放；未释放时 Retrieve 不返回；改用 `errors.Is` 而非字符串匹配 |
+| CancelWinsOverSuccess | 使用 `workerStarted` 信号触发取消，删除固定 sleep |
+| InFlightCancel / Timeout | 补回进行中取消与超时覆盖，分别断言 `context.Canceled`、`context.DeadlineExceeded`；用完成信号而非 goroutine 计数 |
+| 切片隔离 | worker 修改 `excludeIDs[0]` 前先断言原始值；最后校验输入独立快照不变；保留同一 Rag 并发不同 query 测试 |
+| 测试清理 | 删除名不副实的 `NoSharedFieldWrite`，改名 `InjectedDepsRemainUnchanged`，仅验证已注入依赖不变，不声称覆盖 nil 默认路径 |
+| 泄漏防护 | 所有 channel 等待有超时；`t.Cleanup` 保证断言失败时释放阻塞任务并等待结束 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/core/retriever.go | `ExcludeIDs` → `excludeIDs` 及引用同步 |
+| server/core/retriever_test.go | 重写协调测试、补回取消/超时、加强切片隔离、清理测试 |
+| PROJECT_PROGRESS.md | 添加 Stage 1B-2 测试收尾记录，更新批次状态 |
+| CHANGES.md | 添加本记录 |
+
+### 验证结果
+
+- `gofmt` — 目标文件已格式化，`gofmt -l` 无输出
+- `go test ./core -count=1 -v` — 退出码 0，19 个 Retrieve 测试全部通过，0 失败
+- `go test -race ./core -count=1` — 退出码 0，core 包 race 通过
+- `go test -race ./core -count=10 -run <6 个协调/隔离测试>` — 60 PASS，0 FAIL，无 DATA RACE
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- `go vet ./...` — 退出码 0
+- `go build ./...` — 退出码 0
+
+**race 证据范围**：本轮 race 仅在 `core` 包通过并给出证据；`core/retriever`、`core/rerank` 此前 race 异常仍未补证，普通测试通过不写成 race 通过。
+
+### 回滚说明
+
+仅测试收尾 + 字段改回私有，回滚恢复 `retriever.go`、`retriever_test.go` 到基线 `d3e3e07` 即可，不涉及编排逻辑。
+
 ## 2026-10-14 Stage 1B-1：F05 Rerank HTTP ctx 绑定与校验
 
 ### 修复内容

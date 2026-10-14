@@ -1,0 +1,122 @@
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	4.295s

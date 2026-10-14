@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-14
-**阶段**：Stage 1B-1 已完成，Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1B 计划已制定
+**阶段**：Stage 1B-2 测试收尾完成（待独立复核），Stage 1B-1 已完成，Stage 1-Pre 已完成，Stage 1A 待独立复核
 
 ## Stage 0：事实基线与只读核对
 
@@ -34,7 +34,7 @@
 | 1-Pre | F06 File/URL nil 访问修复 | F06 | 无 | **✅ 已完成** |
 | 1A | init 副作用清理 + 离线测试隔离 | F12 | 无 | **第三轮修复已完成，待独立复核** |
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
-| 1B-2 | F01 Retriever 并发安全 | F01 | 1A | 待实施 |
+| 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 测试收尾完成，待独立复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | 待实施 |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | 待实施 |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
@@ -103,6 +103,45 @@
 - `go test -race ./core/rerank/...` — Windows 环境 race detector DLL 问题（非代码问题）
 
 **证据目录**：[verification/stage1b1/](verification/stage1b1/)
+
+### Stage 1B-2 测试收尾记录
+
+**日期**：2026-10-14
+**基线**：`d3e3e07ebbc7b73569e8afeb1b0f677a5d98517a`（Stage 1B-2 final）
+**状态**：✅ 测试收尾完成，待独立复核
+
+**范围约束**：仅测试收尾，保持已修正的 `Retrieve` 编排逻辑不变，不重新设计并发方案，不实施 1B-3。
+
+**修改文件**：
+- `server/core/retriever.go` — 将本批公开字段 `ExcludeIDs` 恢复为原有私有字段 `excludeIDs`，同步 `Retrieve`/`retrieveDoOnce`/`retrieve` 内的引用（深拷贝、ES/Qdrant 过滤、BM25 传参）
+- `server/core/retriever_test.go` — 定点重写协调测试、补回取消/超时覆盖、加强切片隔离断言、清理名不副实测试（package core 内测试，可直接访问私有字段，无需公开接口）
+
+**测试收尾内容**：
+
+| 项目 | 说明 |
+|---|---|
+| 字段范围恢复 | `ExcludeIDs` → `excludeIDs`，测试属 package core，无需公开接口 |
+| WorkerFails_OthersCanceled | 第一轮 worker 等待释放失败信号；第二轮 worker 启动后阻塞等待取消；第三轮 Generate 发出"已进入"信号后等待取消；两者均进入后释放第一轮返回 sentinel；断言取消被观察、已启动 worker 在返回前完成、`errors.Is` 识别 sentinel |
+| Round1WorkerBlocked_Round2RewriteFails | 第二轮 Generate 等待第一轮 worker 启动后返回 sentinel；worker 先观察取消再等待独立释放；未释放时 Retrieve 不返回，释放后返回原始错误；用 `errors.Is` 检查，不用字符串匹配 |
+| CancelWinsOverSuccess | 使用 `workerStarted` 信号触发取消，删除固定 sleep；下游取消后返回成功仍判取消 |
+| InFlightCancel（补回） | 进行中取消，断言 `context.Canceled` 且已启动 worker 全部结束（用完成信号，不用 goroutine 计数） |
+| Timeout（补回） | 超时 deadline，断言 `context.DeadlineExceeded` |
+| 切片隔离 | worker 修改 `excludeIDs[0]` 前先断言为原始值；最后检查输入的独立快照保持不变；保留同一 Rag 并发不同 query 测试 |
+| 测试清理 | 删除名不副实的 `NoSharedFieldWrite`，改名为 `InjectedDepsRemainUnchanged`，仅验证已注入依赖保持不变，不声称覆盖 nil 默认路径 |
+| 泄漏防护 | 所有 channel 等待有超时；`t.Cleanup` 保证断言失败时仍释放阻塞任务并等待结束 |
+
+**验证结果**：
+- `gofmt` — 目标文件已格式化，`gofmt -l` 无输出
+- `go test ./core -count=1 -v` — 退出码 0，core 包 19 个 Retrieve 测试全部通过，0 失败
+- `go test -race ./core -count=1` — 退出码 0，core 包 race 通过
+- 协调测试定点压测 `go test -race ./core -count=10 -run <6 个协调/隔离测试>` — 60 PASS，0 FAIL，无 DATA RACE
+- `go test -p 1 ./... -count=1` — 退出码 0，全量通过
+- `go vet ./...` — 退出码 0
+- `go build ./...` — 退出码 0
+
+**race 证据范围说明**：本轮 race 仅在 `core` 包通过并给出证据。`core/retriever`、`core/rerank` 此前 Windows race 检测异常仍未补证，普通测试通过不代表其 race 通过，二者 race 结论保持待验证。
+
+**证据目录**：[verification/stage1b2/](verification/stage1b2/)
 
 ### Stage 1-Pre 独立复核记录
 

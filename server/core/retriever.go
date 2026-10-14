@@ -40,7 +40,7 @@ type RetrieveReq struct {
 	Score         float64  //  分数阀值(0-2, 0 完全相反，1 毫不相干，2 完全相同,一般需要传入一个大于1的数字，如1.5)
 	KnowledgeName string   // 知识库名字
 	optQuery      string   // 优化后的检索关键词
-	ExcludeIDs     []string // 要排除的 _id 列表
+	excludeIDs    []string // 要排除的 _id 列表
 	rankScore     float64  // 排名分数，原本的score是0-2（实际是1-2），需要在这里改成0-1
 }
 
@@ -132,10 +132,10 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		roundReq := localReq
 		roundReq.optQuery = optimizedQuery
 
-		// copy() 对 ExcludeIDs 切片创建独立副本
-		if len(localReq.ExcludeIDs) > 0 {
-			roundReq.ExcludeIDs = make([]string, len(localReq.ExcludeIDs))
-			copy(roundReq.ExcludeIDs, localReq.ExcludeIDs)
+		// copy() 对 excludeIDs 切片创建独立副本
+		if len(localReq.excludeIDs) > 0 {
+			roundReq.excludeIDs = make([]string, len(localReq.excludeIDs))
+			copy(roundReq.excludeIDs, localReq.excludeIDs)
 		}
 
 		// 启动 worker 前检查派生 context
@@ -241,7 +241,7 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 
 	// 关键字路三：ES BM25（conf.Client != nil 时生效）
 	if x.conf.Client != nil {
-		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.ExcludeIDs, esTopK)
+		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.excludeIDs, esTopK)
 		if bm25Err != nil {
 			g.Log().Warningf(ctx, "bm25 retrieve failed, skip: %v", bm25Err)
 		} else {
@@ -290,12 +290,12 @@ func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*s
 				},
 			},
 		}
-		if len(req.ExcludeIDs) > 0 {
+		if len(req.excludeIDs) > 0 {
 			esQuery[0].Bool.MustNot = []types.Query{
 				{
 					Terms: &types.TermsQuery{
 						TermsQuery: map[string]types.TermsQueryField{
-							"_id": req.ExcludeIDs,
+							"_id": req.excludeIDs,
 						},
 					},
 				},
@@ -322,10 +322,10 @@ func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*s
 		}
 
 		// 添加排除 ID 的条件
-		if len(req.ExcludeIDs) > 0 {
+		if len(req.excludeIDs) > 0 {
 			// 将 string IDs 转换为 PointId
-			excludePointIds := make([]*qdrant.PointId, len(req.ExcludeIDs))
-			for i, id := range req.ExcludeIDs {
+			excludePointIds := make([]*qdrant.PointId, len(req.excludeIDs))
+			for i, id := range req.excludeIDs {
 				excludePointIds[i] = &qdrant.PointId{
 					PointIdOptions: &qdrant.PointId_Uuid{Uuid: id},
 				}

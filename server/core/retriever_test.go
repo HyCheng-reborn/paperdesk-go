@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-		"strings"
-		"sync"
-		"sync/atomic"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -173,13 +173,19 @@ func TestRetrieve_ThreeRoundsUseOwnQuery(t *testing.T) {
 }
 
 func TestRetrieve_InputRequestUnchanged(t *testing.T) {
-	// 验证输入请求和 excludeIDs 不变
+	// 验证输入请求（含 excludeIDs 独立快照）在并发多轮中保持不变
 	cm := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
 	dr := &fakeDocRetriever{
-		results: map[string][]*schema.Document{
-			"q0": {{ID: "a", Content: "a"}},
-			"q1": {{ID: "b", Content: "b"}},
-			"q2": {{ID: "c", Content: "c"}},
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			// 每个 worker 收到独立副本，修改前先断言首位为原始值
+			if len(req.excludeIDs) > 0 {
+				if req.excludeIDs[0] != "id1" {
+					t.Errorf("worker copy excludeIDs[0] = %q, want %q", req.excludeIDs[0], "id1")
+				}
+				// worker 修改自己的副本，不得影响输入
+				req.excludeIDs[0] = "modified"
+			}
+			return []*schema.Document{docWithScore("a", "a", 0.5)}, nil
 		},
 	}
 
@@ -190,11 +196,11 @@ func TestRetrieve_InputRequestUnchanged(t *testing.T) {
 		Score:         1.5,
 		KnowledgeName: "kb",
 	}
-	originalExcludeIDs := []string{"id1", "id2"}
-	req.ExcludeIDs = originalExcludeIDs
+	original := []string{"id1", "id2"}
+	snapshot := append([]string(nil), original...)
+	req.excludeIDs = original
 
-	_, err := r.Retrieve(context.Background(), req)
-	if err != nil {
+	if _, err := r.Retrieve(context.Background(), req); err != nil {
 		t.Fatal(err)
 	}
 
@@ -205,8 +211,9 @@ func TestRetrieve_InputRequestUnchanged(t *testing.T) {
 	if req.TopK != 5 {
 		t.Fatalf("TopK was modified: %d", req.TopK)
 	}
-	if !reflect.DeepEqual(req.ExcludeIDs, originalExcludeIDs) {
-		t.Fatalf("excludeIDs was modified: got %v, want %v", req.ExcludeIDs, originalExcludeIDs)
+	// 最后检查输入的独立快照保持不变
+	if !reflect.DeepEqual(req.excludeIDs, snapshot) {
+		t.Fatalf("input excludeIDs snapshot changed: got %v, want %v", req.excludeIDs, snapshot)
 	}
 }
 
@@ -408,34 +415,60 @@ func docWithScore(id, content string, score float64) *schema.Document {
 	return doc
 }
 
+// waitSig 等待某个信号在超时内到达，避免测试挂起。
+func waitSig(t *testing.T, ch chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("timeout waiting for %s", what)
+	}
+}
+
+// assertClosed 断言某个通道已关闭（表示对应任务已完成），不依赖 goroutine 数量统计。
+func assertClosed(t *testing.T, ch chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	default:
+		t.Fatalf("%s was not completed", what)
+	}
+}
+
 func TestRetrieve_Round1WorkerBlocked_Round2RewriteFails(t *testing.T) {
+	// 第二轮 rewrite 失败触发取消；第一轮 worker 先观察取消，再等待独立释放信号。
+	// worker 未释放时 Retrieve 不得返回；释放后返回原始错误（errors.Is 可识别）。
+	sentinel := errors.New("rewrite sentinel")
+
 	workerStarted := make(chan struct{})
-	workerProceed := make(chan struct{})
-	rewriteFailed := make(chan struct{})
+	workerSawCancel := make(chan struct{})
+	workerProceed := make(chan struct{}) // 独立释放信号
 	retrieveReturned := make(chan struct{})
 
-	var genCallCount int32
+	var genSeq int32
+	var startedOnce sync.Once
 
 	fakeRet := &fakeDocRetriever{
 		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
-			close(workerStarted)
-			// Block until explicitly released (ignore ctx cancel to test event ordering)
+			startedOnce.Do(func() { close(workerStarted) })
+			// 先观察 context 取消
+			<-ctx.Done()
+			close(workerSawCancel)
+			// 再等待独立释放信号
 			<-workerProceed
-			doc := &schema.Document{ID: "1", Content: "test", MetaData: map[string]any{}}
-			doc.WithScore(0.5)
-			return []*schema.Document{doc}, nil
+			return []*schema.Document{}, nil
 		},
 	}
 
 	fakeModel := &fakeChatModel{
 		onGenerate: func(ctx context.Context, content string) (string, error) {
-			n := atomic.AddInt32(&genCallCount, 1)
+			n := atomic.AddInt32(&genSeq, 1)
 			if n == 2 {
-				<-workerStarted
-				close(rewriteFailed)
-				return "", errors.New("rewrite error")
+				// 第二轮 Generate 等待第一轮 worker 启动后返回 sentinel error
+				waitSig(t, workerStarted, "round-1 worker start")
+				return "", sentinel
 			}
-			return "rewritten-" + content, nil
+			return fmt.Sprintf("q%d", n-1), nil
 		},
 	}
 
@@ -443,128 +476,322 @@ func TestRetrieve_Round1WorkerBlocked_Round2RewriteFails(t *testing.T) {
 
 	var retrieveErr error
 	go func() {
+		defer close(retrieveReturned)
 		_, retrieveErr = rag.Retrieve(context.Background(), &RetrieveReq{
 			Query: "test", TopK: 5, KnowledgeName: "kb",
 		})
-		close(retrieveReturned)
 	}()
 
-	<-rewriteFailed
+	// cleanup 保证断言失败时也释放阻塞任务并等待结束，避免泄漏或挂起
+	t.Cleanup(func() {
+		select {
+		case <-workerProceed:
+		default:
+			close(workerProceed)
+		}
+		select {
+		case <-retrieveReturned:
+		case <-time.After(3 * time.Second):
+			t.Error("Retrieve did not finish during cleanup")
+		}
+	})
 
+	// worker 必须观察到由第二轮 rewrite 失败触发的取消
+	waitSig(t, workerSawCancel, "round-1 worker observe cancel")
+
+	// worker 未释放时 Retrieve 不得返回
 	select {
 	case <-retrieveReturned:
-		t.Fatal("Retrieve should not return before worker is released")
+		t.Fatal("Retrieve returned before worker was released")
 	case <-time.After(200 * time.Millisecond):
 	}
 
+	// 释放 worker 后 Retrieve 应正常返回
 	close(workerProceed)
-
-	select {
-	case <-retrieveReturned:
-	case <-time.After(2 * time.Second):
-		t.Fatal("Retrieve did not return after worker released")
-	}
+	waitSig(t, retrieveReturned, "Retrieve return")
 
 	if retrieveErr == nil {
 		t.Fatal("expected error")
 	}
-	if !strings.Contains(retrieveErr.Error(), "rewrite error") {
-		t.Fatalf("unexpected error: %v", retrieveErr)
+	if !errors.Is(retrieveErr, sentinel) {
+		t.Fatalf("expected errors.Is to recognize original error, got: %v", retrieveErr)
 	}
 }
 
 func TestRetrieve_WorkerFails_OthersCanceled(t *testing.T) {
-	// worker 失败时错误传播，且派生 context 被取消
-	workerErr := errors.New("worker1 error")
-	var workerCallCount int32
+	// 第一轮 worker 等待释放失败信号；第二轮 worker 阻塞等待取消；
+	// 第三轮 Generate 进入后阻塞等待取消。测试确认二者均进入后再释放第一轮返回 sentinel。
+	// 验证：取消被观察、所有已启动 worker 在 Retrieve 返回前完成、errors.Is 识别 sentinel。
+	sentinel := errors.New("worker sentinel failure")
+
+	releaseFail := make(chan struct{})        // 释放第一轮 worker 返回 sentinel
+	round2Started := make(chan struct{})      // 第二轮 worker 已进入
+	round3GenEntered := make(chan struct{})   // 第三轮 Generate 已进入
+	round2SawCancel := make(chan struct{})    // 第二轮 worker 观察到取消
+	round3GenSawCancel := make(chan struct{}) // 第三轮 Generate 观察到取消
+	worker1Done := make(chan struct{})
+	worker2Done := make(chan struct{})
+	retrieveReturned := make(chan struct{})
+
+	var workerSeq int32
+	var genSeq int32
 
 	fakeRet := &fakeDocRetriever{
 		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
-			idx := atomic.AddInt32(&workerCallCount, 1)
-			if idx == 1 {
-				return nil, workerErr
+			switch atomic.AddInt32(&workerSeq, 1) {
+			case 1:
+				// 第一轮 worker：等待释放信号后返回 sentinel
+				defer close(worker1Done)
+				<-releaseFail
+				return nil, sentinel
+			case 2:
+				// 第二轮 worker：启动后阻塞并等待 context 取消
+				defer close(worker2Done)
+				close(round2Started)
+				<-ctx.Done()
+				close(round2SawCancel)
+				return nil, ctx.Err()
+			default:
+				// 第三轮 worker 不应在取消后启动
+				return nil, nil
 			}
-			// 后续 worker 应收到取消
-			<-ctx.Done()
-			return nil, ctx.Err()
 		},
 	}
 
 	fakeModel := &fakeChatModel{
 		onGenerate: func(ctx context.Context, content string) (string, error) {
-			return "rewritten-" + content, nil
+			n := atomic.AddInt32(&genSeq, 1)
+			if n == 3 {
+				// 第三轮 Generate 发出"已进入"信号后等待 context 取消
+				close(round3GenEntered)
+				<-ctx.Done()
+				close(round3GenSawCancel)
+				return "q2", nil
+			}
+			return fmt.Sprintf("q%d", n-1), nil
 		},
 	}
 
 	rag := newTestRag(fakeModel, fakeRet)
 
-	_, err := rag.Retrieve(context.Background(), &RetrieveReq{
-		Query: "query1", TopK: 5, KnowledgeName: "kb",
+	var retrieveErr error
+	go func() {
+		defer close(retrieveReturned)
+		_, retrieveErr = rag.Retrieve(context.Background(), &RetrieveReq{
+			Query: "query1", TopK: 5, KnowledgeName: "kb",
+		})
+	}()
+
+	t.Cleanup(func() {
+		select {
+		case <-releaseFail:
+		default:
+			close(releaseFail)
+		}
+		select {
+		case <-retrieveReturned:
+		case <-time.After(3 * time.Second):
+			t.Error("Retrieve did not finish during cleanup")
+		}
 	})
 
-	if err == nil {
-		t.Fatal("expected error from Retrieve")
+	// 等待第二轮 worker 和第三轮 Generate 均进入后，再释放第一轮让它返回 sentinel error
+	waitSig(t, round2Started, "round-2 worker start")
+	waitSig(t, round3GenEntered, "round-3 generate enter")
+	close(releaseFail)
+
+	// 验证取消被第二轮 worker 与第三轮 Generate 观察到
+	waitSig(t, round2SawCancel, "round-2 worker observe cancel")
+	waitSig(t, round3GenSawCancel, "round-3 generate observe cancel")
+
+	// Retrieve 必须在所有已启动 worker 完成后返回
+	waitSig(t, retrieveReturned, "Retrieve return")
+	assertClosed(t, worker1Done, "round-1 worker")
+	assertClosed(t, worker2Done, "round-2 worker")
+
+	if !errors.Is(retrieveErr, sentinel) {
+		t.Fatalf("expected errors.Is to recognize sentinel, got: %v", retrieveErr)
 	}
-	if !errors.Is(err, workerErr) {
-		t.Fatalf("expected errors.Is to recognize worker error, got: %v", err)
+
+	// 取消后第三轮 worker 不应启动，已启动 worker 数为 2
+	if got := atomic.LoadInt32(&workerSeq); got != 2 {
+		t.Fatalf("expected 2 started workers, got %d", got)
 	}
 }
 
 func TestRetrieve_CancelWinsOverSuccess(t *testing.T) {
-	// 下游在收到取消后返回成功，验证 Retrieve 仍返回取消错误
-	ctx, cancel := context.WithCancel(context.Background())
+	// 下游收到取消后返回成功，验证 Retrieve 仍返回取消错误。
+	// 使用 workerStarted 信号触发取消，不使用固定 sleep。
+	workerStarted := make(chan struct{})
+	retrieveReturned := make(chan struct{})
+	var startedOnce sync.Once
 
 	fakeRet := &fakeDocRetriever{
 		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			startedOnce.Do(func() { close(workerStarted) })
 			<-ctx.Done()
-			doc := &schema.Document{ID: "1", Content: "test", MetaData: map[string]any{}}
-			doc.WithScore(0.5)
+			// 收到取消后仍返回成功，测试取消优先级
+			doc := docWithScore("1", "test", 0.5)
 			return []*schema.Document{doc}, nil
 		},
 	}
 
-	rag := newTestRag(&fakeChatModel{}, fakeRet)
+	rag := newTestRag(&fakeChatModel{queries: []string{"q0", "q1", "q2"}}, fakeRet)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var retrieveErr error
 	go func() {
-		time.Sleep(50 * time.Millisecond)
-		cancel()
+		defer close(retrieveReturned)
+		_, retrieveErr = rag.Retrieve(ctx, &RetrieveReq{
+			Query: "test", TopK: 5, KnowledgeName: "kb",
+		})
 	}()
 
-	_, err := rag.Retrieve(ctx, &RetrieveReq{Query: "test", TopK: 5})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("expected context.Canceled, got: %v", err)
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-retrieveReturned:
+		case <-time.After(3 * time.Second):
+			t.Error("Retrieve did not finish during cleanup")
+		}
+	})
+
+	// 有 worker 启动后再取消，替代固定 sleep
+	waitSig(t, workerStarted, "worker start")
+	cancel()
+
+	waitSig(t, retrieveReturned, "Retrieve return")
+
+	if !errors.Is(retrieveErr, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", retrieveErr)
 	}
 }
 
-func TestRetrieve_NoSharedFieldWrite(t *testing.T) {
-	// 未预先设置 docRet 的生产默认选择边界不存在共享字段写入
-	rag := &Rag{} // docRet 为 nil
+func TestRetrieve_InFlightCancel(t *testing.T) {
+	// 进行中取消：断言 context.Canceled，且已启动 worker 全部结束（用完成信号，不用 goroutine 计数）。
+	workerStarted := make(chan struct{})
+	retrieveReturned := make(chan struct{})
+	var startedOnce sync.Once
+	var started, finished int32
 
-	// 使用 fake model 避免真实调用
-	fakeModel := &fakeChatModel{queries: []string{"q0"}}
-	rag.rwModel = fakeModel
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			atomic.AddInt32(&started, 1)
+			startedOnce.Do(func() { close(workerStarted) })
+			<-ctx.Done()
+			atomic.AddInt32(&finished, 1)
+			return nil, ctx.Err()
+		},
+	}
 
-	// 使用 fake retriever 来避免真实调用
+	rag := newTestRag(&fakeChatModel{queries: []string{"q0", "q1", "q2"}}, fakeRet)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var retrieveErr error
+	go func() {
+		defer close(retrieveReturned)
+		_, retrieveErr = rag.Retrieve(ctx, &RetrieveReq{
+			Query: "test", TopK: 10, KnowledgeName: "kb",
+		})
+	}()
+
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-retrieveReturned:
+		case <-time.After(3 * time.Second):
+			t.Error("Retrieve did not finish during cleanup")
+		}
+	})
+
+	// 至少一个 worker 启动后取消
+	waitSig(t, workerStarted, "worker start")
+	cancel()
+
+	waitSig(t, retrieveReturned, "Retrieve return")
+
+	if !errors.Is(retrieveErr, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", retrieveErr)
+	}
+
+	// Retrieve 返回（内部 wg.Wait）后，已启动 worker 必须全部完成
+	if s := atomic.LoadInt32(&started); s < 1 {
+		t.Fatalf("expected at least 1 started worker, got %d", s)
+	}
+	if s, f := atomic.LoadInt32(&started), atomic.LoadInt32(&finished); s != f {
+		t.Fatalf("started workers (%d) != finished workers (%d)", s, f)
+	}
+}
+
+func TestRetrieve_Timeout(t *testing.T) {
+	// 超时：worker 阻塞直到 deadline，即使随后返回成功，Retrieve 仍应返回 context.DeadlineExceeded。
+	retrieveReturned := make(chan struct{})
+
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			<-ctx.Done()
+			// deadline 后仍返回成功，验证超时优先级
+			doc := docWithScore("1", "test", 0.5)
+			return []*schema.Document{doc}, nil
+		},
+	}
+
+	rag := newTestRag(&fakeChatModel{queries: []string{"q0", "q1", "q2"}}, fakeRet)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+
+	var retrieveErr error
+	go func() {
+		defer close(retrieveReturned)
+		_, retrieveErr = rag.Retrieve(ctx, &RetrieveReq{
+			Query: "test", TopK: 10, KnowledgeName: "kb",
+		})
+	}()
+
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-retrieveReturned:
+		case <-time.After(3 * time.Second):
+			t.Error("Retrieve did not finish during cleanup")
+		}
+	})
+
+	waitSig(t, retrieveReturned, "Retrieve return")
+
+	if !errors.Is(retrieveErr, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got: %v", retrieveErr)
+	}
+}
+
+func TestRetrieve_InjectedDepsRemainUnchanged(t *testing.T) {
+	// 已注入依赖（docRet / rwModel）在 Retrieve 期间保持不变，运行期只读，不被写回。
+	// 本测试只验证注入边界，不声称覆盖 docRet 为 nil 的生产默认路径。
+	fakeModel := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
 	fakeRet := &fakeDocRetriever{
 		results: map[string][]*schema.Document{
 			"q0": {{ID: "1", Content: "test"}},
 		},
 	}
-	// 设置 docRet 为 fake，但测试后验证它没有被修改
-	rag.docRet = fakeRet
 
-	_, err := rag.Retrieve(context.Background(), &RetrieveReq{
+	rag := newTestRag(fakeModel, fakeRet)
+
+	if _, err := rag.Retrieve(context.Background(), &RetrieveReq{
 		Query:         "test",
 		TopK:          10,
 		KnowledgeName: "kb",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 
-	// 验证 rag.docRet 仍然是我们设置的 fakeRet（未被写回新的值）
+	// Retrieve 使用局部变量选择 retriever，不回写共享字段
 	if rag.docRet != fakeRet {
-		t.Fatal("rag.docRet should remain the original fakeRet, not written back")
+		t.Fatal("rag.docRet should remain the injected fakeRet, not written back")
+	}
+	if rag.rwModel != fakeModel {
+		t.Fatal("rag.rwModel should remain the injected fakeModel, not written back")
 	}
 }
 
@@ -618,18 +845,20 @@ func TestRetrieve_ConcurrentDifferentQueries(t *testing.T) {
 }
 
 func TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs(t *testing.T) {
-	// worker 修改已有元素 req.ExcludeIDs[0]，不仅做 append
-	originalExcludeIDs := []string{"id1", "id2"}
+	// worker 修改已有元素 req.excludeIDs[0]（不仅 append），验证每个 worker 收到独立副本、输入快照保持不变
+	original := []string{"id1", "id2"}
+	snapshot := append([]string(nil), original...)
 
 	fakeRet := &fakeDocRetriever{
 		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
-			// worker 修改已有元素
-			if len(req.ExcludeIDs) > 0 {
-				req.ExcludeIDs[0] = "modified"
+			if len(req.excludeIDs) > 0 {
+				// 修改前先断言为原始值：每个 worker 都应看到未被其它 worker 污染的副本
+				if req.excludeIDs[0] != "id1" {
+					t.Errorf("worker copy excludeIDs[0] = %q, want %q", req.excludeIDs[0], "id1")
+				}
+				req.excludeIDs[0] = "modified"
 			}
-			doc := &schema.Document{ID: "1", Content: "test", MetaData: map[string]any{}}
-			doc.WithScore(0.5)
-			return []*schema.Document{doc}, nil
+			return []*schema.Document{docWithScore("1", "test", 0.5)}, nil
 		},
 	}
 
@@ -639,17 +868,19 @@ func TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs(t *testing.T) {
 	req := &RetrieveReq{
 		Query:      "test",
 		TopK:       10,
-		ExcludeIDs: originalExcludeIDs,
+		excludeIDs: original,
 	}
 
-	_, err := rag.Retrieve(context.Background(), req)
-	if err != nil {
+	if _, err := rag.Retrieve(context.Background(), req); err != nil {
 		t.Fatal(err)
 	}
 
-	// 验证输入未变
-	if req.ExcludeIDs[0] != "id1" {
-		t.Fatal("input excludeIDs was modified")
+	// 最后检查输入的独立快照保持不变
+	if !reflect.DeepEqual(req.excludeIDs, snapshot) {
+		t.Fatalf("input excludeIDs snapshot changed: got %v, want %v", req.excludeIDs, snapshot)
+	}
+	if req.excludeIDs[0] != "id1" {
+		t.Fatalf("input excludeIDs[0] was modified: %q", req.excludeIDs[0])
 	}
 }
 

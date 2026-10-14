@@ -946,9 +946,16 @@ func (r *fakeConfigReader) GetString(ctx context.Context, key string) (string, e
 	return r.values[key], nil
 }
 
+// sentinel errors for config read error tests
+var (
+	errBaseURL = errors.New("baseURL error")
+	errModel   = errors.New("model error")
+	errAPIKey  = errors.New("apiKey error")
+)
+
 func TestLoadConf_BaseURLReadError(t *testing.T) {
 	reader := &fakeConfigReader{
-		errs: map[string]error{"rerank.baseURL": errors.New("baseURL error")},
+		errs: map[string]error{"rerank.baseURL": errBaseURL},
 	}
 	cfg, err := loadConf(context.Background(), reader)
 	if err == nil {
@@ -957,15 +964,15 @@ func TestLoadConf_BaseURLReadError(t *testing.T) {
 	if cfg != nil {
 		t.Fatal("should not return config on error")
 	}
-	if !strings.Contains(err.Error(), "baseURL error") {
-		t.Fatalf("should recognize original error, got: %v", err)
+	if !errors.Is(err, errBaseURL) {
+		t.Fatalf("expected errors.Is to recognize original error, got: %v", err)
 	}
 }
 
 func TestLoadConf_ModelReadError(t *testing.T) {
 	reader := &fakeConfigReader{
 		values: map[string]string{"rerank.baseURL": "http://example.com"},
-		errs:   map[string]error{"rerank.model": errors.New("model error")},
+		errs:   map[string]error{"rerank.model": errModel},
 	}
 	cfg, err := loadConf(context.Background(), reader)
 	if err == nil {
@@ -974,8 +981,8 @@ func TestLoadConf_ModelReadError(t *testing.T) {
 	if cfg != nil {
 		t.Fatal("should not return config on error")
 	}
-	if !strings.Contains(err.Error(), "model error") {
-		t.Fatalf("should recognize original error, got: %v", err)
+	if !errors.Is(err, errModel) {
+		t.Fatalf("expected errors.Is to recognize original error, got: %v", err)
 	}
 }
 
@@ -985,7 +992,7 @@ func TestLoadConf_ApiKeyReadError(t *testing.T) {
 			"rerank.baseURL": "http://example.com",
 			"rerank.model":   "model-name",
 		},
-		errs: map[string]error{"rerank.apiKey": errors.New("apiKey error")},
+		errs: map[string]error{"rerank.apiKey": errAPIKey},
 	}
 	cfg, err := loadConf(context.Background(), reader)
 	if err == nil {
@@ -994,8 +1001,8 @@ func TestLoadConf_ApiKeyReadError(t *testing.T) {
 	if cfg != nil {
 		t.Fatal("should not return config on error")
 	}
-	if !strings.Contains(err.Error(), "apiKey error") {
-		t.Fatalf("should recognize original error, got: %v", err)
+	if !errors.Is(err, errAPIKey) {
+		t.Fatalf("expected errors.Is to recognize original error, got: %v", err)
 	}
 }
 

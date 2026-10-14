@@ -33,6 +33,9 @@ type Rag struct {
 
 	grader *grader.Grader // 暂时先弃用，使用 grader 会严重影响rag的速度
 	conf   *config.Config
+
+	docRet  docRetriever       // 注入边界：用于测试替换
+	rwModel model.BaseChatModel // 注入边界：用于测试替换 rewrite model
 }
 
 func New(ctx context.Context, conf *config.Config) (*Rag, error) {
@@ -82,6 +85,13 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		conf:       conf,
 		// grader:  grader.NewGrader(cm),
 	}, nil
+}
+
+// initDocRetriever 初始化生产环境 docRetriever（延迟绑定，避免循环引用）
+func (x *Rag) initDocRetriever() {
+	if x.docRet == nil {
+		x.docRet = &prodDocRetriever{rag: x}
+	}
 }
 
 // GetKnowledgeBaseList 获取知识库列表

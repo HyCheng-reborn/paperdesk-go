@@ -637,16 +637,78 @@ func TestStreamResponse_CancelThenEOF_NoDONE(t *testing.T) {
 		t.Errorf("expected context.Canceled, got: %v", err)
 	}
 
-	// Data event should be sent, but NO DONE
-	if len(fw.events) != 1 {
-		t.Fatalf("expected 1 event (data only, no DONE), got %d: %+v", len(fw.events), fw.events)
-	}
-	if fw.events[0].event != "data" {
-		t.Errorf("expected data event, got: %+v", fw.events[0])
+	// With cancel-before-read check, no events should be written
+	if len(fw.events) != 0 {
+		t.Fatalf("expected 0 events when cancelled before read, got %d: %+v", len(fw.events), fw.events)
 	}
 	for _, ev := range fw.events {
 		if ev.data == "[DONE]" {
 			t.Fatal("must NOT send [DONE] when context is cancelled")
+		}
+	}
+}
+
+// TestStreamResponse_CancelBeforeRead verifies that when the context is cancelled
+// before Recv, streamResponse returns ctx.Err() without reading or writing.
+func TestStreamResponse_CancelBeforeRead(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sr, sw := schema.Pipe[*schema.Message](3)
+	go func() {
+		sw.Send(msg("data"), nil)
+		sw.Close()
+	}()
+	defer sr.Close()
+
+	// Cancel before calling streamResponse
+	cancel()
+
+	fw := &fakeSSEWriter{}
+	enc := sonic.ConfigDefault
+	err := streamResponse(ctx, fw, sr, nil, enc)
+
+	if err == nil {
+		t.Fatal("expected error when context is cancelled before read")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got: %v", err)
+	}
+	// No events should be written
+	if len(fw.events) != 0 {
+		t.Errorf("expected 0 events, got %d", len(fw.events))
+	}
+}
+
+// TestStreamResponse_CancelAfterReadBeforeWrite verifies that when context is
+// cancelled after Recv returns data but before write, no data is written.
+func TestStreamResponse_CancelAfterReadBeforeWrite(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Use a pipe so we can control timing
+	sr, sw := schema.Pipe[*schema.Message](3)
+	go func() {
+		sw.Send(msg("chunk1"), nil)
+		sw.Close()
+	}()
+	defer sr.Close()
+
+	// Cancel immediately - the after-read check should catch it
+	cancel()
+
+	fw := &fakeSSEWriter{}
+	enc := sonic.ConfigDefault
+	err := streamResponse(ctx, fw, sr, nil, enc)
+
+	if err == nil {
+		t.Fatal("expected error when context cancelled")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got: %v", err)
+	}
+	// No data events should be written (cancel detected before write)
+	for _, ev := range fw.events {
+		if ev.event == "data" && ev.data != "[DONE]" {
+			t.Error("should not write data after context cancel")
 		}
 	}
 }

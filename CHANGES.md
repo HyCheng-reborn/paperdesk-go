@@ -1,5 +1,43 @@
 # 变更记录
 
+## 2026-10-15 Stage 1C-2 fix2：保存/cancel 竞态、cleanup 生命周期、严格保存条件、SSE 取消边界
+
+**基线**：`bfaa289253d59db8d2758d4656a1926eaa2bf47e`（Stage 1C-2 lifecycle fix）
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| 保存/cancel 竞态 | controller 成功路径：cleanup 等待后台完成后 cancel；失败路径：先 cancel，cleanup 等待后台，再 cancel |
+| cleanup 完成生命周期 | streamCoordinator 结构体；cleanup 发送结果 → 关闭 srs[0] → 等待 coordDone；后台 defer close(coordDone) + defer srs[1].Close() |
+| cleanup 幂等 | sync.Once 保护，第一次终态决定结果，重复调用安全 |
+| 严格保存条件 | cleanEOF + 前台成功 + 未取消 + 无错误；不仅凭 StreamResult.Success 保存 |
+| 后台记录 cleanEOF | 区分 EOF/错误/nil chunk；只有真正 EOF 才设 cleanEOF=true |
+| 删除 StreamResult.Answer | 未使用字段移除 |
+| SSE 取消边界 | 读取前/后、写入前检查 ctx.Err()；阻塞 Recv 退出由生命周期机制解决 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/internal/logic/chat/chat.go | streamCoordinator 结构体；cleanup 等待 coordDone；sync.Once 幂等；后台记录 cleanEOF；严格保存条件；删除 StreamResult.Answer |
+| server/internal/controller/rag/rag_v1_chat_stream.go | 成功/失败路径明确 cancel/cleanup 顺序；移除 cleanupDone defer |
+| server/core/common/stream.go | 读取前/后、写入前 ctx.Err() 检查 |
+| server/core/common/stream_test.go | 更新 CancelThenEOF_NoDONE；新增 CancelBeforeRead、CancelAfterReadBeforeWrite |
+| server/internal/logic/chat/chat_test.go | callCleanup 助手；重写 BlockingRecvCancel、WriteFailure；新增 BackgroundEOFThenForegroundFail、CleanupIdempotent |
+
+### 验证结果
+
+- `go build ./...` — exit 0
+- `go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，73 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/... ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/... -count=5 -run "TestGetAnswerStream_"` — exit 0，无 DATA RACE
+- `go test -race ./core/common/...` — exit 1：Windows 预存在 0xc0000139
+
+---
+
 ## 2026-10-15 Stage 1C-2：生命周期协调、保存契约及 SSE 取消强化
 
 **基线**：`d21879c2f571eb75e9a259319a3172cee50bd12d`（Stage 1C-2 initial）

@@ -15,7 +15,6 @@ import (
 func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (res *v1.ChatStreamRes, err error) {
 	// 派生 context，可主动取消模型和后台消费
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	// 解析注入边界，nil 时回退生产默认（运行期间只读）
 	retrieve := c.chatRetrieve
@@ -39,30 +38,32 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 		KnowledgeName: req.KnowledgeName,
 	})
 	if err != nil {
+		cancel()
 		g.Log().Error(ctx, err)
 		return
 	}
 	// 获取流式响应；建流失败返回 error，不返回空成功、不进入 SSE 输出
 	streamReader, cleanup, err := answerStream(ctx, req.ConvID, retriever.Document, req.Question)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("get answer stream: %w", err)
 	}
-	// 清理：通知后台 goroutine 结果 + 关闭所有流分支
-	cleanupDone := false
-	defer func() {
-		if !cleanupDone {
-			cleanup(chat.StreamResult{}) // 默认零值：Success=false → 不保存
-		}
-	}()
 
+	// SSE 处理
 	err = sseWrite(ctx, streamReader, retriever.Document)
+
 	if err != nil {
+		// 失败路径：先取消模型，再等待协调任务完成，最后释放 context
+		cancel()
+		cleanup(chat.StreamResult{}) // Success=false → 不保存；等待后台结束
+		cancel()                     // 冗余但明确
 		return nil, fmt.Errorf("stream response: %w", err)
 	}
 
-	// SSE 正常完成：通知后台保存
-	cleanupDone = true
+	// 成功路径：等待协调任务结束，最后才 cancel
 	cleanup(chat.StreamResult{Success: true})
+	cancel()
+
 	return &v1.ChatStreamRes{}, nil
 }
 

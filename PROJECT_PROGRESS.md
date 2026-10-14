@@ -2,8 +2,8 @@
 
 ## 当前状态
 
-**日期**：2026-10-14
-**阶段**：Stage 1C 计划已制定（基线 eb27ba2），Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核
+**日期**：2026-10-15
+**阶段**：Stage 1C-1 已通过独立源码复核，Stage 1C-2 fix2 完成待独立复核，Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1C 尚未全部验收
 
 ## Stage 0：事实基线与只读核对
 
@@ -36,7 +36,7 @@
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 ✅ 生命周期协调修复完成，待独立复核** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 fix2 完成，待独立复核** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -286,38 +286,52 @@
 ### Stage 1C-2 完成记录
 
 **日期**：2026-10-15
-**基线**：`c022ccdba3a9bc38c6516534a31844ca1598ec58`（Stage 1C-1 定点收尾 HEAD）
-**状态**：✅ 定点收尾完成，待独立复核
+**基线**：`bfaa289253d59db8d2758d4656a1926eaa2bf47e`（Stage 1C-2 lifecycle fix）
+**状态**：✅ fix2 定点收尾完成，待独立复核
 **范围约束**：不新增消息状态机，不重写 Stage 5 会话权威模型，不为初始化阶段 Background 扩大 ChatModelFactory 接口。
 
 **修改文件**：
-- `server/core/common/stream.go` — `streamResponse` 新增 `ctx context.Context` 参数；EOF 时检查 `ctx.Err()`，已取消则不发 DONE 而返回 `ctx.Err()`；nil ctx 视为不可取消
-- `server/internal/logic/chat/chat.go` — 新增 `messageSaver` 接口；`Chat.eh` 接口化；移除 `ctx = context.Background()`；模型使用调用方 ctx；后台保存 goroutine 纯 Recv 循环；只有 `cleanEOF && ctx.Err() == nil` 才保存；非 EOF 错误不 append 零值 chunk；`stream()` `%v` → `%w`
-- `server/core/common/stream_test.go` — 所有调用新增 ctx 参数；新增 `TestStreamResponse_CancelThenEOF_NoDONE`
-- `server/internal/logic/chat/chat_test.go` — 新增注入边界；新增 9 个流式行为测试
+- `server/internal/logic/chat/chat.go` — 新增 `streamCoordinator` 结构体；`cleanup` 等待后台完成（`<-coordDone`）；`sync.Once` 保证幂等；后台记录 `cleanEOF`；严格保存条件：`cleanEOF && result.Success && ctx.Err() == nil`；删除未使用的 `StreamResult.Answer` 字段
+- `server/internal/controller/rag/rag_v1_chat_stream.go` — 成功路径：cleanup 等待后台完成后 cancel；失败路径：先 cancel，再 cleanup 等待后台，再 cancel；移除 `cleanupDone` defer 模式
+- `server/core/common/stream.go` — 读取前/后、写入前检查 `ctx.Err()`；取消后不继续输出内容或 DONE
+- `server/core/common/stream_test.go` — 更新 `CancelThenEOF_NoDONE`；新增 `CancelBeforeRead`、`CancelAfterReadBeforeWrite`
+- `server/internal/logic/chat/chat_test.go` — 替换固定 sleep 为 cleanup 阻塞等待；新增 `callCleanup` 助手；新增 `BackgroundEOFThenForegroundFail_NoSave`、`CleanupIdempotent`；重写 `BlockingRecvCancel`、`WriteFailure_ModelObservesCancel_NoSave`
 
-**测试覆盖（新增 10 个）**：
+**修复内容**：
+
+| 修复项 | 说明 |
+|---|---|
+| 保存/cancel 竞态 | cleanup 等待后台协调任务完成后再 cancel，正常回答不会因 defer cancel 抢先而丢失 |
+| cleanup 完成生命周期 | cleanup 发送结果 → 关闭 srs[0] → 等待 coordDone；后台 defer close(coordDone) + defer srs[1].Close() |
+| cleanup 幂等 | sync.Once 保护，第一次终态决定结果，重复调用安全 |
+| 严格保存条件 | cleanEOF + 前台成功 + 未取消 + 无错误；不仅凭 StreamResult.Success 保存 |
+| 后台记录 cleanEOF | 区分 EOF/错误/nil chunk；只有真正 EOF 才设 cleanEOF=true |
+| 删除 StreamResult.Answer | 未使用字段移除 |
+| SSE 取消边界 | 读取前/后、写入前检查 ctx.Err()；阻塞 Recv 退出由生命周期机制解决 |
+
+**测试覆盖**：
 
 | 测试 | 说明 |
 |---|---|
-| TestStreamResponse_CancelThenEOF_NoDONE | SSE 层：取消后 EOF 不发 DONE |
-| TestGetAnswerStream_ModelReceivesContext | 模型收到调用方 ctx |
-| TestGetAnswerStream_StreamCancelErrorChain | 建流失败错误链保留 |
-| TestGetAnswerStream_BlockingRecvCancel | 阻塞读取期间取消后退出 |
-| TestGetAnswerStream_NormalEOF_SaveOnce | 正常 EOF 保存一次完整回答 |
-| TestGetAnswerStream_PartialThenError_NoSave | 部分内容后模型错误不保存 |
-| TestGetAnswerStream_Cancel_NoSave | 取消不保存 |
-| TestGetAnswerStream_WriteFailure_Convergence | 写入失败触发收敛 |
-| TestGetAnswerStream_CancelThenEOF_NoDONE | 取消后 EOF 不保存 |
-| TestGetAnswerStream_ConcurrentSessions_Isolation | 并发会话隔离 |
+| TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave | 写入失败 → cancel → 模型观察取消 → 不保存 |
+| TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave | 后台 EOF 但前台失败 → 不保存 |
+| TestGetAnswerStream_NormalEOF_SaveOnce | 正常完成 → 保存一次完整 assistant |
+| TestGetAnswerStream_Cancel_NoSave | 取消 → 等待 cleanup → 不保存 |
+| TestGetAnswerStream_ConcurrentSessions_Isolation | 并发不同 convID → 内容归属正确 |
+| TestGetAnswerStream_ModelReceivesContextValueAndDeadline | 模型收到 ctx 值和 deadline |
+| TestGetAnswerStream_CleanupIdempotent | cleanup 重复调用安全，第一次决定结果 |
+| TestStreamResponse_CancelBeforeRead | SSE 读取前取消 → 无事件写入 |
+| TestStreamResponse_CancelAfterReadBeforeWrite | SSE 读取后写入前取消 → 无数据写入 |
 
-**History 接口 context 边界**：`historyWrapper.SaveMessage` 不接受 context（第三方 chat-history 包接口），GORM 内部使用连接级别 context，无法施加有界 timeout。当前通过“只在正常完成时触发保存”约束，待 Stage 5 重新评估。
+**History 保存 context 边界**：`historyWrapper.SaveMessage` 不接受 context（第三方 chat-history 包接口），等待保存可能受数据库调用阻塞，不宣称有界。
 
 **验证结果（server/，GOFLAGS 空）**：
-- `go build ./...` / `go vet ./...` — exit 0
-- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，70 pass / 0 fail / 0 skip
+- `go build ./...` — exit 0
+- `go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，73 pass / 0 fail / 0 skip
 - `go test -p 1 ./... -count=1` — exit 0
 - `go test -race ./internal/logic/chat/... ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/... -count=5 -run "TestGetAnswerStream_"` — exit 0，无 DATA RACE
 - `go test -race ./core/common/...` — exit 1：Windows 预存在 `0xc0000139`（与 1C-1 一致），根因待确认
 
 **race 范围**：`core/common` race 因平台 `0xc0000139` 未完成；`core/retriever`、`core/rerank` 亦仍未补证。

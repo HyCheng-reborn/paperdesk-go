@@ -546,6 +546,24 @@ func waitForSave(t *testing.T, saver *fakeMessageSaver, count int, timeout time.
 	t.Fatalf("timeout waiting for save (count=%d, want>=%d)", saver.getSaveCount(), count)
 }
 
+// callCleanup calls cleanup in a goroutine (since it blocks waiting for background).
+// Returns a function that waits for cleanup to complete with a timeout.
+func callCleanup(cleanup func(StreamResult), result StreamResult) func(time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		cleanup(result)
+		close(done)
+	}()
+	return func(timeout time.Duration) bool {
+		select {
+		case <-done:
+			return true
+		case <-time.After(timeout):
+			return false
+		}
+	}
+}
+
 // TestGetAnswerStream_ModelReceivesContext verifies the model's Stream method
 // receives the caller's context (not context.Background()).
 func TestGetAnswerStream_ModelReceivesContext(t *testing.T) {
@@ -606,7 +624,7 @@ func TestGetAnswerStream_StreamCancelErrorChain(t *testing.T) {
 }
 
 // TestGetAnswerStream_BlockingRecvCancel verifies that cancelling the context
-// during a blocking Recv causes the stream to exit.
+// during a blocking Recv causes the stream to exit, and cleanup completes.
 func TestGetAnswerStream_BlockingRecvCancel(t *testing.T) {
 	fm := newStreamingChatModel(nil) // no chunks, model blocks waiting for ctx
 	saver := &fakeMessageSaver{}
@@ -618,7 +636,6 @@ func TestGetAnswerStream_BlockingRecvCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer cleanup(StreamResult{})
 
 	// Wait for model to start
 	select {
@@ -627,19 +644,32 @@ func TestGetAnswerStream_BlockingRecvCancel(t *testing.T) {
 		t.Fatal("timeout waiting for stream to start")
 	}
 
-	// Cancel context
+	// Cancel context — model observes cancel, pipe closes, background Recv exits
 	cancel()
 
 	// The stream reader should return an error or EOF (context cancelled propagated through model)
 	_, recvErr := sr.Recv()
-	if recvErr == nil || (!errors.Is(recvErr, context.Canceled) && !errors.Is(recvErr, io.EOF)) {
-		// Depending on timing, Recv may return context.Canceled or EOF
-		// Either is acceptable as long as it returns
+	if recvErr == nil {
+		t.Fatal("expected error or EOF after cancel")
+	}
+	if !errors.Is(recvErr, context.Canceled) && !errors.Is(recvErr, io.EOF) {
+		t.Logf("recv error after cancel: %v (acceptable)", recvErr)
+	}
+
+	// cleanup must complete (background exits)
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup after cancel")
+	}
+
+	// No assistant save
+	if saver.getSaveCount() > 1 {
+		t.Errorf("expected at most 1 save on cancel, got %d", saver.getSaveCount())
 	}
 }
 
 // TestGetAnswerStream_NormalEOF_SaveOnce verifies that a normal EOF saves
-// the complete answer exactly once.
+// the complete answer exactly once. cleanup blocks until background completes.
 func TestGetAnswerStream_NormalEOF_SaveOnce(t *testing.T) {
 	fm := newStreamingChatModel([]string{"hello", " world"})
 	saver := &fakeMessageSaver{}
@@ -655,14 +685,16 @@ func TestGetAnswerStream_NormalEOF_SaveOnce(t *testing.T) {
 		t.Errorf("expected 'hello world', got: %q", content)
 	}
 
-	// Signal success: foreground SSE completed normally
-	cleanup(StreamResult{Success: true})
+	// cleanup blocks until background completes (save has happened or not by return)
+	waitFn := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
 
-	// Wait for save goroutine: docsMessages saves user question (1 save),
-	// then the goroutine saves assistant answer (2nd save).
-	waitForSave(t, saver, 2, 5*time.Second)
-
-	// Full saved content should include user question + assistant answer
+	// docsMessages saves user question (1), background saves assistant answer (2)
+	if saver.getSaveCount() != 2 {
+		t.Errorf("expected 2 saves (user + assistant), got %d", saver.getSaveCount())
+	}
 	fullContent := saver.getSavedContent()
 	if !strings.Contains(fullContent, "hello world") {
 		t.Errorf("saved content should contain 'hello world', got: %q", fullContent)
@@ -709,7 +741,6 @@ func TestGetAnswerStream_PartialThenError_NoSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer cleanup(StreamResult{}) // failure: default zero value
 
 	// Consume stream: should get "partial" then error
 	var gotContent string
@@ -727,8 +758,11 @@ func TestGetAnswerStream_PartialThenError_NoSave(t *testing.T) {
 		t.Errorf("expected 'partial' content, got: %q", gotContent)
 	}
 
-	// Wait for save goroutine to process
-	time.Sleep(100 * time.Millisecond)
+	// cleanup blocks until background exits; Success=false → no save
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
 
 	// docsMessages saves user question (1 save), but the stream goroutine
 	// should NOT save the assistant answer (non-EOF error → Success=false).
@@ -741,7 +775,7 @@ func TestGetAnswerStream_PartialThenError_NoSave(t *testing.T) {
 }
 
 // TestGetAnswerStream_Cancel_NoSave verifies that cancelling the context
-// does NOT save a partial answer.
+// does NOT save a partial answer. cleanup blocks until background exits.
 func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 	fm := newStreamingChatModel(nil)
 	saver := &fakeMessageSaver{}
@@ -753,7 +787,6 @@ func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer cleanup(StreamResult{})
 
 	// Wait for model to start
 	select {
@@ -765,10 +798,13 @@ func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 	// Cancel context
 	cancel()
 
-	// Wait for save goroutine to finish
-	time.Sleep(200 * time.Millisecond)
+	// cleanup blocks until background exits
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
 
-	// docsMessages saves user question (1 save), but cancel should prevent
+	// docsMessages saves user question (1 save), cancel should prevent
 	// the assistant answer from being saved.
 	if saver.getSaveCount() > 1 {
 		t.Errorf("expected at most 1 save (user question) on cancel, got %d", saver.getSaveCount())
@@ -778,9 +814,9 @@ func TestGetAnswerStream_Cancel_NoSave(t *testing.T) {
 	}
 }
 
-// TestGetAnswerStream_WriteFailure_Convergence verifies that SSE write failure
-// triggers convergence of generation and consumption.
-func TestGetAnswerStream_WriteFailure_Convergence(t *testing.T) {
+// TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave verifies that SSE write failure
+// with cancel causes the model to observe cancellation and no save occurs.
+func TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave(t *testing.T) {
 	fm := newStreamingChatModel(nil) // blocks on ctx.Done()
 	saver := &fakeMessageSaver{}
 	c := newTestChat(fm, saver)
@@ -801,20 +837,27 @@ func TestGetAnswerStream_WriteFailure_Convergence(t *testing.T) {
 
 	// Simulate write failure: cancel context (controller would cancel on write failure)
 	cancel()
-	// cleanup with failure (Success=false)
-	cleanup(StreamResult{})
 
-	// Wait for save goroutine
-	time.Sleep(200 * time.Millisecond)
+	// cleanup with failure; blocks until background exits
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
 
+	// Model should have observed context cancellation
+	modelCtx := fm.getReceivedCtx()
+	if modelCtx.Err() == nil {
+		t.Error("model context should be cancelled")
+	}
+
+	// docsMessages saves user question (1), no assistant save
 	if saver.getSaveCount() > 1 {
 		t.Errorf("expected at most 1 save (user question) after cancel, got %d", saver.getSaveCount())
 	}
 }
 
 // TestGetAnswerStream_CancelThenEOF_NoDONE verifies at the chat level that
-// cancellation followed by EOF does not result in a save (the SSE layer
-// handles DONE suppression separately in stream_test.go).
+// cancellation followed by EOF does not result in a save.
 func TestGetAnswerStream_CancelThenEOF_NoDONE(t *testing.T) {
 	fm := newStreamingChatModel([]string{"data"})
 	saver := &fakeMessageSaver{}
@@ -827,13 +870,15 @@ func TestGetAnswerStream_CancelThenEOF_NoDONE(t *testing.T) {
 	if err != nil {
 		return // stream creation may fail due to context
 	}
-	defer cleanup(StreamResult{})
 
 	// Drain foreground
 	drainStreamContent(t, sr)
 
-	// Wait for goroutine
-	time.Sleep(200 * time.Millisecond)
+	// cleanup blocks until background exits
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
 
 	if strings.Contains(saver.getSavedContent(), "data") {
 		t.Error("saved content should NOT contain assistant answer when context cancelled")
@@ -885,18 +930,14 @@ func TestGetAnswerStream_ConcurrentSessions_Isolation(t *testing.T) {
 		}
 	}
 
-	// Signal success for all sessions
+	// Signal success for all sessions (cleanup blocks until background completes)
 	for i := 0; i < n; i++ {
 		if cleanups[i] != nil {
 			cleanups[i](StreamResult{Success: true})
 		}
 	}
 
-	// Wait for all saves (each session: 1 user question + 1 assistant answer = 2)
-	for i := 0; i < n; i++ {
-		waitForSave(t, savers[i], 2, 5*time.Second)
-	}
-
+	// After cleanup returns, save has already happened (or not)
 	// Verify each saver got the correct content
 	for i := 0; i < n; i++ {
 		expectedAnswer := fmt.Sprintf("session%d-answer", i)
@@ -907,5 +948,81 @@ func TestGetAnswerStream_ConcurrentSessions_Isolation(t *testing.T) {
 		if savers[i].getSaveCount() != 2 {
 			t.Errorf("session %d: expected 2 saves (user + assistant), got %d", i, savers[i].getSaveCount())
 		}
+	}
+}
+
+// TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave verifies that when
+// background reads EOF but foreground then fails, no save occurs.
+func TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave(t *testing.T) {
+	fm := newStreamingChatModel([]string{"answer"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Drain foreground (gets "answer" then EOF)
+	content := drainStreamContent(t, sr)
+	if content != "answer" {
+		t.Errorf("expected 'answer', got %q", content)
+	}
+
+	// Foreground reports failure (simulating SSE write error after EOF)
+	// cleanup blocks until background exits
+	waitFn := callCleanup(cleanup, StreamResult{}) // Success=false
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
+
+	// Background saw cleanEOF, but foreground Success=false → no save
+	if saver.getSaveCount() != 1 {
+		t.Errorf("expected 1 save (user question only), got %d", saver.getSaveCount())
+	}
+	if strings.Contains(saver.getSavedContent(), "answer") {
+		t.Error("should NOT save assistant answer when foreground failed")
+	}
+}
+
+// TestGetAnswerStream_CleanupIdempotent verifies that cleanup can be called
+// multiple times safely; only the first call decides the result.
+func TestGetAnswerStream_CleanupIdempotent(t *testing.T) {
+	fm := newStreamingChatModel([]string{"hello"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Drain the stream
+	drainStreamContent(t, sr)
+
+	// First call: Success=true (decides the result)
+	waitFn := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for first cleanup")
+	}
+
+	// Second call: should not block or panic (sync.Once)
+	waitFn2 := callCleanup(cleanup, StreamResult{}) // different result, should be ignored
+	if !waitFn2(5 * time.Second) {
+		t.Fatal("timeout waiting for second cleanup")
+	}
+
+	// Third call: same
+	waitFn3 := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn3(5 * time.Second) {
+		t.Fatal("timeout waiting for third cleanup")
+	}
+
+	// First call decided Success=true, so save should have happened
+	if saver.getSaveCount() != 2 {
+		t.Errorf("expected 2 saves (user + assistant), got %d", saver.getSaveCount())
+	}
+	if !strings.Contains(saver.getSavedContent(), "hello") {
+		t.Error("saved content should contain 'hello'")
 	}
 }

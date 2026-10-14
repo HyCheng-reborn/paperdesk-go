@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -200,19 +201,50 @@ func (x *Chat) GetAnswer(ctx context.Context, convID string, docs []*schema.Docu
 
 // StreamResult carries the foreground SSE completion outcome to the save goroutine.
 type StreamResult struct {
-	Success bool   // true only when SSE completed normally (EOF, no write/encode error)
-	Answer  string // concatenated assistant content (empty on failure)
+	Success bool // true only when SSE completed normally (EOF, no write/encode error)
+}
+
+// streamCoordinator manages the lifecycle of a streaming answer session.
+// It coordinates the foreground SSE consumer and the background save goroutine.
+type streamCoordinator struct {
+	resultCh  chan StreamResult
+	coordDone chan struct{}
+	srs       [2]*schema.StreamReader[*schema.Message]
+	cancel    context.CancelFunc
+	savedOnce sync.Once // first cleanup call decides; repeated calls are no-ops
+}
+
+// cleanup sends the foreground result, closes srs[0], and waits for the background
+// goroutine to finish. It is safe to call repeatedly; only the first call decides
+// the result (sync.Once protection).
+func (c *streamCoordinator) cleanup(result StreamResult) {
+	c.savedOnce.Do(func() {
+		// Send foreground result to background goroutine
+		c.resultCh <- result
+		// Close foreground branch
+		c.srs[0].Close()
+		// Wait for background goroutine to finish
+		<-c.coordDone
+	})
 }
 
 // GetAnswerStream 流式生成答案。
 // 使用调用方 ctx 传递给模型，确保客户端断开/取消时模型调用能退出。
 // 返回：
 //   - *schema.StreamReader[*schema.Message]: 前台消费者使用的流分支
-//   - func(StreamResult): 清理函数，必须由调用方在 SSE 完成后调用（defer）。
+//   - func(StreamResult): 清理函数，必须由调用方在 SSE 完成后调用。
 //     传入前台结果以决定是否保存 assistant 回答；同时关闭后台分支以释放上游资源。
+//     cleanup 等待后台协调任务结束后返回，可安全重复调用（第一次终态决定结果）。
+//   - context.CancelFunc: 调用方应在 cleanup 返回后调用以释放 context。
 //
-// 保存契约：只有前台成功 (Success=true) 且 ctx 未取消时才保存完整回答。
-// 后台 EOF 不足以触发保存；必须等待前台结果通知。
+// 保存契约：只有同时满足以下条件才保存一次完整 assistant：
+//   - 后台正常 EOF（cleanEOF=true）
+//   - 前台 SSE 正常完成（result.Success=true）
+//   - 请求未取消（ctx.Err()==nil）
+//   - 没有读取、编码、写入或提前关闭错误
+//
+// History 保存不接受 context 的边界如实保留：等待保存可能受数据库调用阻塞，
+// 不宣称有界。
 func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (answer *schema.StreamReader[*schema.Message], cleanup func(StreamResult), err error) {
 	messages, err := x.docsMessages(ctx, convID, docs, question)
 	if err != nil {
@@ -225,58 +257,54 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 	}
 	srs := streamData.Copy(2)
 
-	// resultCh 携带前台 SSE 完成结果，通知后台 goroutine 是否保存。
-	resultCh := make(chan StreamResult, 1)
+	coord := &streamCoordinator{
+		resultCh:  make(chan StreamResult, 1),
+		coordDone: make(chan struct{}),
+		srs:       [2]*schema.StreamReader[*schema.Message]{srs[0], srs[1]},
+	}
 
-	// 后台保存 goroutine：消费 srs[1]，等待前台结果后决定是否保存。
+	// 后台保存 goroutine：消费 srs[1]，记录 cleanEOF，等待前台结果后决定是否保存。
 	// 取消/超时/模型失败/提前关闭 → 不保存部分回答。
 	go func() {
-		fullMsgs := make([]*schema.Message, 0)
+		defer close(coord.coordDone)
+		defer srs[1].Close()
+
+		var cleanEOF bool
+		var fullMsgs []*schema.Message
 
 		// 持续从后台分支读取，直到 EOF 或上游关闭。
-		// 这确保即使前台已完成，后台仍消费完所有模型输出，避免管道阻塞。
 		for {
 			chunk, recvErr := srs[1].Recv()
 			if recvErr != nil {
+				if recvErr == io.EOF {
+					cleanEOF = true
+				}
 				break // EOF 或错误；退出循环等待前台结果
+			}
+			if chunk == nil {
+				break // nil chunk: treat as abnormal, cleanEOF stays false
 			}
 			fullMsgs = append(fullMsgs, chunk)
 		}
 
-		// 等待前台结果或 context 取消
-		select {
-		case result := <-resultCh:
-			if result.Success && ctx.Err() == nil {
-				fullMsg, concatErr := schema.ConcatMessages(fullMsgs)
-				if concatErr != nil {
-					g.Log().Error(ctx, "error concatenating messages: %v", concatErr)
-					return
-				}
-				if saveErr := x.eh.SaveMessage(fullMsg, convID); saveErr != nil {
-					g.Log().Error(ctx, "save assistant message err: %v", saveErr)
-				}
-			}
-			// 非 Success 或 ctx 已取消：不保存
-		case <-ctx.Done():
-			// 取消，不保存
-		}
+		// 等待前台结果
+		result := <-coord.resultCh
 
-		// 清理：关闭后台分支。若前台也已关闭，parent 看到所有 child 关闭，
-		// 关闭上游，模型 Send 观察到流关闭并退出。
-		srs[1].Close()
+		// 严格保存条件：cleanEOF + 前台成功 + 未取消
+		if cleanEOF && result.Success && ctx.Err() == nil {
+			fullMsg, concatErr := schema.ConcatMessages(fullMsgs)
+			if concatErr != nil {
+				g.Log().Error(ctx, "error concatenating messages: %v", concatErr)
+				return
+			}
+			if saveErr := x.eh.SaveMessage(fullMsg, convID); saveErr != nil {
+				g.Log().Error(ctx, "save assistant message err: %v", saveErr)
+			}
+		}
+		// 非严格条件满足：不保存
 	}()
 
-	cleanupFn := func(result StreamResult) {
-		// 通知后台 goroutine 前台结果
-		select {
-		case resultCh <- result:
-		default:
-		}
-		// 关闭前台分支。与后台分支的 Close 一起，parent 关闭上游。
-		srs[0].Close()
-	}
-
-	return srs[0], cleanupFn, nil
+	return srs[0], coord.cleanup, nil
 }
 
 func generate(ctx context.Context, llm model.BaseChatModel, in []*schema.Message) (message *schema.Message, err error) {

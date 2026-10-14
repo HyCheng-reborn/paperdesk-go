@@ -121,11 +121,20 @@ func streamResponse(ctx context.Context, w sseWriter, reader *schema.StreamReade
 
 	// Stream chunks
 	for {
+		// 读取前检查取消
+		if ctx != nil && ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		chunk, recvErr := reader.Recv()
+
+		// 读取后检查取消
+		if ctx != nil && ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		if recvErr == io.EOF {
 			// Normal EOF: only send DONE if the request context is not cancelled.
-			// If cancelled, the downstream model or consumer was interrupted —
-			// this is NOT a normal completion.
 			if ctx != nil && ctx.Err() != nil {
 				return ctx.Err()
 			}
@@ -146,6 +155,11 @@ func streamResponse(ctx context.Context, w sseWriter, reader *schema.StreamReade
 		}
 		if len(chunk.Content) == 0 {
 			continue // Skip empty content
+		}
+
+		// 写入前检查取消
+		if ctx != nil && ctx.Err() != nil {
+			return ctx.Err()
 		}
 
 		sd.Content = chunk.Content

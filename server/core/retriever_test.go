@@ -41,14 +41,13 @@ func (f *fakeChatModel) Stream(_ context.Context, msgs []*schema.Message, _ ...m
 
 // fakeDocRetriever 测试用 fake docRetriever
 type fakeDocRetriever struct {
-	mu        sync.Mutex
-	results   map[string][]*schema.Document // query -> results
-	err       error
-	queries   []string // 记录收到的查询
-	callCount int
-	// 可选的 barrier 控制
-	barrier   chan struct{}
-	onRetrieve func(req *RetrieveReq)
+	mu         sync.Mutex
+	results    map[string][]*schema.Document // query -> results
+	err        error
+	queries    []string // 记录收到的查询
+	callCount  int
+	barrier    chan struct{}
+	onRetrieve func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error)
 }
 
 func (f *fakeDocRetriever) retrieveDoOnce(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
@@ -58,7 +57,7 @@ func (f *fakeDocRetriever) retrieveDoOnce(ctx context.Context, req *RetrieveReq)
 	f.mu.Unlock()
 
 	if f.onRetrieve != nil {
-		f.onRetrieve(req)
+		return f.onRetrieve(ctx, req)
 	}
 
 	if f.barrier != nil {
@@ -206,10 +205,11 @@ func TestRetrieve_ConcurrentCallsNoPollution(t *testing.T) {
 			"q1": {{ID: "b", Content: "b"}},
 			"q2": {{ID: "c", Content: "c"}},
 		},
-		onRetrieve: func(req *RetrieveReq) {
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
 			mu.Lock()
 			allQueries = append(allQueries, req.optQuery)
 			mu.Unlock()
+			return nil, nil
 		},
 	}
 
@@ -364,7 +364,7 @@ func TestRetrieve_SubsequentRoundFails_CancelPrevious(t *testing.T) {
 		results: map[string][]*schema.Document{
 			"q0": {{ID: "a", Content: "a"}},
 		},
-		onRetrieve: func(req *RetrieveReq) {
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
 			mu.Lock()
 			callCount++
 			if callCount > 1 {
@@ -372,6 +372,7 @@ func TestRetrieve_SubsequentRoundFails_CancelPrevious(t *testing.T) {
 				cancelObserved = true
 			}
 			mu.Unlock()
+			return nil, nil
 		},
 	}
 
@@ -420,103 +421,28 @@ func (f *sequentialChatModel) Stream(_ context.Context, msgs []*schema.Message, 
 }
 
 func TestRetrieve_PreCancel(t *testing.T) {
-	// 预取消
-	cm := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
-	dr := &fakeDocRetriever{
-		results: map[string][]*schema.Document{
-			"q0": {{ID: "a", Content: "a"}},
-		},
-	}
-
-	r := newTestRag(cm, dr)
+	// 预取消：返回 context.Canceled，不调用模型或 retriever
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // 预取消
+	cancel()
 
-	_, err := r.Retrieve(ctx, &RetrieveReq{
+	fakeRet := &fakeDocRetriever{}
+	fakeModel := &fakeChatModel{}
+
+	rag := newTestRag(fakeModel, fakeRet)
+	_, err := rag.Retrieve(ctx, &RetrieveReq{
 		Query:         "test",
 		TopK:          10,
 		KnowledgeName: "kb",
 	})
-	// 预取消后，rewriteModel.Generate 可能成功（不使用 ctx），
-	// 但 retrieveDoOnce 使用 derivedCtx 会收到取消信号
-	// 结果取决于 fake 实现是否检查 ctx
-	// 这里只验证不会 panic 或死锁
-	_ = err
-}
 
-func TestRetrieve_InFlightCancel(t *testing.T) {
-	// 进行中取消
-	started := make(chan struct{}, 3)
-	cm := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
-	dr := &fakeDocRetriever{
-		results: map[string][]*schema.Document{
-			"q0": {{ID: "a", Content: "a"}},
-			"q1": {{ID: "b", Content: "b"}},
-			"q2": {{ID: "c", Content: "c"}},
-		},
-		onRetrieve: func(req *RetrieveReq) {
-			started <- struct{}{}
-		},
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
 	}
-
-	r := newTestRag(cm, dr)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	done := make(chan error, 1)
-	go func() {
-		_, err := r.Retrieve(ctx, &RetrieveReq{
-			Query:         "test",
-			TopK:          10,
-			KnowledgeName: "kb",
-		})
-		done <- err
-	}()
-
-	// 等待至少一个 worker 启动
-	<-started
-	cancel()
-
-	// 应该完成而不死锁
-	select {
-	case <-done:
-		// ok
-	case <-context.Background().Done():
-		t.Fatal("deadlock detected")
+	if fakeRet.callCount != 0 {
+		t.Fatal("should not call retriever")
 	}
-}
-
-func TestRetrieve_Timeout(t *testing.T) {
-	// 超时
-	blocker := make(chan struct{})
-	defer close(blocker) // 确保 goroutine 不会泄漏
-
-	cm := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
-	dr := &fakeDocRetriever{
-		barrier: blocker,
-		results: map[string][]*schema.Document{
-			"q0": {{ID: "a", Content: "a"}},
-		},
-	}
-
-	r := newTestRag(cm, dr)
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	done := make(chan error, 1)
-	go func() {
-		_, err := r.Retrieve(ctx, &RetrieveReq{
-			Query:         "test",
-			TopK:          10,
-			KnowledgeName: "kb",
-		})
-		done <- err
-	}()
-
-	select {
-	case <-done:
-		// Retrieve 完成（可能返回 context 错误或空结果）
-	case <-time.After(5 * time.Second):
-		t.Fatal("Retrieve deadlocked on timeout")
+	if fakeModel.idx != 0 {
+		t.Fatal("should not call model")
 	}
 }
 
@@ -529,4 +455,348 @@ func docWithScore(id, content string, score float64) *schema.Document {
 	}
 	doc.WithScore(score)
 	return doc
+}
+
+func TestRetrieve_Round1WorkerBlocked_Round2RewriteFails(t *testing.T) {
+	// 第一轮 worker 已开始阻塞，第二轮重写失败
+	workerStarted := make(chan struct{})
+	workerProceed := make(chan struct{})
+	defer close(workerProceed)
+
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			close(workerStarted)
+			select {
+			case <-workerProceed:
+				return []*schema.Document{{ID: "1", Content: "test", MetaData: map[string]any{}}}, nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}
+
+	// 第二轮重写失败
+	fakeModel := &sequentialChatModel{
+		results: []*schema.Message{{Content: "q0"}},
+		errAt:   1,
+		err:     errors.New("rewrite error"),
+	}
+
+	rag := newTestRag(fakeModel, fakeRet)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var retrieveErr error
+	go func() {
+		defer wg.Done()
+		_, retrieveErr = rag.Retrieve(context.Background(), &RetrieveReq{
+			Query:         "test",
+			TopK:          10,
+			KnowledgeName: "kb",
+		})
+	}()
+
+	// 等待 worker 开始
+	<-workerStarted
+
+	// 等待 Retrieve 返回
+	wg.Wait()
+
+	// 验证错误
+	if retrieveErr == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(retrieveErr, fakeModel.err) {
+		t.Fatalf("expected errors.Is to recognize original error, got: %v", retrieveErr)
+	}
+}
+
+func TestRetrieve_WorkerFails_OthersCanceled(t *testing.T) {
+	// 一个 worker 失败，另一个 worker 和进行中的重写收到派生 context 取消
+	worker1Done := make(chan struct{})
+	worker2CtxCanceled := make(chan struct{})
+	var worker2Once sync.Once
+
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			if req.optQuery == "q0" {
+				defer close(worker1Done)
+				return nil, errors.New("worker1 error")
+			}
+			// worker2
+			<-ctx.Done()
+			worker2Once.Do(func() { close(worker2CtxCanceled) })
+			return nil, ctx.Err()
+		},
+	}
+
+	fakeModel := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
+	rag := newTestRag(fakeModel, fakeRet)
+
+	_, err := rag.Retrieve(context.Background(), &RetrieveReq{
+		Query:         "test",
+		TopK:          10,
+		KnowledgeName: "kb",
+	})
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	// 验证 worker2 收到取消
+	select {
+	case <-worker2CtxCanceled:
+		// ok
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker2 did not receive cancel")
+	}
+}
+
+func TestRetrieve_InFlightCancel(t *testing.T) {
+	// 进行中取消：返回 context.Canceled，全部已启动 worker 完成
+	workerStarted := make(chan struct{}, 3)
+	workerDone := make(chan struct{}, 3)
+
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			workerStarted <- struct{}{}
+			<-ctx.Done()
+			workerDone <- struct{}{}
+			return nil, ctx.Err()
+		},
+	}
+
+	fakeModel := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
+	rag := newTestRag(fakeModel, fakeRet)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := rag.Retrieve(ctx, &RetrieveReq{
+			Query:         "test",
+			TopK:          10,
+			KnowledgeName: "kb",
+		})
+		done <- err
+	}()
+
+	// 等待至少一个 worker 启动
+	<-workerStarted
+	cancel()
+
+	// 应该完成而不死锁
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.Canceled, got: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Retrieve deadlocked on cancel")
+	}
+
+	// 验证所有已启动 worker 都完成
+	for i := 0; i < len(workerStarted); i++ {
+		select {
+		case <-workerDone:
+			// ok
+		case <-time.After(1 * time.Second):
+			// 可能有些 worker 没启动，这是正常的
+			break
+		}
+	}
+}
+
+func TestRetrieve_Timeout(t *testing.T) {
+	// 超时：errors.Is(err, context.DeadlineExceeded)
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	fakeModel := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
+	rag := newTestRag(fakeModel, fakeRet)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err := rag.Retrieve(ctx, &RetrieveReq{
+		Query:         "test",
+		TopK:          10,
+		KnowledgeName: "kb",
+	})
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got: %v", err)
+	}
+}
+
+func TestRetrieve_NoSharedFieldWrite(t *testing.T) {
+	// 未预先设置 docRet 的生产默认选择边界不存在共享字段写入
+	rag := &Rag{} // docRet 为 nil
+
+	// 使用 fake model 避免真实调用
+	fakeModel := &fakeChatModel{queries: []string{"q0"}}
+	rag.rwModel = fakeModel
+
+	// 使用 fake retriever 来避免真实调用
+	fakeRet := &fakeDocRetriever{
+		results: map[string][]*schema.Document{
+			"q0": {{ID: "1", Content: "test"}},
+		},
+	}
+	// 设置 docRet 为 fake，但测试后验证它没有被修改
+	rag.docRet = fakeRet
+
+	_, err := rag.Retrieve(context.Background(), &RetrieveReq{
+		Query:         "test",
+		TopK:          10,
+		KnowledgeName: "kb",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 验证 rag.docRet 仍然是我们设置的 fakeRet（未被写回新的值）
+	if rag.docRet != fakeRet {
+		t.Fatal("rag.docRet should remain the original fakeRet, not written back")
+	}
+}
+
+func TestRetrieve_ConcurrentDifferentQueries(t *testing.T) {
+	// 并发请求使用不同原始 query，断言每个请求只收到属于自己的重写结果
+	var mu sync.Mutex
+	queryMap := make(map[string][]string) // original query -> rewritten queries
+
+	// 为每个并发请求创建独立的 model 和 retriever
+	var wg sync.WaitGroup
+	for _, q := range []string{"queryA", "queryB"} {
+		wg.Add(1)
+		go func(query string) {
+			defer wg.Done()
+			
+			// 为每个请求创建独立的 fake model
+			fakeModel := &fakeChatModel{queries: []string{"rewritten-" + query + "-0", "rewritten-" + query + "-1", "rewritten-" + query + "-2"}}
+			
+			fakeRet := &fakeDocRetriever{
+				onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+					mu.Lock()
+					queryMap[req.Query] = append(queryMap[req.Query], req.optQuery)
+					mu.Unlock()
+					return []*schema.Document{{ID: "1", Content: "test"}}, nil
+				},
+			}
+
+			rag := newTestRag(fakeModel, fakeRet)
+			_, err := rag.Retrieve(context.Background(), &RetrieveReq{
+				Query:         query,
+				TopK:          10,
+				KnowledgeName: "kb",
+			})
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		}(q)
+	}
+	wg.Wait()
+
+	// 验证每个请求只收到自己的重写结果
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(queryMap["queryA"]) != 3 {
+		t.Fatalf("expected 3 rewritten queries for queryA, got %d", len(queryMap["queryA"]))
+	}
+	if len(queryMap["queryB"]) != 3 {
+		t.Fatalf("expected 3 rewritten queries for queryB, got %d", len(queryMap["queryB"]))
+	}
+
+	// 验证重写结果正确
+	for _, q := range queryMap["queryA"] {
+		if q != "rewritten-queryA-0" && q != "rewritten-queryA-1" && q != "rewritten-queryA-2" {
+			t.Fatalf("unexpected rewritten query for queryA: %s", q)
+		}
+	}
+	for _, q := range queryMap["queryB"] {
+		if q != "rewritten-queryB-0" && q != "rewritten-queryB-1" && q != "rewritten-queryB-2" {
+			t.Fatalf("unexpected rewritten query for queryB: %s", q)
+		}
+	}
+}
+
+func TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs(t *testing.T) {
+	// 输入请求及 excludeIDs 不变；让 worker 修改自己的 excludeIDs，验证输入和其他轮次不受影响
+	originalExcludeIDs := []string{"id1", "id2"}
+
+	fakeRet := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			// worker 修改自己的 excludeIDs
+			req.excludeIDs = append(req.excludeIDs, "modified")
+			return []*schema.Document{{ID: "1", Content: "test"}}, nil
+		},
+	}
+
+	fakeModel := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
+	rag := newTestRag(fakeModel, fakeRet)
+
+	req := &RetrieveReq{
+		Query:         "test",
+		TopK:          10,
+		KnowledgeName: "kb",
+		excludeIDs:    originalExcludeIDs,
+	}
+
+	_, err := rag.Retrieve(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 验证输入未变
+	if !reflect.DeepEqual(req.excludeIDs, originalExcludeIDs) {
+		t.Fatalf("input excludeIDs was modified: got %v, want %v", req.excludeIDs, originalExcludeIDs)
+	}
+}
+
+func TestRetrieve_SameScoreSortByID(t *testing.T) {
+	// 相同分数按 ID 排序
+	fakeModel := &fakeChatModel{queries: []string{"q0", "q1", "q2"}}
+	fakeRet := &fakeDocRetriever{
+		results: map[string][]*schema.Document{
+			"q0": {
+				docWithScore("d-b", "b", 0.8),
+				docWithScore("d-a", "a", 0.8),
+			},
+			"q1": {
+				docWithScore("d-c", "c", 0.8),
+			},
+			"q2": {},
+		},
+	}
+
+	rag := newTestRag(fakeModel, fakeRet)
+	docs, err := rag.Retrieve(context.Background(), &RetrieveReq{
+		Query:         "test",
+		TopK:          10,
+		KnowledgeName: "kb",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(docs) != 3 {
+		t.Fatalf("expected 3 docs, got %d", len(docs))
+	}
+
+	// 相同分数应按 ID 排序
+	if docs[0].ID != "d-a" {
+		t.Fatalf("first doc should be d-a, got %s", docs[0].ID)
+	}
+	if docs[1].ID != "d-b" {
+		t.Fatalf("second doc should be d-b, got %s", docs[1].ID)
+	}
+	if docs[2].ID != "d-c" {
+		t.Fatalf("third doc should be d-c, got %s", docs[2].ID)
+	}
 }

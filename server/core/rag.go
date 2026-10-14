@@ -75,7 +75,7 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		g.Log().Error(ctx, "GetChatModel failed, err=%v", err)
 		return nil, err
 	}
-	return &Rag{
+	rag := &Rag{
 		idxer:      buildIndex,
 		idxerAsync: buildIndexAsync,
 		rtrvr:      buildRetriever,
@@ -84,14 +84,9 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		cm:         cm,
 		conf:       conf,
 		// grader:  grader.NewGrader(cm),
-	}, nil
-}
-
-// initDocRetriever 初始化生产环境 docRetriever（延迟绑定，避免循环引用）
-func (x *Rag) initDocRetriever() {
-	if x.docRet == nil {
-		x.docRet = &prodDocRetriever{rag: x}
 	}
+	rag.docRet = &prodDocRetriever{rag: rag} // 发布前设置注入字段，运行期间只读
+	return rag, nil
 }
 
 // GetKnowledgeBaseList 获取知识库列表

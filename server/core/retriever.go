@@ -54,6 +54,11 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		return nil, fmt.Errorf("invalid TopK: %d", req.TopK)
 	}
 
+	// 预取消检查
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	// 创建本次调用的局部请求副本，不修改输入
 	localReq := *req
 	localReq.rankScore = localReq.Score
@@ -74,12 +79,27 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		}
 	}
 
-	// 确保 docRetriever 已初始化
-	x.initDocRetriever()
+	// 获取 docRetriever：使用局部变量，不写回共享字段
+	dr := x.docRet
+	if dr == nil {
+		dr = &prodDocRetriever{rag: x}
+	}
 
 	// 派生 context：任意步骤失败后取消所有进行中的工作
 	derivedCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// 受保护的首个错误记录
+	var firstErr error
+	var firstErrMu sync.Mutex
+
+	recordError := func(err error) {
+		firstErrMu.Lock()
+		defer firstErrMu.Unlock()
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 3)
@@ -87,14 +107,24 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 
 	used := ""
 	for i := 0; i < 3; i++ {
+		// 取消后不继续启动新轮次
+		if derivedCtx.Err() != nil {
+			break
+		}
+
 		// 每轮构建独立的优化查询消息
 		optMessages, genErr := getOptimizedQueryMessages(used, req.Query, req.KnowledgeName)
 		if genErr != nil {
-			return nil, genErr
+			cancel()
+			recordError(fmt.Errorf("round %d build message: %w", i, genErr))
+			break
 		}
-		rewriteMessage, genErr := rewriteModel.Generate(ctx, optMessages)
+
+		rewriteMessage, genErr := rewriteModel.Generate(derivedCtx, optMessages)
 		if genErr != nil {
-			return nil, genErr
+			cancel()
+			recordError(fmt.Errorf("round %d generate: %w", i, genErr))
+			break
 		}
 		optimizedQuery := rewriteMessage.Content
 		used += optimizedQuery + " "
@@ -112,26 +142,26 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		wg.Add(1)
 		go func(r RetrieveReq, round int) {
 			defer wg.Done()
-			// 使用局部错误变量，不写外层 err
-			result, localErr := x.docRet.retrieveDoOnce(derivedCtx, &r)
+			// worker 失败立即触发取消
+			result, localErr := dr.retrieveDoOnce(derivedCtx, &r)
 			if localErr != nil {
-				errCh <- fmt.Errorf("round %d: %w", round, localErr)
+				cancel()
+				recordError(fmt.Errorf("round %d retrieve: %w", round, localErr))
+				errCh <- localErr
 				return
 			}
 			resultCh <- result
 		}(roundReq, i)
 	}
 
-	// 等待所有 goroutine 完成
+	// 等待所有已启动 worker 完成
 	wg.Wait()
 	close(errCh)
 	close(resultCh)
 
-	// 检查错误：任一 worker 失败则整体返回错误
-	for err := range errCh {
-		if err != nil {
-			return nil, err
-		}
+	// 检查首个错误
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
 	// 收集所有结果

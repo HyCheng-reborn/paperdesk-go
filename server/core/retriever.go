@@ -40,7 +40,7 @@ type RetrieveReq struct {
 	Score         float64  //  分数阀值(0-2, 0 完全相反，1 毫不相干，2 完全相同,一般需要传入一个大于1的数字，如1.5)
 	KnowledgeName string   // 知识库名字
 	optQuery      string   // 优化后的检索关键词
-	excludeIDs    []string // 要排除的 _id 列表
+	ExcludeIDs     []string // 要排除的 _id 列表
 	rankScore     float64  // 排名分数，原本的score是0-2（实际是1-2），需要在这里改成0-1
 }
 
@@ -93,16 +93,17 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 	var firstErr error
 	var firstErrMu sync.Mutex
 
-	recordError := func(err error) {
+	// 统一失败处理：先记录错误，再触发取消
+	handleFailure := func(round int, err error) {
 		firstErrMu.Lock()
-		defer firstErrMu.Unlock()
 		if firstErr == nil {
-			firstErr = err
+			firstErr = fmt.Errorf("round %d: %w", round, err)
 		}
+		firstErrMu.Unlock()
+		cancel()
 	}
 
 	var wg sync.WaitGroup
-	errCh := make(chan error, 3)
 	resultCh := make(chan []*schema.Document, 3)
 
 	used := ""
@@ -115,15 +116,13 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		// 每轮构建独立的优化查询消息
 		optMessages, genErr := getOptimizedQueryMessages(used, req.Query, req.KnowledgeName)
 		if genErr != nil {
-			cancel()
-			recordError(fmt.Errorf("round %d build message: %w", i, genErr))
+			handleFailure(i, fmt.Errorf("build message: %w", genErr))
 			break
 		}
 
 		rewriteMessage, genErr := rewriteModel.Generate(derivedCtx, optMessages)
 		if genErr != nil {
-			cancel()
-			recordError(fmt.Errorf("round %d generate: %w", i, genErr))
+			handleFailure(i, fmt.Errorf("generate: %w", genErr))
 			break
 		}
 		optimizedQuery := rewriteMessage.Content
@@ -133,21 +132,23 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		roundReq := localReq
 		roundReq.optQuery = optimizedQuery
 
-		// copy() 对 excludeIDs 切片创建独立副本
-		if len(localReq.excludeIDs) > 0 {
-			roundReq.excludeIDs = make([]string, len(localReq.excludeIDs))
-			copy(roundReq.excludeIDs, localReq.excludeIDs)
+		// copy() 对 ExcludeIDs 切片创建独立副本
+		if len(localReq.ExcludeIDs) > 0 {
+			roundReq.ExcludeIDs = make([]string, len(localReq.ExcludeIDs))
+			copy(roundReq.ExcludeIDs, localReq.ExcludeIDs)
+		}
+
+		// 启动 worker 前检查派生 context
+		if derivedCtx.Err() != nil {
+			break
 		}
 
 		wg.Add(1)
 		go func(r RetrieveReq, round int) {
 			defer wg.Done()
-			// worker 失败立即触发取消
 			result, localErr := dr.retrieveDoOnce(derivedCtx, &r)
 			if localErr != nil {
-				cancel()
-				recordError(fmt.Errorf("round %d retrieve: %w", round, localErr))
-				errCh <- localErr
+				handleFailure(round, fmt.Errorf("retrieve: %w", localErr))
 				return
 			}
 			resultCh <- result
@@ -156,12 +157,19 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 
 	// 等待所有已启动 worker 完成
 	wg.Wait()
-	close(errCh)
 	close(resultCh)
 
-	// 检查首个错误
-	if firstErr != nil {
-		return nil, firstErr
+	// 先检查已记录错误
+	firstErrMu.Lock()
+	recordedErr := firstErr
+	firstErrMu.Unlock()
+	if recordedErr != nil {
+		return nil, recordedErr
+	}
+
+	// 再检查调用方 ctx.Err()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	// 收集所有结果
@@ -233,7 +241,7 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 
 	// 关键字路三：ES BM25（conf.Client != nil 时生效）
 	if x.conf.Client != nil {
-		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.excludeIDs, esTopK)
+		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.ExcludeIDs, esTopK)
 		if bm25Err != nil {
 			g.Log().Warningf(ctx, "bm25 retrieve failed, skip: %v", bm25Err)
 		} else {
@@ -282,12 +290,12 @@ func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*s
 				},
 			},
 		}
-		if len(req.excludeIDs) > 0 {
+		if len(req.ExcludeIDs) > 0 {
 			esQuery[0].Bool.MustNot = []types.Query{
 				{
 					Terms: &types.TermsQuery{
 						TermsQuery: map[string]types.TermsQueryField{
-							"_id": req.excludeIDs,
+							"_id": req.ExcludeIDs,
 						},
 					},
 				},
@@ -314,10 +322,10 @@ func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*s
 		}
 
 		// 添加排除 ID 的条件
-		if len(req.excludeIDs) > 0 {
+		if len(req.ExcludeIDs) > 0 {
 			// 将 string IDs 转换为 PointId
-			excludePointIds := make([]*qdrant.PointId, len(req.excludeIDs))
-			for i, id := range req.excludeIDs {
+			excludePointIds := make([]*qdrant.PointId, len(req.ExcludeIDs))
+			for i, id := range req.ExcludeIDs {
 				excludePointIds[i] = &qdrant.PointId{
 					PointIdOptions: &qdrant.PointId_Uuid{Uuid: id},
 				}

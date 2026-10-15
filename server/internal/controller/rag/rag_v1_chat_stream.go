@@ -37,10 +37,9 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 	cleanupDone := false
 	defer func() {
 		if !cleanupDone && cleanup != nil {
-			cancel()
-			cleanup(chat.StreamResult{})
+			cleanup(chat.StreamResult{}) // 失败路径：cancel → 通知 → 关闭 → 等待
 		}
-		cancel()
+		cancel() // 释放 controller 派生 context（成功路径时 derivedCtx 已取消，此处为 no-op 安全）
 	}()
 
 	// 获取检索结果

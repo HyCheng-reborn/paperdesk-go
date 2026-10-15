@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
@@ -276,44 +277,22 @@ func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
 }
 
 // TestController_ChatIntegration_WriteFailure uses actual Controller + actual
-// Chat.GetAnswerStream-like coordination to verify the full lifecycle under
-// write failure. No fake cleanup replaces real coordination.
+// Chat.GetAnswerStream + production streamCoordinator + shared SSE orchestration
+// to verify the full lifecycle under write failure.
 func TestController_ChatIntegration_WriteFailure(t *testing.T) {
-	type modelCtxCapture struct {
-		mu       sync.Mutex
-		received context.Context
-		done     chan struct{}
-	}
-	mc := &modelCtxCapture{done: make(chan struct{})}
-
-	sr, sw := schema.Pipe[*schema.Message](5)
-
-	var modelDone chan struct{}
+	// -- real Chat with fake dependencies --
+	fm := &ctxCapturingModel{ctxReceived: make(chan struct{})}
+	saver := &fakeSaver{}
+	realChat := &chat.Chat{}
+	// Inject fake dependencies via exported test helper
+	chat.InjectForTest(realChat, fm, saver)
 
 	c := &ControllerV1{
 		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
 			return &v1.RetrieverRes{Document: nil}, nil
 		},
 		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
-			mc.mu.Lock()
-			mc.received = ctx
-			mc.mu.Unlock()
-			close(mc.done)
-
-			modelDone = make(chan struct{})
-			stopModel := make(chan struct{})
-			go func() {
-				defer close(modelDone)
-				sw.Send(&schema.Message{Role: schema.Assistant, Content: "chunk"}, nil)
-				// Block until stop signal from cleanup
-				<-stopModel
-			}()
-			// Cleanup signals model to stop and waits
-			return sr, func(r chat.StreamResult) {
-				close(stopModel)
-				sw.Close()
-				<-modelDone
-			}, nil
+			return realChat.GetAnswerStream(ctx, convID, docs, question)
 		},
 		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
 			chunk, err := reader.Recv()
@@ -334,26 +313,79 @@ func TestController_ChatIntegration_WriteFailure(t *testing.T) {
 		t.Fatal("expected error from SSE write failure")
 	}
 
-	// Wait for model context capture
+	// Wait for model to receive context
 	select {
-	case <-mc.done:
+	case <-fm.ctxReceived:
 	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for model context capture")
+		t.Fatal("timeout waiting for model to receive context")
 	}
 
-	// Wait for model goroutine to finish (cleanup closes pipe → model exits)
-	select {
-	case <-modelDone:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for model goroutine to exit")
-	}
-
-	mc.mu.Lock()
-	modelCtx := mc.received
-	mc.mu.Unlock()
-
-	// Model context should be cancelled (controller's derived ctx cancelled by defer)
+	// Model context should be cancelled (cleanupFail cancels derived ctx)
+	modelCtx := fm.getReceivedCtx()
 	if modelCtx.Err() == nil {
 		t.Error("model context should be cancelled after cleanup")
 	}
+
+	// No assistant save (only user question from docsMessages, if any)
+	if saver.getSaveCount() > 1 {
+		t.Errorf("expected at most 1 save (user question), got %d", saver.getSaveCount())
+	}
+}
+
+// --- helper types for integration test ---
+
+// ctxCapturingModel captures the context passed to Stream for assertion.
+type ctxCapturingModel struct {
+	mu          sync.Mutex
+	receivedCtx context.Context
+	ctxReceived chan struct{}
+}
+
+func (m *ctxCapturingModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Role: schema.Assistant, Content: "test"}, nil
+}
+
+func (m *ctxCapturingModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	m.mu.Lock()
+	m.receivedCtx = ctx
+	m.mu.Unlock()
+	close(m.ctxReceived)
+
+	sr, sw := schema.Pipe[*schema.Message](10)
+	go func() {
+		defer sw.Close()
+		sw.Send(&schema.Message{Role: schema.Assistant, Content: "chunk"}, nil)
+		// Block until context cancelled (cleanup will cancel)
+		<-ctx.Done()
+	}()
+	return sr, nil
+}
+
+func (m *ctxCapturingModel) getReceivedCtx() context.Context {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.receivedCtx
+}
+
+// fakeSaver records SaveMessage calls without a real database.
+type fakeSaver struct {
+	mu         sync.Mutex
+	saveCalled int
+}
+
+func (f *fakeSaver) SaveMessage(mess *schema.Message, convID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.saveCalled++
+	return nil
+}
+
+func (f *fakeSaver) GetHistory(convID string, limit int) ([]*schema.Message, error) {
+	return []*schema.Message{}, nil
+}
+
+func (f *fakeSaver) getSaveCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.saveCalled
 }

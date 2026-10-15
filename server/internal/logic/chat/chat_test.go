@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -400,6 +401,7 @@ type streamingChatModel struct {
 	chunks        []*schema.Message
 	streamErr     error
 	streamStarted chan struct{}
+	bgEOFConsumed chan struct{} // signalled when background has consumed all chunks (EOF reached)
 }
 
 func newStreamingChatModel(chunks []string) *streamingChatModel {
@@ -412,6 +414,7 @@ func newStreamingChatModel(chunks []string) *streamingChatModel {
 		ctxReceived:   make(chan struct{}),
 		blockRecv:     make(chan struct{}),
 		streamStarted: make(chan struct{}),
+		bgEOFConsumed: make(chan struct{}),
 	}
 }
 
@@ -452,6 +455,11 @@ func (m *streamingChatModel) Stream(ctx context.Context, in []*schema.Message, o
 			case <-m.blockRecv:
 				return
 			}
+		}
+		// Signal: all chunks sent, pipe will close → background will see EOF.
+		select {
+		case m.bgEOFConsumed <- struct{}{}:
+		default:
 		}
 	}()
 	return sr, nil
@@ -1077,11 +1085,16 @@ func TestGetAnswerStream_DirectFailCleanup_NoManualCancel(t *testing.T) {
 
 // TestChatStream_BackgroundDoneThenForegroundFail_NoSave verifies that when
 // background has consumed all chunks (cleanEOF) but foreground reports failure,
-// no save occurs. Uses signal-based ordering.
+// no save occurs. Uses a real channel signal (bgEOFConsumed) to prove the
+// background has reached the resultCh wait before foreground reports failure.
 func TestChatStream_BackgroundDoneThenForegroundFail_NoSave(t *testing.T) {
 	fm := newStreamingChatModel([]string{"answer"})
 	saver := &fakeMessageSaver{}
 	c := newTestChat(fm, saver)
+
+	// Use OnBGReady hook to know when background has consumed EOF and is waiting
+	bgReadyCh := make(chan struct{})
+	c.OnBGReady = func() { close(bgReadyCh) }
 
 	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
 	if err != nil {
@@ -1094,9 +1107,13 @@ func TestChatStream_BackgroundDoneThenForegroundFail_NoSave(t *testing.T) {
 		t.Errorf("expected 'answer', got %q", content)
 	}
 
-	// Background should have seen cleanEOF by now (model sent all chunks and closed)
-	// Give background a moment to process EOF
-	time.Sleep(50 * time.Millisecond)
+	// Wait for real signal: background has consumed EOF and is blocked on resultCh.
+	select {
+	case <-bgReadyCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for background ready signal")
+	}
+	// Background is now blocked on <-coord.resultCh
 
 	// Foreground reports failure (simulating SSE write error after background EOF)
 	waitFn := callCleanup(cleanup, StreamResult{}) // Success=false
@@ -1114,27 +1131,15 @@ func TestChatStream_BackgroundDoneThenForegroundFail_NoSave(t *testing.T) {
 }
 
 // TestChatStream_ConcurrentConvID_SaverRecords verifies that concurrent streams
-// on the same Chat with different convIDs record correct role, convID, and content.
+// on the same Chat with different convIDs generate different answers based on
+// the question, and each convID records correct user question, assistant
+// content, and exactly one assistant message.
 func TestChatStream_ConcurrentConvID_SaverRecords(t *testing.T) {
 	const n = 3
-	// Shared saver across all sessions (same Chat instance)
 	sharedSaver := &fakeMessageSaver{}
 
-	// Each session needs its own model (streamingChatModel can't be reused)
-	type sessionModel struct {
-		fm *streamingChatModel
-		sr *schema.StreamReader[*schema.Message]
-		cl func(StreamResult)
-	}
-
-	models := make([]*streamingChatModel, n)
-	for i := 0; i < n; i++ {
-		models[i] = newStreamingChatModel([]string{"shared-answer"})
-	}
-
-	// Create a Chat that routes to different models based on convID
 	c := &Chat{
-		cm: &routingChatModel{models: models},
+		cm: &questionRoutingChatModel{},
 		eh: sharedSaver,
 	}
 
@@ -1146,7 +1151,7 @@ func TestChatStream_ConcurrentConvID_SaverRecords(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			sr, cl, err := c.GetAnswerStream(context.Background(), fmt.Sprintf("conv-%d", idx), nil, fmt.Sprintf("q%d", idx))
+			sr, cl, err := c.GetAnswerStream(context.Background(), fmt.Sprintf("conv-%d", idx), nil, fmt.Sprintf("session-%d", idx))
 			if err != nil {
 				t.Errorf("session %d: unexpected error: %v", idx, err)
 				return
@@ -1157,14 +1162,15 @@ func TestChatStream_ConcurrentConvID_SaverRecords(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Drain all streams
+	// Drain all streams and verify per-session content
 	for i := 0; i < n; i++ {
 		if srs[i] == nil {
 			t.Fatalf("session %d: nil stream reader", i)
 		}
 		content := drainStreamContent(t, srs[i])
-		if content != "shared-answer" {
-			t.Errorf("session %d: expected 'shared-answer', got %q", i, content)
+		expected := fmt.Sprintf("answer-%d", i)
+		if content != expected {
+			t.Errorf("session %d: expected %q, got %q", i, expected, content)
 		}
 	}
 
@@ -1175,66 +1181,93 @@ func TestChatStream_ConcurrentConvID_SaverRecords(t *testing.T) {
 		}
 	}
 
-	// Each session: user question (1) + assistant answer (1) = 2 saves per session
-	expectedSaves := n * 2
-	if sharedSaver.getSaveCount() != expectedSaves {
-		t.Errorf("expected %d saves, got %d", expectedSaves, sharedSaver.getSaveCount())
-	}
-
-	// Verify convIDs and roles
+	// Per convID precise assertions
 	sharedSaver.mu.Lock()
 	defer sharedSaver.mu.Unlock()
-	convCount := map[string]int{}
+
+	// Collect per-convID data
+	type convData struct {
+		userQuestions []string
+		assistantAns  []string
+	}
+	perConv := map[string]*convData{}
 	for i, cid := range sharedSaver.convIDs {
-		convCount[cid]++
+		if perConv[cid] == nil {
+			perConv[cid] = &convData{}
+		}
 		role := sharedSaver.roles[i]
-		if role != string(schema.User) && role != string(schema.Assistant) {
-			t.Errorf("unexpected role %q for convID %s", role, cid)
-		}
-	}
-	for i := 0; i < n; i++ {
-		expectedCID := fmt.Sprintf("conv-%d", i)
-		if convCount[expectedCID] != 2 {
-			t.Errorf("expected 2 saves for %s, got %d", expectedCID, convCount[expectedCID])
+		// Get the saved message content from savedMsgs
+		// We need to track content per save; use the index to look up
+		if role == string(schema.User) {
+			// Find corresponding saved message
+			perConv[cid].userQuestions = append(perConv[cid].userQuestions, sharedSaver.savedMsgs[i].Content)
+		} else if role == string(schema.Assistant) {
+			perConv[cid].assistantAns = append(perConv[cid].assistantAns, sharedSaver.savedMsgs[i].Content)
 		}
 	}
 
-	// Verify assistant role appears exactly once per convID
-	assistantPerConv := map[string]int{}
-	for i, cid := range sharedSaver.convIDs {
-		if sharedSaver.roles[i] == string(schema.Assistant) {
-			assistantPerConv[cid]++
+	for i := 0; i < n; i++ {
+		cid := fmt.Sprintf("conv-%d", i)
+		cd, ok := perConv[cid]
+		if !ok {
+			t.Fatalf("no data for %s", cid)
+		}
+		// Exactly 1 user question containing "session-i"
+		if len(cd.userQuestions) != 1 {
+			t.Errorf("%s: expected 1 user question, got %d", cid, len(cd.userQuestions))
+		} else if !strings.Contains(cd.userQuestions[0], fmt.Sprintf("session-%d", i)) {
+			t.Errorf("%s: user question should contain 'session-%d', got %q", cid, i, cd.userQuestions[0])
+		}
+		// Exactly 1 assistant answer containing "answer-i"
+		if len(cd.assistantAns) != 1 {
+			t.Errorf("%s: expected 1 assistant answer, got %d", cid, len(cd.assistantAns))
+		} else if !strings.Contains(cd.assistantAns[0], fmt.Sprintf("answer-%d", i)) {
+			t.Errorf("%s: assistant answer should contain 'answer-%d', got %q", cid, i, cd.assistantAns[0])
 		}
 	}
-	for i := 0; i < n; i++ {
-		expectedCID := fmt.Sprintf("conv-%d", i)
-		if assistantPerConv[expectedCID] != 1 {
-			t.Errorf("expected exactly 1 assistant save for %s, got %d", expectedCID, assistantPerConv[expectedCID])
-		}
+
+	// Total saves: n user + n assistant = 2n
+	if sharedSaver.saveCalled != n*2 {
+		t.Errorf("expected %d total saves, got %d", n*2, sharedSaver.saveCalled)
 	}
 }
 
-// routingChatModel routes Stream calls to different models based on call order.
-// Thread-safe for concurrent use.
-type routingChatModel struct {
-	mu     sync.Mutex
-	idx    int
-	models []*streamingChatModel
-}
+// questionRoutingChatModel generates different answers based on the question.
+// The last user message content is expected to be "session-N" and the model
+// produces "answer-N" accordingly.
+type questionRoutingChatModel struct{}
 
-func (r *routingChatModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+func (m *questionRoutingChatModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
 	return &schema.Message{Role: "assistant", Content: "test"}, nil
 }
 
-func (r *routingChatModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
-	r.mu.Lock()
-	idx := r.idx
-	r.idx++
-	r.mu.Unlock()
-	if idx >= len(r.models) {
-		return nil, errors.New("no more models")
+func (m *questionRoutingChatModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	// Extract session index from the last user message content ("session-N")
+	idx := 0
+	for i := len(in) - 1; i >= 0; i-- {
+		if in[i].Role == schema.User {
+			idx = parseSessionIdx(in[i].Content)
+			break
+		}
 	}
-	return r.models[idx].Stream(ctx, in, opts...)
+
+	sr, sw := schema.Pipe[*schema.Message](10)
+	go func() {
+		defer sw.Close()
+		sw.Send(&schema.Message{Role: schema.Assistant, Content: fmt.Sprintf("answer-%d", idx)}, nil)
+	}()
+	return sr, nil
+}
+
+// parseSessionIdx extracts the index from "session-N" format.
+func parseSessionIdx(content string) int {
+	if i := strings.Index(content, "session-"); i >= 0 {
+		s := content[i+len("session-"):]
+		if n, err := strconv.Atoi(s); err == nil {
+			return n
+		}
+	}
+	return 0
 }
 
 // TestChatStream_ModelReceivesDeadlineAndValue verifies that a real

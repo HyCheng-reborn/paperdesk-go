@@ -22,7 +22,8 @@ var (
 
 type Chat struct {
 	cm model.BaseChatModel
-	eh messageSaver // messageSaver 接口支持测试注入；生产使用 *historyWrapper
+	eh messageSaver    // messageSaver 接口支持测试注入；生产使用 *historyWrapper
+	OnBGReady func()  // test hook: called when background goroutine is waiting for result (nil in production)
 }
 
 // messageSaver 定义消息存储接口，生产实现为 *historyWrapper。
@@ -207,28 +208,38 @@ type StreamResult struct {
 // streamCoordinator manages the lifecycle of a streaming answer session.
 // It coordinates the foreground SSE consumer and the background save goroutine.
 type streamCoordinator struct {
-	resultCh  chan StreamResult
-	coordDone chan struct{}
-	srs       [2]*schema.StreamReader[*schema.Message]
-	cancel    context.CancelFunc
-	savedOnce sync.Once // first cleanup call decides; repeated calls are no-ops
+	resultCh    chan StreamResult
+	coordDone   chan struct{}
+	bgReady     chan struct{} // closed when background has consumed EOF and is waiting for result
+	srs         [2]*schema.StreamReader[*schema.Message]
+	cancel      context.CancelFunc
+	savedOnce   sync.Once // first cleanup call decides; repeated calls are no-ops
 }
 
-// cleanup cancels the derived context (to unblock the model), sends the foreground
-// result, closes srs[0], and waits for the background goroutine to finish.
-// It is safe to call repeatedly; only the first call decides the result (sync.Once protection).
-func (c *streamCoordinator) cleanup(result StreamResult) {
+// cleanupFail: cancel model first (unblock if still running), then notify
+// failure, close foreground branch, and wait for background goroutine.
+// The background save condition uses the original ctx (not derivedCtx),
+// so this cancel does not affect the save decision.
+// Safe to call repeatedly; only the first call decides the result (sync.Once).
+func (c *streamCoordinator) cleanupFail() {
 	c.savedOnce.Do(func() {
-		// Cancel derived context first — unblocks model if still running.
-		// Background save condition uses original ctx (not derivedCtx),
-		// so this does not affect the save decision.
-		c.cancel()
-		// Send foreground result to background goroutine
-		c.resultCh <- result
-		// Close foreground branch
-		c.srs[0].Close()
-		// Wait for background goroutine to finish
-		<-c.coordDone
+		c.cancel()                   // 1. unblock model
+		c.resultCh <- StreamResult{} // 2. notify failure
+		c.srs[0].Close()             // 3. close foreground branch
+		<-c.coordDone                // 4. wait background
+	})
+}
+
+// cleanupOK: notify success, let background complete EOF consumption and
+// save decision, wait for completion, then cancel the derived context.
+// The success path does NOT cancel before the background finishes, ensuring
+// ctx.Err()==nil holds during the save condition check.
+// Safe to call repeatedly; only the first call decides the result (sync.Once).
+func (c *streamCoordinator) cleanupOK() {
+	c.savedOnce.Do(func() {
+		c.resultCh <- StreamResult{Success: true} // 1. notify success
+		<-c.coordDone                             // 2. wait background (EOF + save)
+		c.cancel()                                // 3. release derived context
 	})
 }
 
@@ -237,8 +248,8 @@ func (c *streamCoordinator) cleanup(result StreamResult) {
 // 返回：
 //   - *schema.StreamReader[*schema.Message]: 前台消费者使用的流分支
 //   - func(StreamResult): 清理函数，必须由调用方在 SSE 完成后调用。
-//     传入前台结果以决定是否保存 assistant 回答；同时关闭后台分支以释放上游资源。
-//     cleanup 内部等待后台协调任务结束，然后释放派生 context。
+//     Success=true 时走 cleanupOK：通知成功→等待后台完成 EOF 消费与保存→再 cancel。
+//     Success=false 时走 cleanupFail：先 cancel 取消模型→通知失败→关闭前台→等待后台。
 //     可安全重复调用（第一次终态决定结果）。
 //
 // 保存契约：只有同时满足以下条件才保存一次完整 assistant：
@@ -266,6 +277,7 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 	coord := &streamCoordinator{
 		resultCh:  make(chan StreamResult, 1),
 		coordDone: make(chan struct{}),
+		bgReady:   make(chan struct{}),
 		srs:       [2]*schema.StreamReader[*schema.Message]{srs[0], srs[1]},
 		cancel:    cancel,
 	}
@@ -295,6 +307,10 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 		}
 
 		// 等待前台结果
+		close(coord.bgReady) // signal: background has consumed EOF and is waiting
+		if x.OnBGReady != nil {
+			x.OnBGReady()
+		}
 		result := <-coord.resultCh
 
 		// 严格保存条件：cleanEOF + 前台成功 + 未取消
@@ -311,7 +327,13 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 		// 非严格条件满足：不保存
 	}()
 
-	return srs[0], coord.cleanup, nil
+	return srs[0], func(r StreamResult) {
+		if r.Success {
+			coord.cleanupOK()
+		} else {
+			coord.cleanupFail()
+		}
+	}, nil
 }
 
 func generate(ctx context.Context, llm model.BaseChatModel, in []*schema.Message) (message *schema.Message, err error) {
@@ -330,4 +352,12 @@ func stream(ctx context.Context, llm model.BaseChatModel, in []*schema.Message) 
 		return
 	}
 	return
+}
+
+// InjectForTest sets the Chat model and message saver directly.
+// For testing only: allows controller tests to use real Chat.GetAnswerStream
+// with fake dependencies without going through Init/DAO.
+func InjectForTest(c *Chat, cm model.BaseChatModel, saver messageSaver) {
+	c.cm = cm
+	c.eh = saver
 }

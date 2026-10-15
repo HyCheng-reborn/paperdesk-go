@@ -12,7 +12,7 @@ Stage 1D 目标：修复 Indexer 后台写入路径中的错误吞没、QA 无�
 **实施顺序**：F09 → F08 → F07（底层先修，上层后修）
 
 **前置条件**：
-- Stage 1C-2 已验收（基线 `f89bb81`）
+- Stage 1C-2 已验收（基线 `26e55ee2ea43daf703ed72da60425ff5b7980cba`）
 - Stage 1B-3 注入边界（`syncIndexer`/`asyncIndexer`/`asyncWait`）已就位
 
 **不修改**：依赖版本、数据库 schema、ES/Qdrant 镜像、已验收的 Retriever/SSE 生命周期。
@@ -51,7 +51,9 @@ Stage 1D 目标：修复 Indexer 后台写入路径中的错误吞没、QA 无�
 | 9 | `SaveChunksData` update 路径写入 `chunk.Status`（永远为 0）会将已 Active 的 chunk 退回 Pending | chunks.go L33 |
 | 10 | Qdrant 异步 indexer 走独立路径（`indexer_async.go` L67-84），当前计划不涉及 | indexer_async.go L67-84 |
 | 11 | `New()` 已预热 chatModel（L75），同模式可预热 qaModel | rag.go L75 |
-| 12 | `errgroup.WithContext` ctx 取消后 `Go()` 不再启动新 goroutine | x/sync 标准行为 |
+| 12 | `errgroup.WithContext` ctx 取消后 `Go()` **仍启动**新 goroutine（源码确认：errgroup.go L86-92 无 ctx 检查），取消传播依赖任务函数自行检查 `egCtx` | x/sync v0.15.0 errgroup.go 源码 |
+| 13 | `Rag.conf` 是 `*config.Config` 具体 struct 指针（非接口），`SearchDocumentsByIDs` 是其方法 | rag.go; config.go |
+| 14 | GoFrame `s.Run()` 收到 SIGTERM/SIGINT 后 graceful 关闭 HTTP 连接，然后**正常 return**（不调用 os.Exit），`s.Run()` 返回后的清理代码确实能执行 | GoFrame v2.9.0 ghttp_server.go 源码验证 |
 
 ---
 
@@ -137,9 +139,9 @@ Stage 1D 目标：修复 Indexer 后台写入路径中的错误吞没、QA 无�
 **禁止**：可变包级函数变量替换方案（如 `chunkInsertFn`、`chunkUpdateFn`、`getQAModelFn`）。
 
 **替代**：
-1. **接口参数注入**：`SaveChunksData` 接收 `chunkStore` 接口参数，接口定义在同包内
+1. **内部 helper 接收依赖**：公开入口 `SaveChunksData(ctx, docID, chunks)` 签名不变，内部委派到 `saveChunks(ctx, docID, chunks, store, statusUpdater)` 私有函数，测试直接调用 helper 注入 fake
 2. **构建时固定**：QA model 通过 `BuildIndexerAsync` 构建时传入工厂函数，运行期只读
-3. **结构体字段注入**：`markFailed` 通过 `Rag` struct 字段注入，构建时设置、运行期只读（与 1B-3 的 `syncIndexer`/`asyncIndexer` 同模式）
+3. **结构体字段注入**：`markFailed`/`docSearch` 通过 `Rag` struct 字段注入，构建时设置、运行期只读（与 1B-3 的 `syncIndexer`/`asyncIndexer` 同模式）
 4. **公开入口委派同一生产逻辑**：测试不得复制实现
 
 ### chunkStore 接口（1D-1）
@@ -160,17 +162,53 @@ func (d *daoChunkStore) Insert(ctx context.Context, chunk entity.KnowledgeChunks
 func (d *daoChunkStore) Update(ctx context.Context, chunkID string, data map[string]interface{}) error { ... }
 ```
 
-`SaveChunksData` 新增 store 参数：
+**公开签名不变**，内部委派到接收依赖的 helper：
 
 ```go
-// 修改前
-func SaveChunksData(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks) error
+// 公开入口（签名不变，已有调用方无需修改）
+func SaveChunksData(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks) error {
+    return saveChunks(ctx, documentsId, chunks, &daoChunkStore{}, &daoDocStatusUpdater{})
+}
 
-// 修改后（新增 store 参数，公开入口保留兼容包装）
-func SaveChunksData(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks, store chunkStore) error
+// 内部 helper（测试直接调用，注入 fake store 和 fake statusUpdater）
+func saveChunks(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks, store chunkStore, statusUpdater docStatusUpdater) error { ... }
 ```
 
-> **兼容处理**：保留无 store 参数的包装函数 `SaveChunksDataDefault(ctx, docID, chunks)` 供已有调用方使用（内部传 `&daoChunkStore{}`），避免大范围改调用。
+> **设计决策**：不通过重命名公开入口制造兼容包装。公开 API 保持不变，内部委派到 helper。测试中 `UpdateDocumentsStatus` 必须通过注入替换，不得仍调用真实实现。
+
+### docStatusUpdater 接口（1D-1）
+
+```go
+// server/internal/logic/knowledge/chunks.go 同包内定义
+type docStatusUpdater interface {
+    UpdateDocumentsStatus(ctx context.Context, documentsId int64, status int) error
+}
+
+// 生产实现：daoDocStatusUpdater 委派到包级 UpdateDocumentsStatus
+```
+
+### docSearcher 接口（1D-1 core 编排层）
+
+```go
+// server/core/rag.go 中定义（与现有 syncIndexer/asyncIndexer 同模式）
+type docSearcher interface {
+    SearchDocumentsByIDs(ctx context.Context, knowledgeName string, docIDs []string, size int) ([]*schema.Document, error)
+}
+
+// Rag struct 新增字段：docSearch docSearcher
+// New() 中初始化：rag.docSearch = conf（*config.Config 实现了该方法）
+// indexAsyncByDocsID 中：x.conf.SearchDocumentsByIDs(...) → x.docSearch.SearchDocumentsByIDs(...)
+```
+
+**完整依赖覆盖表（core 编排层）**：
+
+| 依赖 | 注入方式 | 字段/参数 |
+|------|----------|----------|
+| 检索文档 | Rag struct 字段（接口） | `docSearch docSearcher` |
+| 保存 chunks | 内部 helper 接收 chunkStore 参数 | `saveChunks(ctx, docID, chunks, store)` |
+| 调用后续索引 | 已有 Rag struct 字段 | `idxerAsync compose.Runnable` |
+| 更新文档状态 | 内部 helper 接收 docStatusUpdater 参数 | 与 chunkStore 同层 |
+| 重试等待 | 已有 Rag struct 字段 | `asyncWait func()` → 1D-3 改为 `func(ctx)` |
 
 ### QA model 工厂（1D-2）
 
@@ -202,10 +240,11 @@ rag.markFailed = defaultMarkFailed
 
 | 文件 | 修改范围 | 变更描述 |
 |---|---|---|
-| `server/internal/logic/knowledge/chunks.go` | 主要重写 `SaveChunksData` | chunkStore 接口；Scan 错误区分；聚合错误返回；update 路径不写 status |
+| `server/internal/logic/knowledge/chunks.go` | 主要重写 `SaveChunksData` | chunkStore/docStatusUpdater 接口；Scan 错误区分；聚合错误返回；update 路径不写 status；内部 helper 接收依赖 |
 | `server/core/indexer.go` L139-196 | `indexAsyncByDocsID` | sonic.Marshal 失败聚合；SaveChunksData 失败 return；ID 集合核对；仅成功标 Active |
+| `server/core/rag.go` | `Rag` struct、`New()` | 新增 `docSearcher` 接口定义 + `docSearch` 字段 + `New()` 中初始化 `rag.docSearch = conf` |
 | `server/core/indexer_test.go` | 扩展已有测试 + 新增编排测试 | 通过 asyncIndexer 接口触发真实 indexAsyncByDocsID 路径 |
-| `server/internal/logic/knowledge/chunks_test.go`（新建） | — | chunkStore fake 驱动的行为测试 |
+| `server/internal/logic/knowledge/chunks_test.go`（新建） | — | chunkStore/docStatusUpdater fake 驱动的行为测试 |
 
 ### 6.2 SaveChunksData 完整重写方案
 
@@ -258,7 +297,8 @@ Data(g.Map{
 #### 聚合错误与边界行为
 
 ```go
-func SaveChunksData(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks, store chunkStore) error {
+// 内部 helper（公开入口 SaveChunksData 委派到此）
+func saveChunks(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks, store chunkStore, statusUpdater docStatusUpdater) error {
     // 边界：空 chunks 直接返回 nil，不尝试状态更新
     if len(chunks) == 0 {
         return nil
@@ -286,8 +326,8 @@ func SaveChunksData(ctx context.Context, documentsId int64, chunks []entity.Know
         // 并设 status = int(v1.StatusFailed)
     }
 
-    // 状态写入（使用 errors.Join 保留状态写入错误）
-    if statusErr := UpdateDocumentsStatus(ctx, documentsId, status); statusErr != nil {
+    // 状态写入（通过注入的 statusUpdater，使用 errors.Join 保留状态写入错误）
+    if statusErr := statusUpdater.UpdateDocumentsStatus(ctx, documentsId, status); statusErr != nil {
         errs = append(errs, fmt.Errorf("update doc status %d: %w", documentsId, statusErr))
     }
 
@@ -371,8 +411,8 @@ if err = knowledge.SaveChunksData(ctx, req.DocumentsId, chunks); err != nil {
     // 不 return — BUG
 }
 
-// 修改后
-if err = knowledge.SaveChunksData(ctx, req.DocumentsId, chunks, store); err != nil {
+// 修改后（公开签名不变，但失败时 return）
+if err = knowledge.SaveChunksData(ctx, req.DocumentsId, chunks); err != nil {
     g.Log().Errorf(ctx, "indexAsyncByDocsID insert chunks failed, err=%v", err)
     return nil, err  // 传播错误，不继续 IndexAsync
 }
@@ -405,19 +445,30 @@ if err = knowledge.UpdateDocumentsStatus(ctx, req.DocumentsId, int(v1.StatusActi
 **测试触达方式**：
 
 ```go
-// 构建测试用 Rag，注入 fake conf（实现 SearchDocumentsByIDs）和 fake chunkStore
-// 但不注入 asyncIndexer — 使用 prodAsyncIndexer 指向真实 indexAsyncByDocsID
+// 构建测试用 Rag，注入 fakeDocSearcher（实现 SearchDocumentsByIDs）和 fake chunkStore
+// 使用 prodAsyncIndexer 指向真实 indexAsyncByDocsID
 testRag := &Rag{
-    conf: fakeConf{searchResult: ..., searchErr: nil},
-    // asyncIndexer 不设，prodAsyncIndexer.rag 指向 testRag
+    docSearch:  &fakeDocSearcher{result: ..., err: nil},
+    idxerAsync: &fakeRunnable{...},
+    // ... 其他字段
 }
 testRag.asyncIndexer = &prodAsyncIndexer{rag: testRag}
 
 // 通过 asyncIndexer.indexAsyncByDocsID 触发真实方法
-err := testRag.asyncIndexer.indexAsyncByDocsID("kb1", 42, []string{"id1","id2"})
+err := testRag.asyncIndexer.indexAsyncByDocsID(ctx, "kb1", 42, []string{"id1","id2"})
 ```
 
 **测试矩阵见 §9.1**。
+
+### 6.5 1D-1 边界声明
+
+1D-1 只保证错误传播和不误标 Active。统一的 Failed 标记（markFailed）归属 1D-3，1D-1 不提前宣称已完成 Failed 标记。
+
+在 1D-1 中：
+- `SaveChunksData` 失败 → 返回 error → `indexAsyncByDocsID` return error → 后台 goroutine 记日志（1D-1）
+- 后台 goroutine 调用 `markFailed` 写 Failed 状态 → **1D-3 实现**
+
+> **分界**：1D-1 保证错误正确传播到后台 goroutine；1D-3 负责后台 goroutine 根据错误调用 markFailed 写入 Failed 状态。
 
 ---
 
@@ -475,18 +526,11 @@ qa:
 
 **问题**：`common.qaModel` 是无锁懒加载缓存（chat_model.go L12-16, L97-115），并发调用存在 race。
 
-**方案**：在 `core.New()` 中预热 `common.GetQAModel(ctx, nil)`（与 L75 预热 `GetChatModel` 同模式），确保 `qaModel` 在 Rag 构造时已初始化，后续并发读取安全（只读）。
+**方案（已决策）**：对 `common.GetQAModel` 添加 `sync.Once` 保护（修改量小，属于 common 包内部修复）。预热只解决“Rag 实例构造后 qaModel 已非 nil”的特定场景；多实例并发构造或绕过 New() 直接调用时 race 仍存在。`sync.Once` 从根本上消除并发首次调用 race。
 
-```go
-// rag.go New() 中追加（L75 之后）
-qaModel, err := common.GetQAModel(ctx, nil)
-if err != nil {
-    g.Log().Error(ctx, "GetQAModel failed, err=%v", err)
-    return nil, err
-}
-```
+**条件预热**：在 `core.New()` 中，仅当 QA 配置为启用时才预热。缺少 QA 配置不应阻止启动，只要 QAEnabled 为 false 或 QA 功能被禁用。
 
-**测试注入**：通过 `BuildIndexerAsync` 接收的 `qaModelFactory` 函数（构建时固定），测试传入返回 fake model 的工厂。
+**测试注入**：通过 `BuildIndexerAsync` 接收的 `qaModelFactory` 函数（构建时固定），测试传入返回 fake model 的工厂。1D-2 的解决方案是**实例级模型构建**（工厂内部可每次构建新实例或返回已缓存实例）。
 
 ### 7.5 qa() 完整重写方案
 
@@ -524,13 +568,23 @@ func qa(ctx context.Context, docs []*schema.Document) (output []*schema.Document
     eg, egCtx := errgroup.WithContext(ctx)
     eg.SetLimit(maxConcurrent)
 
-    for _, doc := range docs {
+    // 结果写入独立数组，避免并发写入共享 MetaData map
+    results := make([]string, len(docs))
+
+    for i, doc := range docs {
+        idx := i
         d := doc  // capture
         eg.Go(func() error {
-            // nil 防护
+            // nil 防护（闭包最前面，在任何 d.ID 访问之前）
             if d == nil || d.MetaData == nil {
                 return fmt.Errorf("qa: nil doc or nil MetaData")
             }
+            // 已有非空 QAContent 的 doc 跳过生成（不覆盖）
+            if existing, ok := d.MetaData[coretypes.FieldQAContent].(string); ok && existing != "" {
+                results[idx] = existing
+                return nil
+            }
+            // ctx 取消检查
             if egCtx.Err() != nil {
                 return egCtx.Err()
             }
@@ -538,17 +592,30 @@ func qa(ctx context.Context, docs []*schema.Document) (output []*schema.Document
             if err != nil {
                 return fmt.Errorf("qa failed for doc %s: %w", d.ID, err)
             }
-            d.MetaData[coretypes.FieldQAContent] = qaContent
+            results[idx] = qaContent
             return nil
         })
     }
 
+    // 提交循环中每次 Go() 调用前检查 egCtx，避免无意义地启动立即返回的 goroutine
+    // （注：errgroup.Go() 在 ctx 取消后仍会启动 goroutine，Go() 内无 ctx 检查）
+
     if err := eg.Wait(); err != nil {
         return nil, err  // 首错取消，返回 error
     }
+
+    // Wait 完成后统一写回 MetaData（避免并发写入共享 map）
+    for i, doc := range docs {
+        if results[i] != "" {
+            doc.MetaData[coretypes.FieldQAContent] = results[i]
+        }
+    }
+
     return docs, nil
 }
 ```
+
+> **MetaData 并发写入防护（已决策）**：每个 goroutine 的结果写入独立的 `results[i]`，在所有 goroutine 完成后（Wait 之后）统一写回到各 `doc.MetaData`。这避免了不同 `*schema.Document` 共享同一 MetaData map（例如浅拷贝）时的并发写入 race。
 
 ### 7.6 并发限制语义
 
@@ -590,9 +657,10 @@ return fields, nil
 
 `rag.go` L70-73 的 `qaRtrvr` 依赖 `FieldQAContentVector` 字段。
 
-- QA 关闭时该字段在 ES 中不存在/为空
-- `qaRtrvr` 检索返回空结果（不报错，ES 对缺失字段返回 0 分）
-- **显式记录**：QA 关闭时 `qaRtrvr` 路径退化为空结果，不影响主检索路径（`rtrvr`）
+- QA 关闭时 ES 中 `FieldQAContentVector` 字段可能不存在或为空
+- `qaRtrvr` 对该字段的 kNN 检索行为**待验证**（可能返回空结果，也可能返回错误，取决于 ES 版本和索引 mapping）
+- 1D-2 实施时需确认实际行为
+- **显式记录**：QA 关闭时 `qaRtrvr` 路径的实际行为待验证，不影响主检索路径（`rtrvr`）
 - 主检索路径使用 `FieldContentVector`，与 QA 无关
 
 ### 7.10 首错取消语义
@@ -601,8 +669,8 @@ return fields, nil
 1. 首个非 nil error 取消 derived ctx（`egCtx`）
 2. 已启动的 goroutine 通过 `egCtx.Done()` 感知取消
 3. `cm.Generate(egCtx, msgs)` 接收该 ctx，LLM HTTP 调用应响应取消（取决于 provider 实现）
-4. 等待所有已启动任务结束后返回首个错误
-5. ctx 取消后 `Go()` 不再启动新 goroutine（x/sync 标准行为）
+4. `Wait()` 等待所有已启动任务退出后返回首个错误
+5. `errgroup.Go()` 在 ctx 取消后**仍会启动**新 goroutine（源码确认：Go() 内无 ctx.Err() 检查）。取消传播依赖每个任务函数入口检查 `egCtx.Err() != nil` 并提前返回。提交循环也应在每次 `Go()` 调用前检查 `egCtx.Err()`，避免无意义地启动立即返回的 goroutine
 
 ### 7.11 eino Graph 错误中断语义
 
@@ -629,7 +697,7 @@ return fields, nil
 | 文件 | 修改范围 | 变更描述 |
 |---|---|---|
 | `server/core/indexer.go` | `Index()` goroutine、`indexAsyncByDocsID()` | bgCtx 传递；准入信号量；markFailed；重试 ctx 检查 |
-| `server/core/rag.go` | `Rag` struct、`New()`、新增 `Shutdown()` | bgWG/bgSem/bgCancel/shutdownOnce/markFailed 字段 |
+| `server/core/rag.go` | `Rag` struct、`New()`、新增 `Shutdown()` | bgWG/bgSem/bgRootCtx/bgRootCancel/mu/closed/shutdownOnce/done/markFailed 字段 |
 | `server/core/indexer_test.go` | 已有 8 处 asyncWait + 新增测试 | asyncWait 签名变更；止损/准入/shutdown 测试 |
 | `server/internal/cmd/cmd.go` | `s.Run()` 之后 | 追加 Shutdown 清理 |
 
@@ -673,37 +741,33 @@ func (p *prodAsyncIndexer) indexAsyncByDocsID(ctx context.Context, knowledgeName
 
 ### 8.3 后台 context 语义
 
-后台任务在 HTTP 返回后继续执行属于**既有异步产品语义**（fire-and-forget indexing），不应一概称为"context 丢失"。
+后台任务在 HTTP 返回后继续执行属于**既有异步产品语义**（fire-and-forget indexing）。
 
-```go
-// Index() 后台 goroutine 启动前
-bgCtx, bgCancel := context.WithTimeout(context.Background(), x.taskTimeout)
-// taskTimeout 为可配置值（默认 5min），覆盖"等待 ES 同步 + 检索重试 + QA 生成 + 向量索引"全链路
-```
-
-- Shutdown 时 `x.bgCancel()` 取消所有进行中的后台任务
-- goroutine 内 defer bgCancel() 释放资源
+**服务级后台 root context**：`Rag` 新增 `bgRootCtx context.Context` + `bgRootCancel context.CancelFunc`（在 `New()` 中创建：`context.WithCancel(context.Background())`）。每个任务的 timeout ctx 从 bgRootCtx 派生：`bgCtx, bgTaskCancel := context.WithTimeout(x.bgRootCtx, x.taskTimeout)`。Shutdown 调用 `x.bgRootCancel()` → 自动取消所有派生的 bgCtx → 所有任务感知取消。这是真实的父子 context 链。goroutine 内 `defer bgTaskCancel()` 释放资源。
 
 ### 8.4 任务准入策略
 
+准入检查放在**同步写入之后、后台 goroutine 启动之前**（同步写入是 Index 的核心功能，不应因后台队列满而拒绝）。使用 `sync.Mutex` 保护关闭标记设置 + `bgWG.Add` 在同一临界区：
+
 ```go
-// 准入检查在 goroutine 启动前（同步路径）
+x.mu.Lock()
+if x.closed {
+    x.mu.Unlock()
+    g.Log().Warningf(ctx, "background task rejected: shutting down, doc %d stays Indexing", documentsID)
+    return ids, nil
+}
 select {
 case x.bgSem <- struct{}{}:
-    // 准入成功：Add + go func
     x.bgWG.Add(1)
+    x.mu.Unlock()
     go func() { ... }()
 default:
-    // 满载：返回明确错误给调用方
-    // sync 写入已完成（不可回滚），doc 标记为 Pending（等待手动重试或 Stage 4 任务引擎）
-    g.Log().Warningf(ctx, "background task queue full, doc %d stays Pending", documentsID)
+    x.mu.Unlock()
+    g.Log().Warningf(ctx, "background task queue full, doc %d stays Indexing", documentsID)
 }
 ```
 
-**满载行为**：
-- 返回明确错误给调用方（HTTP 层面可返回 429 或 503）
-- **不启动 goroutine 等待**（否则等待 goroutine 无限增长）
-- sync 写入已完成不可回滚，doc 保持 Pending 状态
+**满载行为**：同步写入已完成且成功（ids 已返回），后台任务未启动。Index 仍返回同步 ids + nil error。doc 停留在 **Indexing** 状态（SaveChunksData 内设置），不标 Active 也不标 Failed。**明确声明**：这不是“保持 Pending”，而是“停留在 Indexing”（因为同步索引已写入）。记录 WARN 日志含 docID，便于诊断。不启动 goroutine 等待。
 
 **信号量配置**：`bgSem chan struct{}`，容量 = `MaxBackgroundTasks`（默认 8，通过 Config 配置）。
 
@@ -715,11 +779,14 @@ default:
 // Rag struct 新增字段
 type Rag struct {
     // ...existing...
+    mu           sync.Mutex           // 保护 closed 标记 + bgWG.Add 在同一临界区
+    closed       bool                 // 关闭标记
     bgWG         sync.WaitGroup
     bgSem        chan struct{}
-    bgCancel     context.CancelFunc   // 取消所有后台任务的全局 cancel
-    shutdownOnce sync.Once
-    shutdownFlag atomic.Bool          // 准入检查用
+    bgRootCtx    context.Context      // 服务级后台 root context
+    bgRootCancel context.CancelFunc   // 取消所有派生的后台任务
+    shutdownOnce sync.Once            // 保护“停止+取消”动作只执行一次
+    done         chan struct{}         // bgWG.Wait() 返回后 close
     taskTimeout  time.Duration        // 默认 5min
     markFailed   func(ctx context.Context, docID int64, err error)
 }
@@ -729,39 +796,51 @@ type Rag struct {
 
 ```go
 func (x *Rag) Shutdown(ctx context.Context) error {
-    var shutdownErr error
+    // sync.Once 保护“停止+取消”动作（只执行一次）
     x.shutdownOnce.Do(func() {
-        // 1. 设 flag 停止接收新任务
-        x.shutdownFlag.Store(true)
+        // 1. 设置关闭标记，停止接收新任务
+        x.mu.Lock()
+        x.closed = true
+        x.mu.Unlock()
 
-        // 2. 取消所有进行中的后台任务
-        x.bgCancel()
+        // 2. 取消所有进行中的后台任务（父子 context 链自动传播）
+        x.bgRootCancel()
 
-        // 3. 等待 bgWG（受传入 ctx 超时限制）
-        done := make(chan struct{})
-        go func() { x.bgWG.Wait(); close(done) }()
-        select {
-        case <-done:
-            // 正常收敛
-        case <-ctx.Done():
-            shutdownErr = fmt.Errorf("shutdown timeout: %w", ctx.Err())
-            g.Log().Warningf(ctx, "Rag.Shutdown: background tasks did not converge in time")
-        }
+        // 3. 等待 bgWG，完成后 close(done)
+        go func() { x.bgWG.Wait(); close(x.done) }()
     })
-    return shutdownErr
+
+    // 每次调用都等待同一个完成信号（受各调用方 ctx 限制）
+    select {
+    case <-x.done:
+        return nil
+    case <-ctx.Done():
+        g.Log().Warningf(ctx, "Rag.Shutdown: background tasks did not converge in time")
+        return fmt.Errorf("shutdown timeout: %w", ctx.Err())
+    }
 }
 ```
+
+> **语义修正**：首次 Shutdown 超时后，后续调用不能仅因 Once 已执行就返回 nil — 它们仍然等待 done 或自己的 ctx 超时。
 
 **不声称已强制终止 goroutine**（Go 无法强杀 goroutine）。超时后仅报告日志。
 
 ### 8.6 Add/Wait 竞态防护
 
-- `bgWG.Add(1)` 在准入成功后、goroutine 启动前执行（**同步路径**）
+使用 `sync.Mutex` 保护关闭标记设置 + `bgWG.Add` 在同一临界区：
+
+- **准入流程**：`mu.Lock() → if closed { mu.Unlock(); return reject } → bgWG.Add(1) → mu.Unlock() → go func(...)`
+- **Shutdown 流程**：`mu.Lock() → closed=true → mu.Unlock() → bgRootCancel() → bgWG.Wait()`
+- 这确保 Wait 开始后不会再 Add
 - `bgWG.Done()` 在 goroutine 退出时 defer 执行
-- Shutdown 设置 `shutdownFlag` 后，新的准入检查会失败（不会 Add）
-- 因此 `bgWG.Wait()` 不会与 `bgWG.Add()` 竞态
 
 ### 8.7 cmd.go 接线
+
+**GoFrame `s.Run()` 语义已验证**：
+- `s.Run()` 阻塞直到收到 SIGTERM/SIGINT
+- GoFrame 内部 graceful 关闭 HTTP 连接后 `s.Run()` **正常 return**（不调用 os.Exit）
+- `s.Run()` 返回后的代码确实能执行
+- cmd.go 接线位置确认可行：在 `s.Run()` 和 `return nil` 之间插入清理代码
 
 ```go
 // cmd.go：s.Run() 返回后追加清理
@@ -899,7 +978,7 @@ go func() {
 | 角色 | 实体 |
 |---|---|
 | 启动者 | `Rag.Index` 同步路径（准入 + Add + go func） |
-| 取消者 | `Rag.Shutdown` 调用 bgCancel |
+| 取消者 | `Rag.Shutdown` 调用 bgRootCancel |
 | 等待者 | `Rag.Shutdown` 调用 bgWG.Wait |
 | slot 释放者 | goroutine 自身（defer） |
 | Done 调用者 | goroutine 自身（defer） |
@@ -921,16 +1000,18 @@ go func() {
 | `TestSaveChunksData_PreCancelled` | 进入时 ctx 已 Done，快速返回 | 传入已取消 ctx | err==context.Canceled; 不执行 DB 操作 | 否 |
 | `TestSaveChunksData_MidLoopCancel` | 循环中取消：停止后续 chunk | cancel 在第 2 次 Insert 后触发 | 仅处理前 2 个 chunk; err 含 context.Canceled | 否 |
 | `TestSaveChunksData_StatusWriteError_Joined` | UpdateDocumentsStatus 失败也聚合 | fake chunkStore 全部成功; mock UpdateDocumentsStatus 返回 error | err!=nil 含 status 更新失败 | 否 |
-| `TestIndexAsyncByDocsID_MarshalError_NoActive` | sonic.Marshal 失败时不标 Active | 构造含不可序列化 MetaData 的 doc; fake conf | 返回 error 含 doc ID; UpdateDocumentsStatus(Active) 未调用 | 否 |
-| `TestIndexAsyncByDocsID_MissingDocs_ReturnsError` | 重试耗尽仍有缺失文档时返回 error | fake conf: SearchDocumentsByIDs 返回部分结果 | error 含 missing IDs; 不继续 SaveChunksData | 否 |
+| `TestIndexAsyncByDocsID_MarshalError_NoActive` | sonic.Marshal 失败时不标 Active | 构造含不可序列化 MetaData 的 doc; fakeDocSearcher | 返回 error 含 doc ID; UpdateDocumentsStatus(Active) 未调用 | 否 |
+| `TestIndexAsyncByDocsID_MissingDocs_ReturnsError` | 重试耗尽仍有缺失文档时返回 error | fakeDocSearcher: SearchDocumentsByIDs 返回部分结果 | error 含 missing IDs; 不继续 SaveChunksData | 否 |
 | `TestIndexAsyncByDocsID_SaveChunksError_Stops` | SaveChunksData 失败时不继续 IndexAsync | fake chunkStore 返回 error | SaveChunksData err 传播; IndexAsync 未调用; Active 未标 | 否 |
-| `TestIndexAsyncByDocsID_FullSuccess_MarksActive` | 全部条件满足时标 Active | fake conf/store/idxerAsync 全部成功 | UpdateDocumentsStatus(Active) 被调用; err==nil | 否 |
+| `TestIndexAsyncByDocsID_FullSuccess_MarksActive` | 全部条件满足时标 Active | fakeDocSearcher/store/idxerAsync 全部成功 | UpdateDocumentsStatus(Active) 被调用; err==nil | 否 |
 | `TestIndexAsyncByDocsID_Over1000Docs_Error` | DocsIDs > 1000 时返回超限错误 | 构造 1001 个 IDs | error 含 limit 信息; 不调用 Search | 否 |
 
 **编排测试说明**：`TestIndexAsyncByDocsID_*` 系列通过构建 `prodAsyncIndexer{rag: testRag}` 触达真实 `indexAsyncByDocsID` 代码路径。注入边界为：
-- `testRag.conf`：实现 `SearchDocumentsByIDs` 的 fake config
-- `chunkStore`：传给 `SaveChunksData` 的 fake store
+- `testRag.docSearch`：实现 `SearchDocumentsByIDs` 的 fakeDocSearcher
+- `chunkStore`：传给内部 `saveChunks` helper 的 fake store
 - `testRag.idxerAsync`：fake `compose.Runnable`（验证 IndexAsync 是否被调用）
+
+> **测试证据边界**：预取消 fake 测试（传入已取消 ctx，断言快速返回）证明的是**应用层快速返回行为**（循环前检查 ctx.Err()）。它不证明数据库 driver 能中断正在执行的 SQL 语句。后者需真实驱动集成验证（如 MySQL + context.WithTimeout），属于未验证项，不影响本轮文档交付。
 
 ### 9.2 批次 1D-2 测试
 
@@ -966,8 +1047,8 @@ go func() {
 | `TestIndex_Shutdown_WaitsBackground` | Shutdown 等待后台完成 | fakeAsyncIndexer 阻塞后释放 | Shutdown 返回 nil; 后台任务全部完成 | 是 |
 | `TestIndex_Shutdown_Timeout` | Shutdown 超时返回 error | fakeAsyncIndexer 永久阻塞 | Shutdown 返回 error 含 timeout | 是 |
 | `TestIndex_Shutdown_Idempotent` | Shutdown 幂等 | 调用两次 Shutdown | 第二次返回 nil（不 panic） | 否 |
-| `TestIndex_Shutdown_RejectsNew` | Shutdown 后拒绝新任务 | Shutdown 完成后调用 Index | 后台 goroutine 未启动（shutdownFlag=true） | 否 |
-| `TestIndexAsyncByDocsID_RetryRespectsCtx` | 递归重试检查 ctx | 传入可取消 ctx; fake conf 第一次返回不足结果 | 取消后返回 ctx.Err(); 不继续重试 | 是 |
+| `TestIndex_Shutdown_RejectsNew` | Shutdown 后拒绝新任务 | Shutdown 完成后调用 Index | 后台 goroutine 未启动（closed=true） | 否 |
+| `TestIndexAsyncByDocsID_RetryRespectsCtx` | 递归重试检查 ctx | 传入可取消 ctx; fakeDocSearcher 第一次返回不足结果 | 取消后返回 ctx.Err(); 不继续重试 | 是 |
 | `TestIndex_Success_NoMarkFailed` | 成功路径不调用 markFailed | fakeAsyncIndexer 返回 nil | markFailed 未被调用 | 是 |
 | `TestIndex_AsyncWaitReceivesCtx` | asyncWait 接收 bgCtx | asyncWait 注入记录 ctx | ctx != nil; ctx.Done() 可关闭 | 是 |
 | `TestIndex_CleanupCtx_IndependentOfBgCtx` | markFailed 使用独立 cleanupCtx | bgCtx 已取消后 markFailed 被调用 | markFailed 接收的 ctx 未取消 | 是 |
@@ -1101,15 +1182,20 @@ go test -race ./core -count=10 -run TestIndex_
 | 5 | asyncWait 签名 func()，8 处注入点 | 已确认 |
 | 6 | cmd.go 无 Shutdown hook | 已确认 |
 | 7 | DocumentToFields 无条件写 QA 字段 | 已确认 |
+| 8 | `errgroup.Go()` 在 ctx 取消后**仍启动**新 goroutine（errgroup.go L86-92 无 ctx 检查），取消传播依赖任务函数自行检查 egCtx | 已验证（源码） |
+| 9 | `Rag.conf` 是 `*config.Config` 具体 struct 指针（非接口），`SearchDocumentsByIDs` 是其方法 | 已确认 |
+| 10 | GoFrame `s.Run()` 收到 SIGTERM/SIGINT 后 graceful 关闭 HTTP 连接，然后**正常 return**（不调用 os.Exit），`s.Run()` 返回后的清理代码确实能执行 | 已验证 |
+| 11 | QA 关闭时 ES 中 `FieldQAContentVector` 字段可能不存在或为空，`qaRtrvr` 对该字段的 kNN 检索行为**待验证** | 待验证 |
 
 ### 12.2 实施前必须解决的问题（阻塞项）
 
 | # | 问题 | 影响批次 | 解决方案 |
 |---|---|---|---|
-| B-1 | GetQAModel 并发 race | 1D-2 | 在 `core.New()` 中预热（与 GetChatModel 同模式） |
+| B-1 | GetQAModel 并发 race | 1D-2 | 对 `common.GetQAModel` 添加 `sync.Once` 保护（已决策） |
 | B-2 | asyncWait 签名变更需同步修改 8 处测试注入 | 1D-3 | indexer_test.go 中 `func()` → `func(ctx context.Context)` |
 | B-3 | x/sync 需 go mod tidy 提升为直接依赖 | 1D-2 | 1D-2 首次 import errgroup 后立即 tidy |
-| B-4 | SaveChunksData 签名变更影响已有调用方 | 1D-1 | 保留兼容包装函数 |
+| B-4 | SaveChunksData 公开签名不变，内部 helper 接收依赖 | 1D-1 | 公开入口委派到 `saveChunks(ctx, docID, chunks, store, statusUpdater)` |
+| A-4 | QA 关闭时 `qaRtrvr` 对缺失 `FieldQAContentVector` 字段的 kNN 检索行为 | 1D-2 | **待验证**：1D-2 实施时需确认实际行为（可能返回空结果，也可能返回错误，取决于 ES 版本和索引 mapping） |
 
 ### 12.3 后续阶段边界
 
@@ -1173,8 +1259,8 @@ go test -race ./core -count=10 -run TestIndex_
 
 | 批次 | 注入方式 | 说明 |
 |---|---|---|
-| 1D-1 | `chunkStore` 接口参数 | SaveChunksData 接收接口；测试传 fake |
-| 1D-1 | `testRag.conf` fake | 实现 SearchDocumentsByIDs；控制检索结果 |
+| 1D-1 | `chunkStore` + `docStatusUpdater` 接口参数 | 内部 helper `saveChunks` 接收接口；测试传 fake |
+| 1D-1 | `testRag.docSearch` fakeDocSearcher | 实现 SearchDocumentsByIDs；控制检索结果 |
 | 1D-1 | `testRag.idxerAsync` fake Runnable | 验证 IndexAsync 是否被调用 |
 | 1D-2 | `qaModelFactory` 构建参数 | BuildIndexerAsync 接收；返回 fake model |
 | 1D-2 | `coretypes.WithQAConfig(ctx, ...)` | 控制 enabled/maxConcurrent |
@@ -1182,6 +1268,7 @@ go test -race ./core -count=10 -run TestIndex_
 | 1D-3 | `Rag.asyncWait` 字段 | 签名变为 `func(ctx context.Context)` |
 | 1D-3 | `Rag.taskTimeout` 字段 | 控制后台超时时长 |
 | 1D-3 | `Rag.bgSem` 容量 | 控制并发上限 |
+| 1D-3 | `Rag.mu` + `Rag.closed` | 保护准入/关闭临界区 |
 
 ### 包内测试可见性
 

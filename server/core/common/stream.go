@@ -180,6 +180,17 @@ func streamResponse(ctx context.Context, w sseWriter, reader *schema.StreamReade
 	}
 }
 
+// StreamToResponseWriter is the thin production SSE entry against a raw
+// http.ResponseWriter. It reuses realSSEWriter + streamResponse +
+// sonic.ConfigDefault and does NOT copy the streaming loop. SteamResponse calls
+// it after setting GoFrame headers; tests call it directly with a test
+// ResponseWriter to exercise the same production write path. ctx is used for
+// cancellation checks (nil = non-cancellable).
+func StreamToResponseWriter(ctx context.Context, w http.ResponseWriter, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+	sw := &realSSEWriter{w: w, ctx: ctx}
+	return streamResponse(ctx, sw, reader, docs, sonic.ConfigDefault)
+}
+
 // SteamResponse streams SSE responses from a StreamReader (production entry point).
 // Only normal EOF sends [DONE]; non-EOF errors send an error event without DONE.
 func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
@@ -192,7 +203,7 @@ func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schem
 	httpResp.Header().Set("X-Accel-Buffering", "no") // Disable Nginx buffering
 	httpResp.Header().Set("Access-Control-Allow-Origin", "*")
 
-	sw := &realSSEWriter{w: httpResp.RawWriter(), ctx: ctx}
-	// Use sonic encoder (same as tests)
-	return streamResponse(ctx, sw, streamReader, docs, sonic.ConfigDefault)
+	// Delegate to the shared thin entry so production and tests use the exact
+	// same writer + orchestration path. RawWriter returns an io.Writer wrapper.
+	return StreamToResponseWriter(ctx, httpResp.RawWriter(), streamReader, docs)
 }

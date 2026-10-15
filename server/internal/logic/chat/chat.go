@@ -21,9 +21,9 @@ var (
 )
 
 type Chat struct {
-	cm model.BaseChatModel
-	eh messageSaver    // messageSaver 接口支持测试注入；生产使用 *historyWrapper
-	OnBGReady func()  // test hook: called when background goroutine is waiting for result (nil in production)
+	cm        model.BaseChatModel
+	eh        messageSaver // messageSaver 接口支持测试注入；生产使用 *historyWrapper
+	OnBGReady func()       // test hook: called when background goroutine is waiting for result (nil in production)
 }
 
 // messageSaver 定义消息存储接口，生产实现为 *historyWrapper。
@@ -208,12 +208,12 @@ type StreamResult struct {
 // streamCoordinator manages the lifecycle of a streaming answer session.
 // It coordinates the foreground SSE consumer and the background save goroutine.
 type streamCoordinator struct {
-	resultCh    chan StreamResult
-	coordDone   chan struct{}
-	bgReady     chan struct{} // closed when background has consumed EOF and is waiting for result
-	srs         [2]*schema.StreamReader[*schema.Message]
-	cancel      context.CancelFunc
-	savedOnce   sync.Once // first cleanup call decides; repeated calls are no-ops
+	resultCh  chan StreamResult
+	coordDone chan struct{}
+	bgReady   chan struct{} // closed when background has consumed EOF and is waiting for result
+	srs       [2]*schema.StreamReader[*schema.Message]
+	cancel    context.CancelFunc
+	savedOnce sync.Once // first cleanup call decides; repeated calls are no-ops
 }
 
 // cleanupFail: cancel model first (unblock if still running), then notify
@@ -231,15 +231,20 @@ func (c *streamCoordinator) cleanupFail() {
 }
 
 // cleanupOK: notify success, let background complete EOF consumption and
-// save decision, wait for completion, then cancel the derived context.
+// save decision, wait for completion, close the foreground branch, then
+// cancel the derived context.
 // The success path does NOT cancel before the background finishes, ensuring
 // ctx.Err()==nil holds during the save condition check.
-// Safe to call repeatedly; only the first call decides the result (sync.Once).
+// Closing srs[0] here is what actually releases the upstream source: Copy(2)
+// only closes the shared source reader once BOTH branches are closed, and the
+// background only closes srs[1]. Safe to call repeatedly; the first call
+// decides the result (sync.Once).
 func (c *streamCoordinator) cleanupOK() {
 	c.savedOnce.Do(func() {
 		c.resultCh <- StreamResult{Success: true} // 1. notify success
-		<-c.coordDone                             // 2. wait background (EOF + save)
-		c.cancel()                                // 3. release derived context
+		<-c.coordDone                             // 2. wait background: consume EOF, save, close srs[1]
+		c.srs[0].Close()                          // 3. close foreground branch (triggers upstream release)
+		c.cancel()                                // 4. release derived context
 	})
 }
 

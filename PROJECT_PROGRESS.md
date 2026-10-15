@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-15
-**阶段**：Stage 1C-1 已通过独立源码复核，Stage 1C-2 定点收尾完成待独立复核，Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1C 尚未全部验收
+**阶段**：Stage 1C-1 已通过独立源码复核，Stage 1C-2 本轮定点修正（关闭前台分支+真实 SSE 编排集成）完成待独立复核，Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1 尚未全部验收
 
 ## Stage 0：事实基线与只读核对
 
@@ -36,7 +36,7 @@
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 定点收尾完成，待独立复核** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 定点修正完成，待独立复核** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -282,6 +282,38 @@
 **证据命令记录**：`verification/stage1c1/` 每个 `-final` 日志头部记录实际命令、GOFLAGS 与退出码。
 
 **证据目录**：[verification/stage1c1/](verification/stage1c1/)
+
+### Stage 1C-2 定点修正记录（关闭前台分支 + 真实 SSE 编排集成）
+
+**日期**：2026-10-15
+**基线**：`96c7f90355bc74895b21d27aa95560957c2f62a4`（Stage 1C-2 last）
+**状态**：✅ 定点修正完成，待独立复核
+**范围约束**：只完成两项修正；不实施 Stage 1D，不重构整体流架构，不改前端协议、History 接口或数据库模型。
+
+**一、补齐成功路径的流关闭（server/internal/logic/chat/chat.go）**
+- `cleanupOK` 成功路径新增关闭前台 `srs[0]`：通知成功 → 等待后台完成（消费 EOF、保存、关闭 `srs[1]`）→ 关闭前台 `srs[0]` → cancel。
+- 依据 Eino v0.6.0：`Copy(2)` 仅在两个子分支都关闭时才关闭上游 source；此前成功路径不关 `srs[0]` 导致上游不释放。失败路径先 cancel 的顺序、sync.Once 幂等、不在成功通知前取消模型均保持不变。
+- 回归测试 `TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch`：成功完成后对返回 reader `Recv()` 断言 `schema.ErrRecvAfterClosed`（直接可观察的前台关闭信号，非“保存数量正确”、非“ctx 已取消”），并验证重复 cleanup 安全、保存契约不变。
+
+**二、集成测试经过真实 SSE 编排（stream.go + controller 测试）**
+- `common.StreamToResponseWriter(ctx, http.ResponseWriter, reader, docs)` 薄入口：复用 realSSEWriter + streamResponse + sonic.ConfigDefault，不复制流循环；`SteamResponse` 设置 GoFrame 头后调用它，保留对外行为与帧格式。
+- `TestController_ChatIntegration_WriteFailure` 重写：实际 ChatStream → 实际 Chat.GetAnswerStream/streamCoordinator → 共享生产编排 → 底层 ResponseWriter.Write 返回 sentinel；断言 err 非 nil 且 errors.Is 识别写入 sentinel、模型观察取消、模型完成信号确认 goroutine 退出、controller 清理完成、未保存 assistant（不手动 cancel 模拟失败）。
+- 新增 `TestController_ChatIntegration_NormalComplete`：同路径模型正常 EOF，ChatStream 返回前完整 assistant 已保存一次，按 role/convID/content 精确断言，输出含预期内容与 `data:[DONE]\n\n`。
+- `fakeSaver` 记录 role/convID/content（非仅总次数）；新增 common 级 `TestStreamToResponseWriter_ProductionPath` 验证薄入口复用编排并传递真实 Write 错误。
+
+**保留边界**：History 保存不支持 context timeout；部分刷新错误无法检测（无返回值 Flusher）；历史 race 未完成。保留已有后台 EOF 信号、共享 Chat 并发内容归属及 deadline 测试，未重复重写。
+
+**验证结果（server/，GOFLAGS 空）**：
+- `gofmt -l` 目标文件无输出；`go build ./...`、`go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，86 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/...`、`go test -race ./internal/controller/rag/... ./internal/cmd/...` — exit 0
+- `go test -race -count=5 -run <chat+controller lifecycle> ./internal/logic/chat/... ./internal/controller/rag/...` — exit 0，无 DATA RACE
+- `go test -race ./core/common/...`（含其 lifecycle -count=5）— exit 1：Windows `0xc0000139` 运行异常，race 未完成、根因待确认
+
+**race 范围**：`core/common` race 因 `0xc0000139` 运行异常未完成（新入口 `StreamToResponseWriter` 的 common 级 race 未能验证）；chat/controller/cmd race 通过；`core/retriever`、`core/rerank` 亦仍未补证。普通测试通过不写成 race 通过。
+
+**证据目录**：[verification/stage1c2/](verification/stage1c2/)（`*-r2.log`）
 
 ### Stage 1C-2 完成记录
 

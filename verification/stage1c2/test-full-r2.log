@@ -1,0 +1,32 @@
+﻿CMD: go test -p 1 ./... -count=1
+GOFLAGS=[]  (untagged default)
+---- output ----
+?   	github.com/wangle201210/go-rag/server	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag/v1	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core	0.672s
+ok  	github.com/wangle201210/go-rag/server/core/common	0.123s
+?   	github.com/wangle201210/go-rag/server/core/config	[no test files]
+?   	github.com/wangle201210/go-rag/server/core/grader	[no test files]
+?   	github.com/wangle201210/go-rag/server/core/indexer	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/rerank	0.736s
+ok  	github.com/wangle201210/go-rag/server/core/retriever	0.119s
+?   	github.com/wangle201210/go-rag/server/core/types	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/vector	0.140s
+ok  	github.com/wangle201210/go-rag/server/core/websearch	0.271s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	2.154s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	0.166s
+ok  	github.com/wangle201210/go-rag/server/internal/dao	0.092s
+?   	github.com/wangle201210/go-rag/server/internal/dao/db	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/dao/internal	[no test files]
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.135s
+?   	github.com/wangle201210/go-rag/server/internal/logic/knowledge	[no test files]
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	0.165s
+?   	github.com/wangle201210/go-rag/server/internal/logic/websearch	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/mcp	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/do	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/entity	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/gorm	[no test files]
+?   	github.com/wangle201210/go-rag/server/server	[no test files]
+
+---- EXIT: 0 ----

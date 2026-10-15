@@ -1,0 +1,6 @@
+﻿CMD: go test -race ./internal/logic/chat/... -count=1
+GOFLAGS=[]  (untagged default)
+---- output ----
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.218s
+
+---- EXIT: 0 ----

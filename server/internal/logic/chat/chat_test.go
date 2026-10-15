@@ -1321,3 +1321,60 @@ func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
 
 	cleanup(StreamResult{Success: true})
 }
+
+// TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch verifies that the
+// success cleanup path actually closes the foreground branch (srs[0]).
+//
+// Why this signal: Copy(2) returns child readers sharing one parent source; the
+// parent only closes the upstream source once BOTH children are closed, and the
+// background goroutine only closes srs[1]. Reading a child after it has been
+// closed returns schema.ErrRecvAfterClosed (parentStreamReader.peek sees
+// subStreamList[idx]==nil) — a direct, observable close signal that does NOT
+// depend on save counts and does NOT treat "context already cancelled" as proof
+// the upstream was closed. Before the fix cleanupOK left srs[0] open, so Recv
+// would return io.EOF here instead.
+func TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch(t *testing.T) {
+	fm := newStreamingChatModel([]string{"hello", " world"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Foreground consumes all content then EOF (success path condition).
+	if content := drainStreamContent(t, sr); content != "hello world" {
+		t.Fatalf("expected 'hello world', got %q", content)
+	}
+
+	// Success cleanup closes srs[0] after the background finishes.
+	if ok := callCleanup(cleanup, StreamResult{Success: true})(5 * time.Second); !ok {
+		t.Fatal("timeout waiting for success cleanup")
+	}
+
+	// Observable close signal: the foreground branch must now be closed.
+	if _, recvErr := sr.Recv(); !errors.Is(recvErr, schema.ErrRecvAfterClosed) {
+		t.Fatalf("foreground branch not closed by success cleanup: got %v, want ErrRecvAfterClosed", recvErr)
+	}
+
+	// Repeated cleanup must be safe: sync.Once makes later calls no-ops that
+	// neither block nor panic, and the branch stays closed.
+	if ok := callCleanup(cleanup, StreamResult{Success: true})(2 * time.Second); !ok {
+		t.Fatal("repeated success cleanup blocked")
+	}
+	if ok := callCleanup(cleanup, StreamResult{})(2 * time.Second); !ok {
+		t.Fatal("repeated fail cleanup blocked")
+	}
+	if _, recvErr := sr.Recv(); !errors.Is(recvErr, schema.ErrRecvAfterClosed) {
+		t.Fatalf("foreground branch must stay closed after repeated cleanup: got %v", recvErr)
+	}
+
+	// Save contract unaffected by the added close: user question + one assistant.
+	if saver.getSaveCount() != 2 {
+		t.Errorf("expected 2 saves (user + assistant), got %d", saver.getSaveCount())
+	}
+	if !strings.Contains(saver.getSavedContent(), "hello world") {
+		t.Errorf("saved content should contain 'hello world', got %q", saver.getSavedContent())
+	}
+}

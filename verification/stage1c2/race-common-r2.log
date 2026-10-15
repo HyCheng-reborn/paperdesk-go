@@ -1,0 +1,8 @@
+﻿CMD: go test -race ./core/common/... -count=1
+GOFLAGS=[]  (untagged default)
+---- output ----
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/common	0.101s
+FAIL
+
+---- EXIT: 1 ----

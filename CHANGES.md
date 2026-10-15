@@ -1,5 +1,50 @@
 # 变更记录
 
+## 2026-10-15 Stage 1C-2 定点修正：补齐成功路径流关闭 + 集成测试走真实 SSE 编排（待独立复核）
+
+**基线**：`96c7f90355bc74895b21d27aa95560957c2f62a4`。只完成两项修正；不实施 Stage 1D，不重构整体流架构，不改前端协议/History 接口/数据库模型。Stage 1C-1 已通过独立源码与提交日志复核。
+
+### 修正内容
+
+| 项 | 说明 |
+|---|---|
+| 成功路径关闭前台分支 | chat.go `cleanupOK` 新增 `srs[0].Close()`；顺序：通知成功→等后台完成（EOF/保存/关 `srs[1]`）→关前台 `srs[0]`→cancel。依 Eino `Copy(2)` 需两分支都关才释放上游 |
+| 关闭回归测试 | `TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch` 用 `schema.ErrRecvAfterClosed` 作为可观察关闭信号（非保存计数、非 ctx 已取消），验证重复 cleanup 安全 |
+| 薄入口 | `common.StreamToResponseWriter(ctx, http.ResponseWriter, reader, docs)` 复用 realSSEWriter+streamResponse+sonic，不复制循环；`SteamResponse` 设头后调用 |
+| 集成失败测试 | `TestController_ChatIntegration_WriteFailure` 重写为实际 ChatStream→实际 GetAnswerStream/协调器→共享编排→底层 Write 返回 sentinel；断言 errors.Is、模型观察取消、完成信号、controller 清理、不保存 assistant |
+| 集成成功测试 | `TestController_ChatIntegration_NormalComplete` 同路径正常 EOF；返回前保存一次完整 assistant，按 role/convID/content 精确断言，输出含内容与 DONE |
+| saver 记录 | fakeSaver 记录 role/convID/content，不只总次数 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/internal/logic/chat/chat.go | cleanupOK 成功路径新增 `srs[0].Close()` |
+| server/core/common/stream.go | 新增薄入口 `StreamToResponseWriter`；`SteamResponse` 委派 |
+| server/internal/logic/chat/chat_test.go | 新增关闭回归测试 |
+| server/core/common/stream_test.go | 新增 `sentinelWriteRW` + `TestStreamToResponseWriter_ProductionPath` |
+| server/internal/controller/rag/rag_v1_chat_stream_test.go | 集成测试改走真实编排；新增正常完成测试；生命周期模型与详细 saver |
+
+### 验证边界（保留）
+
+- History 保存不支持 context timeout；部分刷新错误无法检测（无返回值 Flusher）；历史 race 未完成
+- 保留已有后台 EOF 信号、共享 Chat 并发内容归属及 deadline 测试，未重复重写
+
+### 验证结果（server/，GOFLAGS 空；`verification/stage1c2/*-r2.log` 记录命令/GOFLAGS/退出码）
+
+- `gofmt -l` 无输出；`go build ./...`/`go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，86 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/...`、`go test -race ./internal/controller/rag/... ./internal/cmd/...` — exit 0
+- `go test -race -count=5 -run <chat+controller lifecycle> ./internal/logic/chat/... ./internal/controller/rag/...` — exit 0，无 DATA RACE
+- `go test -race ./core/common/...`（含 lifecycle -count=5）— exit 1：Windows `0xc0000139` 运行异常，race 未完成、根因待确认（不写成通过、不断言非代码问题）
+
+### 回滚说明
+
+回滚 chat.go/stream.go 及三测试文件到基线 `96c7f90`；不涉及前端协议、History 接口、数据库模型或整体流架构。
+
+---
+
 ## 2026-10-15 Stage 1C-2 定点收尾：cleanup cancel 能力、SSE 写入取消边界、真实生命周期测试
 
 **基线**：`f89bb816d234c39fbd2b497a096299bfb3ecf98e`（Stage 1C-2 fix2）
@@ -187,7 +232,7 @@
 
 ---
 
-## 2026-10-15 Stage 1C-1 定点收尾：SSE 前端帧兼容恢复 + Controller 建流失败测试（待独立复核）
+## 2026-10-15 Stage 1C-1 定点收尾：SSE 前端帧兼容恢复 + Controller 建流失败测试（已通过独立源码与提交日志复核）
 
 **基线**：`11e021a3cca840b2225c6228be6a19aaa6a03f55`。不实施 1C-2，不改前端协议，不重构共享 SSE 编排。
 

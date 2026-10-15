@@ -1,0 +1,7 @@
+﻿CMD: go test -race -count=5 -run <chat+controller lifecycle> ./internal/logic/chat/... ./internal/controller/rag/...
+GOFLAGS=[]  (untagged default)
+---- output ----
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.202s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	1.253s
+
+---- EXIT: 0 ----

@@ -712,3 +712,58 @@ func TestStreamResponse_CancelAfterReadBeforeWrite(t *testing.T) {
 		}
 	}
 }
+
+// sentinelWriteRW is an http.ResponseWriter whose Write returns a caller-chosen
+// sentinel error, so the production write path can be exercised for real.
+type sentinelWriteRW struct {
+	err    error
+	header http.Header
+	buf    bytes.Buffer
+}
+
+func (w *sentinelWriteRW) Write(p []byte) (int, error) {
+	if w.err != nil {
+		return 0, w.err
+	}
+	return w.buf.Write(p)
+}
+func (w *sentinelWriteRW) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+func (w *sentinelWriteRW) WriteHeader(int) {}
+func (w *sentinelWriteRW) Flush()          {}
+
+// TestStreamToResponseWriter_ProductionPath verifies the thin entry reuses the
+// production realSSEWriter + streamResponse: it emits the exact frontend frames
+// on success, and propagates a real low-level ResponseWriter.Write error through
+// errors.Is (this is the path the controller integration test drives).
+func TestStreamToResponseWriter_ProductionPath(t *testing.T) {
+	// success: documents: frame + DONE, frames written to the recorder
+	sr := schema.StreamReaderFromArray([]*schema.Message{msg("hi")})
+	defer sr.Close()
+	rec := &frameRecorder{}
+	if err := StreamToResponseWriter(context.Background(), rec, sr, []*schema.Document{{Content: "doc"}}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := rec.buf.String()
+	if !strings.HasPrefix(out, "documents:") || !strings.HasSuffix(out, "data:[DONE]\n\n") {
+		t.Errorf("expected documents: frame and trailing data:[DONE] boundary, got %q", out)
+	}
+
+	// write failure: a real ResponseWriter.Write error is surfaced via the shared
+	// orchestration and recognizable with errors.Is.
+	sentinel := errors.New("writer sentinel failure")
+	sr2 := schema.StreamReaderFromArray([]*schema.Message{msg("hi")})
+	defer sr2.Close()
+	fw := &sentinelWriteRW{err: sentinel}
+	err := StreamToResponseWriter(context.Background(), fw, sr2, nil)
+	if err == nil {
+		t.Fatal("expected error from failing ResponseWriter")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("expected errors.Is to recognize write sentinel, got: %v", err)
+	}
+}

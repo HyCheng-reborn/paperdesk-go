@@ -1,0 +1,200 @@
+﻿CMD: go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v
+GOFLAGS=[]  (untagged default)
+---- output ----
+=== RUN   TestGetChatBeforeInit
+--- PASS: TestGetChatBeforeInit (0.00s)
+=== RUN   TestIsInitializedBeforeCall
+--- PASS: TestIsInitializedBeforeCall (0.00s)
+=== RUN   TestResetBeforeInit
+--- PASS: TestResetBeforeInit (0.00s)
+=== RUN   TestInit_FailsWithoutDAO
+--- PASS: TestInit_FailsWithoutDAO (0.00s)
+=== RUN   TestInitWith_ConfigError
+--- PASS: TestInitWith_ConfigError (0.00s)
+=== RUN   TestInitWith_ChatModelError
+--- PASS: TestInitWith_ChatModelError (0.00s)
+=== RUN   TestInitWith_RepeatCall_Rejected
+--- PASS: TestInitWith_RepeatCall_Rejected (0.00s)
+=== RUN   TestInitWith_DAOError_BeforeFactory
+--- PASS: TestInitWith_DAOError_BeforeFactory (0.00s)
+=== RUN   TestInit_Order_DAOFirst
+--- PASS: TestInit_Order_DAOFirst (0.00s)
+=== RUN   TestInit_Success_WithDAO
+--- PASS: TestInit_Success_WithDAO (0.00s)
+=== RUN   TestInit_GormDBNil_Error
+--- PASS: TestInit_GormDBNil_Error (0.00s)
+=== RUN   TestGetAnswerStream_ModelReceivesContext
+--- PASS: TestGetAnswerStream_ModelReceivesContext (0.00s)
+=== RUN   TestGetAnswerStream_StreamCancelErrorChain
+--- PASS: TestGetAnswerStream_StreamCancelErrorChain (0.00s)
+=== RUN   TestGetAnswerStream_BlockingRecvCancel
+--- PASS: TestGetAnswerStream_BlockingRecvCancel (0.00s)
+=== RUN   TestGetAnswerStream_NormalEOF_SaveOnce
+--- PASS: TestGetAnswerStream_NormalEOF_SaveOnce (0.00s)
+=== RUN   TestGetAnswerStream_PartialThenError_NoSave
+--- PASS: TestGetAnswerStream_PartialThenError_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_Cancel_NoSave
+--- PASS: TestGetAnswerStream_Cancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+--- PASS: TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CancelThenEOF_NoDONE
+--- PASS: TestGetAnswerStream_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestGetAnswerStream_ConcurrentSessions_Isolation
+--- PASS: TestGetAnswerStream_ConcurrentSessions_Isolation (0.00s)
+=== RUN   TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave
+--- PASS: TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CleanupIdempotent
+--- PASS: TestGetAnswerStream_CleanupIdempotent (0.00s)
+=== RUN   TestGetAnswerStream_DirectFailCleanup_NoManualCancel
+--- PASS: TestGetAnswerStream_DirectFailCleanup_NoManualCancel (0.00s)
+=== RUN   TestChatStream_BackgroundDoneThenForegroundFail_NoSave
+--- PASS: TestChatStream_BackgroundDoneThenForegroundFail_NoSave (0.00s)
+=== RUN   TestChatStream_ConcurrentConvID_SaverRecords
+--- PASS: TestChatStream_ConcurrentConvID_SaverRecords (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch
+--- PASS: TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch (0.00s)
+=== RUN   TestHistory_NoAutoMigrate
+--- PASS: TestHistory_NoAutoMigrate (0.00s)
+=== RUN   TestHistory_SaveAndGet
+--- PASS: TestHistory_SaveAndGet (0.00s)
+=== RUN   TestHistory_MultipleMessages
+--- PASS: TestHistory_MultipleMessages (0.00s)
+=== RUN   TestHistory_Limit
+--- PASS: TestHistory_Limit (0.00s)
+=== RUN   TestHistory_ConvIDIsolation
+--- PASS: TestHistory_ConvIDIsolation (0.00s)
+=== RUN   TestHistory_RoleContentMapping
+--- PASS: TestHistory_RoleContentMapping (0.00s)
+=== RUN   TestHistory_Close_NoOp
+--- PASS: TestHistory_Close_NoOp (0.00s)
+=== RUN   TestHistory_Close_NoOp_QuerySuccess
+--- PASS: TestHistory_Close_NoOp_QuerySuccess (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.193s
+=== RUN   TestChatModelConfigMapping
+--- PASS: TestChatModelConfigMapping (0.00s)
+=== RUN   TestRemoveDuplicates
+    slices_test.go:32: i: 0, doc_id: 1
+    slices_test.go:32: i: 1, doc_id: 2
+    slices_test.go:32: i: 2, doc_id: 3
+--- PASS: TestRemoveDuplicates (0.00s)
+=== RUN   TestStreamResponse_NormalEOF
+--- PASS: TestStreamResponse_NormalEOF (0.00s)
+=== RUN   TestStreamResponse_EmptyStream
+--- PASS: TestStreamResponse_EmptyStream (0.00s)
+=== RUN   TestStreamResponse_EmptyContentChunks
+--- PASS: TestStreamResponse_EmptyContentChunks (0.00s)
+=== RUN   TestStreamResponse_StreamError_NoDone
+--- PASS: TestStreamResponse_StreamError_NoDone (0.00s)
+=== RUN   TestStreamResponse_NilChunk
+--- PASS: TestStreamResponse_NilChunk (0.00s)
+=== RUN   TestStreamResponse_ErrorChain
+--- PASS: TestStreamResponse_ErrorChain (0.00s)
+=== RUN   TestStreamResponse_SafeErrorEncoding
+--- PASS: TestStreamResponse_SafeErrorEncoding (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Documents
+--- PASS: TestStreamResponse_WriteFail_Documents (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Data
+--- PASS: TestStreamResponse_WriteFail_Data (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Done
+--- PASS: TestStreamResponse_WriteFail_Done (0.00s)
+=== RUN   TestStreamResponse_ErrorEventWriteFailure
+--- PASS: TestStreamResponse_ErrorEventWriteFailure (0.00s)
+=== RUN   TestStreamResponse_NoContinueAfterWriteFailure
+--- PASS: TestStreamResponse_NoContinueAfterWriteFailure (0.00s)
+=== RUN   TestStreamResponse_WithDocuments
+--- PASS: TestStreamResponse_WithDocuments (0.00s)
+=== RUN   TestStreamResponse_DocumentsEncodeFailure
+--- PASS: TestStreamResponse_DocumentsEncodeFailure (0.00s)
+=== RUN   TestStreamResponse_EventFrameBoundary
+--- PASS: TestStreamResponse_EventFrameBoundary (0.00s)
+=== RUN   TestStreamResponse_ErrorEventFormat
+--- PASS: TestStreamResponse_ErrorEventFormat (0.00s)
+=== RUN   TestRealSSEWriter_ShortWrite
+--- PASS: TestRealSSEWriter_ShortWrite (0.00s)
+=== RUN   TestRealSSEWriter_WriteFailure
+--- PASS: TestRealSSEWriter_WriteFailure (0.00s)
+=== RUN   TestRealSSEWriter_FrontendCompatFrames
+--- PASS: TestRealSSEWriter_FrontendCompatFrames (0.00s)
+=== RUN   TestStreamResponse_CancelThenEOF_NoDONE
+--- PASS: TestStreamResponse_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestStreamResponse_CancelBeforeRead
+--- PASS: TestStreamResponse_CancelBeforeRead (0.00s)
+=== RUN   TestStreamResponse_CancelAfterReadBeforeWrite
+--- PASS: TestStreamResponse_CancelAfterReadBeforeWrite (0.00s)
+=== RUN   TestStreamToResponseWriter_ProductionPath
+--- PASS: TestStreamToResponseWriter_ProductionPath (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/common	0.172s
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestChatStream_SSEWriteFailure_CleanupWithFailure
+--- PASS: TestChatStream_SSEWriteFailure_CleanupWithFailure (0.00s)
+=== RUN   TestChatStream_NormalComplete_CleanupWithSuccess
+--- PASS: TestChatStream_NormalComplete_CleanupWithSuccess (0.00s)
+=== RUN   TestChatStream_CancelPropagation
+--- PASS: TestChatStream_CancelPropagation (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestController_ChatIntegration_WriteFailure
+--- PASS: TestController_ChatIntegration_WriteFailure (0.00s)
+=== RUN   TestController_ChatIntegration_NormalComplete
+--- PASS: TestController_ChatIntegration_NormalComplete (0.00s)
+=== RUN   TestValidateIndexerInput_NoFileNoURL
+--- PASS: TestValidateIndexerInput_NoFileNoURL (0.00s)
+=== RUN   TestValidateIndexerInput_FileOnly
+--- PASS: TestValidateIndexerInput_FileOnly (0.00s)
+=== RUN   TestValidateIndexerInput_URLOnly_DefaultMode
+--- PASS: TestValidateIndexerInput_URLOnly_DefaultMode (0.00s)
+=== RUN   TestValidateIndexerInput_FileAndURL_DefaultMode
+--- PASS: TestValidateIndexerInput_FileAndURL_DefaultMode (0.00s)
+=== RUN   TestValidateIndexerInput_URLOnly_PaperDeskMode
+--- PASS: TestValidateIndexerInput_URLOnly_PaperDeskMode (0.00s)
+=== RUN   TestValidateIndexerInput_FileAndURL_PaperDeskMode
+--- PASS: TestValidateIndexerInput_FileAndURL_PaperDeskMode (0.00s)
+=== RUN   TestValidateIndexerInput_FileOnly_PaperDeskMode
+--- PASS: TestValidateIndexerInput_FileOnly_PaperDeskMode (0.00s)
+=== RUN   TestValidateIndexerInput_EmptyFilenameTreatedAsNoFile
+--- PASS: TestValidateIndexerInput_EmptyFilenameTreatedAsNoFile (0.00s)
+=== RUN   TestValidateIndexerInput_WhitespaceURLTreatedAsNoURL
+--- PASS: TestValidateIndexerInput_WhitespaceURLTreatedAsNoURL (0.00s)
+=== RUN   TestIndexer_NoSideEffects_OnValidationError
+--- PASS: TestIndexer_NoSideEffects_OnValidationError (0.00s)
+=== RUN   TestIndexer_NoSideEffects_OnValidationError_PaperDeskMode
+--- PASS: TestIndexer_NoSideEffects_OnValidationError_PaperDeskMode (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	0.298s
+=== RUN   TestRunInitSteps_AllSuccess
+--- PASS: TestRunInitSteps_AllSuccess (0.00s)
+=== RUN   TestRunInitSteps_FailureStopsAndCleans
+--- PASS: TestRunInitSteps_FailureStopsAndCleans (0.00s)
+=== RUN   TestRunInitSteps_CleanupErrorPreserved
+--- PASS: TestRunInitSteps_CleanupErrorPreserved (0.00s)
+=== RUN   TestRunInitSteps_EmptySteps
+--- PASS: TestRunInitSteps_EmptySteps (0.00s)
+=== RUN   TestRunInitSteps_FirstStepFails
+--- PASS: TestRunInitSteps_FirstStepFails (0.00s)
+=== RUN   TestRunInitSteps_ErrorContainsStageName
+--- PASS: TestRunInitSteps_ErrorContainsStageName (0.00s)
+=== RUN   TestMiddleware_SSEStarted_NoJSONAppend
+2026-10-15T16:11:45.219+08:00 [INFO] pid[10992]: http server started listening on [:61735]
+2026-10-15T16:11:45.219+08:00 [INFO] openapi specification is disabled
+2026-10-15T16:11:45.221+08:00 {b03ac08db6a5de187ec889436e1d1ca4} 200 "GET http 127.0.0.1:61735 /test/stream HTTP/1.1" 1032.100, 127.0.0.1, "", "Go-http-client/1.1", -1, "", ""
+Stack:
+model_failure
+2026-10-15T16:11:45.221+08:00 pid[10992]: all servers shutdown
+--- PASS: TestMiddleware_SSEStarted_NoJSONAppend (0.01s)
+=== RUN   TestMiddleware_NoSSE_WithError
+2026-10-15T16:11:45.226+08:00 [INFO] pid[10992]: http server started listening on [:61737]
+2026-10-15T16:11:45.226+08:00 [INFO] openapi specification is disabled
+2026-10-15T16:11:45.227+08:00 {94331f8eb6a5de1880c88943a6943510} 200 "GET http 127.0.0.1:61737 /test/error HTTP/1.1" 0.000, 127.0.0.1, "", "Go-http-client/1.1", -1, "", ""
+Stack:
+handler error
+2026-10-15T16:11:45.227+08:00 pid[10992]: all servers shutdown
+--- PASS: TestMiddleware_NoSSE_WithError (0.01s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	0.282s
+
+---- EXIT: 0 ----

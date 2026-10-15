@@ -336,7 +336,11 @@ fullMsgs = append(fullMsgs, chunk)  // ← ★ F04-5: 非 EOF 错误时 chunk �
 - 依赖 1C-1 的 SSE 错误语义（后台 goroutine 的错误处理需要与 SSE 层一致）
 - 需要可注入的模型工厂来测试 context 传递
 
-**状态**：✅ 已完成（见下方 1C-2 实施记录）
+**状态**：✅ 1C-1 已通过独立源码复核；1C-2 定点修正完成（基于 96c7f90），待独立复核；Stage 1 尚未整体完成
+
+**1C-2 定点修正补充（本轮）**：
+- 成功路径 `cleanupOK` 新增关闭前台 `srs[0]`（`Copy(2)` 需两分支都关才释放上游）；回归测试用 `schema.ErrRecvAfterClosed` 观察前台已关闭。
+- 新增 `common.StreamToResponseWriter` 薄入口（复用 realSSEWriter+streamResponse+sonic），`SteamResponse` 委派；controller 集成测试经该入口走真实编排，底层 ResponseWriter.Write 返回 sentinel 触发生产写失败处理。
 
 ---
 

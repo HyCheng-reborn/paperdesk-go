@@ -1,15 +1,20 @@
 package rag
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
+
+	"github.com/wangle201210/go-rag/server/core/common"
 
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
 	"github.com/wangle201210/go-rag/server/internal/logic/chat"
@@ -276,16 +281,20 @@ func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
 	}
 }
 
-// TestController_ChatIntegration_WriteFailure uses actual Controller + actual
-// Chat.GetAnswerStream + production streamCoordinator + shared SSE orchestration
-// to verify the full lifecycle under write failure.
+// TestController_ChatIntegration_WriteFailure wires the ACTUAL
+// Controller.ChatStream → actual Chat.GetAnswerStream / streamCoordinator →
+// shared production SSE orchestration (common.StreamToResponseWriter) → a low-level
+// ResponseWriter whose Write returns a sentinel error, i.e. a real write failure.
+// It asserts the full chain, without manually cancelling to fake the failure.
 func TestController_ChatIntegration_WriteFailure(t *testing.T) {
-	// -- real Chat with fake dependencies --
-	fm := &ctxCapturingModel{ctxReceived: make(chan struct{})}
+	writeSentinel := errors.New("integrated write sentinel")
+	// model holds the writer open after one chunk until its ctx is cancelled
+	fm := newLifecycleModel([]string{"partial"}, true)
 	saver := &fakeSaver{}
 	realChat := &chat.Chat{}
-	// Inject fake dependencies via exported test helper
 	chat.InjectForTest(realChat, fm, saver)
+
+	rw := &intResponseWriter{writeErr: writeSentinel}
 
 	c := &ControllerV1{
 		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
@@ -295,81 +304,213 @@ func TestController_ChatIntegration_WriteFailure(t *testing.T) {
 			return realChat.GetAnswerStream(ctx, convID, docs, question)
 		},
 		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
-			chunk, err := reader.Recv()
-			if err != nil {
-				return err
-			}
-			if chunk == nil {
-				return errors.New("nil chunk")
-			}
-			return errors.New("sse write failed")
+			return common.StreamToResponseWriter(ctx, rw, reader, docs)
 		},
 	}
 
+	t.Cleanup(func() {
+		select {
+		case <-fm.done:
+		case <-time.After(5 * time.Second):
+			t.Error("model goroutine did not exit during cleanup")
+		}
+	})
+
 	_, err := c.ChatStream(context.Background(), &v1.ChatStreamReq{
-		ConvID: "conv-1", Question: "q", KnowledgeName: "kb",
+		ConvID: "conv-1", Question: "q", KnowledgeName: "kb", TopK: 5, Score: 0.2,
 	})
 	if err == nil {
-		t.Fatal("expected error from SSE write failure")
+		t.Fatal("expected error from integrated SSE write failure")
+	}
+	// errors.Is must reach the low-level writer sentinel through the whole chain
+	if !errors.Is(err, writeSentinel) {
+		t.Fatalf("expected errors.Is to recognize write sentinel through full chain, got: %v", err)
 	}
 
-	// Wait for model to receive context
+	// model observed cancellation (cleanupFail cancels the derived context)
 	select {
-	case <-fm.ctxReceived:
+	case <-fm.sawCancel:
 	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for model to receive context")
+		t.Fatal("model did not observe cancellation")
+	}
+	// completion signal proves the model goroutine exited (not ctx-cancel-as-proof)
+	select {
+	case <-fm.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("model goroutine did not exit")
 	}
 
-	// Model context should be cancelled (cleanupFail cancels derived ctx)
-	modelCtx := fm.getReceivedCtx()
-	if modelCtx.Err() == nil {
-		t.Error("model context should be cancelled after cleanup")
-	}
-
-	// No assistant save (only user question from docsMessages, if any)
-	if saver.getSaveCount() > 1 {
-		t.Errorf("expected at most 1 save (user question), got %d", saver.getSaveCount())
+	// Controller cleanup completed (ChatStream runs cleanup synchronously before
+	// returning). No assistant message saved on write failure.
+	if as := saver.assistantRecords("conv-1"); len(as) != 0 {
+		t.Fatalf("no assistant must be saved on write failure, got %d records", len(as))
 	}
 }
 
-// --- helper types for integration test ---
+// TestController_ChatIntegration_NormalComplete drives the same full production
+// path but the model outputs a normal EOF and the ResponseWriter succeeds. It
+// asserts the exact frames in the output and that the complete assistant message
+// was saved exactly once (by role, convID, content) before ChatStream returned.
+func TestController_ChatIntegration_NormalComplete(t *testing.T) {
+	fm := newLifecycleModel([]string{"Hello", " world"}, false) // EOF after send
+	saver := &fakeSaver{}
+	realChat := &chat.Chat{}
+	chat.InjectForTest(realChat, fm, saver)
 
-// ctxCapturingModel captures the context passed to Stream for assertion.
-type ctxCapturingModel struct {
-	mu          sync.Mutex
-	receivedCtx context.Context
-	ctxReceived chan struct{}
+	rw := &intResponseWriter{} // records, no error
+
+	c := &ControllerV1{
+		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
+			return &v1.RetrieverRes{Document: nil}, nil
+		},
+		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
+			return realChat.GetAnswerStream(ctx, convID, docs, question)
+		},
+		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+			return common.StreamToResponseWriter(ctx, rw, reader, docs)
+		},
+	}
+
+	t.Cleanup(func() {
+		select {
+		case <-fm.done:
+		case <-time.After(5 * time.Second):
+			t.Error("model goroutine did not exit during cleanup")
+		}
+	})
+
+	res, err := c.ChatStream(context.Background(), &v1.ChatStreamReq{
+		ConvID: "conv-1", Question: "q", KnowledgeName: "kb", TopK: 5, Score: 0.2,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected non-nil response on normal completion")
+	}
+
+	out := rw.String()
+	if !strings.Contains(out, "data:") || !strings.Contains(out, "Hello") || !strings.Contains(out, "world") {
+		t.Errorf("expected data frames carrying the content, got %q", out)
+	}
+	if !strings.HasSuffix(out, "data:[DONE]\n\n") {
+		t.Errorf("expected trailing data:[DONE] boundary, got %q", out)
+	}
+
+	// cleanupOK waited for the background save before returning, so assert now.
+	as := saver.assistantRecords("conv-1")
+	if len(as) != 1 {
+		t.Fatalf("expected exactly 1 assistant save for conv-1, got %d", len(as))
+	}
+	if as[0].role != string(schema.Assistant) || as[0].content != "Hello world" {
+		t.Errorf("assistant record = %+v, want role=assistant content='Hello world'", as[0])
+	}
+
+	select {
+	case <-fm.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("model goroutine did not exit after normal completion")
+	}
 }
 
-func (m *ctxCapturingModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
-	return &schema.Message{Role: schema.Assistant, Content: "test"}, nil
+// --- helper types for integration tests ---
+
+// lifecycleModel streams fixed chunks and signals lifecycle events:
+//   - ctxReceived: closed when Stream is called (model received a context)
+//   - sawCancel: closed when the producer observes context cancellation (block mode)
+//   - done: closed when the producer goroutine exits
+//
+// When blockAfterSend is false the writer is closed after the chunks so readers
+// see EOF (normal completion); when true the writer stays open until cancelled.
+type lifecycleModel struct {
+	chunks         []string
+	blockAfterSend bool
+	mu             sync.Mutex
+	receivedCtx    context.Context
+	ctxReceived    chan struct{}
+	sawCancel      chan struct{}
+	done           chan struct{}
 }
 
-func (m *ctxCapturingModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+func newLifecycleModel(chunks []string, blockAfterSend bool) *lifecycleModel {
+	return &lifecycleModel{
+		chunks:         chunks,
+		blockAfterSend: blockAfterSend,
+		ctxReceived:    make(chan struct{}),
+		sawCancel:      make(chan struct{}),
+		done:           make(chan struct{}),
+	}
+}
+
+func (m *lifecycleModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Role: schema.Assistant, Content: "unused"}, nil
+}
+
+func (m *lifecycleModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
 	m.mu.Lock()
 	m.receivedCtx = ctx
 	m.mu.Unlock()
 	close(m.ctxReceived)
 
-	sr, sw := schema.Pipe[*schema.Message](10)
+	sr, sw := schema.Pipe[*schema.Message](16)
 	go func() {
+		defer close(m.done)
 		defer sw.Close()
-		sw.Send(&schema.Message{Role: schema.Assistant, Content: "chunk"}, nil)
-		// Block until context cancelled (cleanup will cancel)
-		<-ctx.Done()
+		for _, c := range m.chunks {
+			if sw.Send(&schema.Message{Role: schema.Assistant, Content: c}, nil) {
+				return // upstream closed by consumers
+			}
+		}
+		if m.blockAfterSend {
+			<-ctx.Done()
+			close(m.sawCancel)
+		}
 	}()
 	return sr, nil
 }
 
-func (m *ctxCapturingModel) getReceivedCtx() context.Context {
+func (m *lifecycleModel) getReceivedCtx() context.Context {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.receivedCtx
 }
 
-// fakeSaver records SaveMessage calls without a real database.
+// intResponseWriter is an http.ResponseWriter for the shared SSE path. When
+// writeErr is set every Write fails with it (real low-level write failure);
+// otherwise bytes are recorded for frame assertions.
+type intResponseWriter struct {
+	writeErr error
+	header   http.Header
+	buf      bytes.Buffer
+}
+
+func (w *intResponseWriter) Write(p []byte) (int, error) {
+	if w.writeErr != nil {
+		return 0, w.writeErr
+	}
+	return w.buf.Write(p)
+}
+func (w *intResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+func (w *intResponseWriter) WriteHeader(int) {}
+func (w *intResponseWriter) Flush()          {}
+func (w *intResponseWriter) String() string  { return w.buf.String() }
+
+// savedRecord captures role/convID/content of each SaveMessage call (not just a count).
+type savedRecord struct {
+	role    string
+	convID  string
+	content string
+}
+
+// fakeSaver records SaveMessage calls per role/convID/content without a real DB.
 type fakeSaver struct {
 	mu         sync.Mutex
+	records    []savedRecord
 	saveCalled int
 }
 
@@ -377,6 +518,7 @@ func (f *fakeSaver) SaveMessage(mess *schema.Message, convID string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.saveCalled++
+	f.records = append(f.records, savedRecord{role: string(mess.Role), convID: convID, content: mess.Content})
 	return nil
 }
 
@@ -388,4 +530,16 @@ func (f *fakeSaver) getSaveCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.saveCalled
+}
+
+func (f *fakeSaver) assistantRecords(convID string) []savedRecord {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []savedRecord
+	for _, r := range f.records {
+		if r.role == string(schema.Assistant) && r.convID == convID {
+			out = append(out, r)
+		}
+	}
+	return out
 }

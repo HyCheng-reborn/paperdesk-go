@@ -214,11 +214,15 @@ type streamCoordinator struct {
 	savedOnce sync.Once // first cleanup call decides; repeated calls are no-ops
 }
 
-// cleanup sends the foreground result, closes srs[0], and waits for the background
-// goroutine to finish. It is safe to call repeatedly; only the first call decides
-// the result (sync.Once protection).
+// cleanup cancels the derived context (to unblock the model), sends the foreground
+// result, closes srs[0], and waits for the background goroutine to finish.
+// It is safe to call repeatedly; only the first call decides the result (sync.Once protection).
 func (c *streamCoordinator) cleanup(result StreamResult) {
 	c.savedOnce.Do(func() {
+		// Cancel derived context first — unblocks model if still running.
+		// Background save condition uses original ctx (not derivedCtx),
+		// so this does not affect the save decision.
+		c.cancel()
 		// Send foreground result to background goroutine
 		c.resultCh <- result
 		// Close foreground branch
@@ -229,13 +233,13 @@ func (c *streamCoordinator) cleanup(result StreamResult) {
 }
 
 // GetAnswerStream 流式生成答案。
-// 使用调用方 ctx 传递给模型，确保客户端断开/取消时模型调用能退出。
+// 创建派生 context（WithCancel），传递给模型，确保客户端断开/取消时模型调用能退出。
 // 返回：
 //   - *schema.StreamReader[*schema.Message]: 前台消费者使用的流分支
 //   - func(StreamResult): 清理函数，必须由调用方在 SSE 完成后调用。
 //     传入前台结果以决定是否保存 assistant 回答；同时关闭后台分支以释放上游资源。
-//     cleanup 等待后台协调任务结束后返回，可安全重复调用（第一次终态决定结果）。
-//   - context.CancelFunc: 调用方应在 cleanup 返回后调用以释放 context。
+//     cleanup 内部等待后台协调任务结束，然后释放派生 context。
+//     可安全重复调用（第一次终态决定结果）。
 //
 // 保存契约：只有同时满足以下条件才保存一次完整 assistant：
 //   - 后台正常 EOF（cleanEOF=true）
@@ -250,10 +254,12 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 	if err != nil {
 		return
 	}
-	// 使用调用方 ctx（不再替换为 context.Background()）
-	streamData, err := stream(ctx, x.cm, messages)
-	if err != nil {
-		return nil, nil, fmt.Errorf("生成答案失败: %w", err)
+	// 创建派生 context，传递给模型；cleanup 内部释放
+	derivedCtx, cancel := context.WithCancel(ctx)
+	streamData, streamErr := stream(derivedCtx, x.cm, messages)
+	if streamErr != nil {
+		cancel() // 建流失败也释放派生 context
+		return nil, nil, fmt.Errorf("生成答案失败: %w", streamErr)
 	}
 	srs := streamData.Copy(2)
 
@@ -261,6 +267,7 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 		resultCh:  make(chan StreamResult, 1),
 		coordDone: make(chan struct{}),
 		srs:       [2]*schema.StreamReader[*schema.Message]{srs[0], srs[1]},
+		cancel:    cancel,
 	}
 
 	// 后台保存 goroutine：消费 srs[1]，记录 cleanEOF，等待前台结果后决定是否保存。

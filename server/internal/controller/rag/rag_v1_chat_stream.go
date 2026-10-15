@@ -30,6 +30,19 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 		sseWrite = defaultSSEWrite
 	}
 
+	// defer 兜底清理：异常提前退出时释放资源。
+	// 正常路径 cleanupDone=true 后 defer 不做任何事。
+	// 成功路径不能被兜底取消抢先影响保存。
+	var cleanup func(chat.StreamResult)
+	cleanupDone := false
+	defer func() {
+		if !cleanupDone && cleanup != nil {
+			cancel()
+			cleanup(chat.StreamResult{})
+		}
+		cancel()
+	}()
+
 	// 获取检索结果
 	retriever, err := retrieve(ctx, &v1.RetrieverReq{
 		Question:      req.Question,
@@ -43,26 +56,26 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 		return
 	}
 	// 获取流式响应；建流失败返回 error，不返回空成功、不进入 SSE 输出
-	streamReader, cleanup, err := answerStream(ctx, req.ConvID, retriever.Document, req.Question)
+	streamReader, cl, err := answerStream(ctx, req.ConvID, retriever.Document, req.Question)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("get answer stream: %w", err)
 	}
+	cleanup = cl
 
 	// SSE 处理
 	err = sseWrite(ctx, streamReader, retriever.Document)
 
 	if err != nil {
-		// 失败路径：先取消模型，再等待协调任务完成，最后释放 context
-		cancel()
-		cleanup(chat.StreamResult{}) // Success=false → 不保存；等待后台结束
-		cancel()                     // 冗余但明确
+		// 失败路径：cleanup 内部会 cancel 派生 context
+		cleanup(chat.StreamResult{})
+		cleanupDone = true
 		return nil, fmt.Errorf("stream response: %w", err)
 	}
 
-	// 成功路径：等待协调任务结束，最后才 cancel
+	// 成功路径：cleanup 完成消费与保存判定，然后释放派生 context
 	cleanup(chat.StreamResult{Success: true})
-	cancel()
+	cleanupDone = true
 
 	return &v1.ChatStreamRes{}, nil
 }

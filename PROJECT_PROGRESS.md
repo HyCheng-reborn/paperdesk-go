@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-15
-**阶段**：Stage 1C-1 已通过独立源码复核，Stage 1C-2 fix2 完成待独立复核，Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1C 尚未全部验收
+**阶段**：Stage 1C-1 已通过独立源码复核，Stage 1C-2 定点收尾完成待独立复核，Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1C 尚未全部验收
 
 ## Stage 0：事实基线与只读核对
 
@@ -36,7 +36,7 @@
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 fix2 完成，待独立复核** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 定点收尾完成，待独立复核** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -286,9 +286,9 @@
 ### Stage 1C-2 完成记录
 
 **日期**：2026-10-15
-**基线**：`bfaa289253d59db8d2758d4656a1926eaa2bf47e`（Stage 1C-2 lifecycle fix）
-**状态**：✅ fix2 定点收尾完成，待独立复核
-**范围约束**：不新增消息状态机，不重写 Stage 5 会话权威模型，不为初始化阶段 Background 扩大 ChatModelFactory 接口。
+**基线**：`f89bb816d234c39fbd2b497a096299bfb3ecf98e`（Stage 1C-2 fix2）
+**状态**：✅ 定点收尾完成，待独立复核
+**范围约束**：保留已完成的 cleanEOF 判定、sync.Once 终态保护、coordDone 等待及成功路径“cleanup 完成后再 cancel”的顺序。
 
 **修改文件**：
 - `server/internal/logic/chat/chat.go` — 新增 `streamCoordinator` 结构体；`cleanup` 等待后台完成（`<-coordDone`）；`sync.Once` 保证幂等；后台记录 `cleanEOF`；严格保存条件：`cleanEOF && result.Success && ctx.Err() == nil`；删除未使用的 `StreamResult.Answer` 字段

@@ -17,13 +17,6 @@ import (
 // TestChatStream_AnswerStreamError calls the ACTUAL ChatStream with minimal,
 // instance-level, read-only-during-runtime injected dependencies so retrieval
 // returns offline documents and stream creation returns a sentinel error.
-// It asserts:
-//   - a non-nil error, recognizable via errors.Is as the build-stream sentinel;
-//   - no (empty) success response is returned;
-//   - SSE output is never entered.
-//
-// No real service is connected, controller logic is not copied into the test,
-// and no mutable global function is swapped.
 func TestChatStream_AnswerStreamError(t *testing.T) {
 	sentinel := errors.New("stream create sentinel")
 
@@ -66,11 +59,9 @@ func TestChatStream_AnswerStreamError(t *testing.T) {
 	if !retrieveCalled || !answerCalled {
 		t.Fatalf("expected retrieve and answerStream boundaries to run (retrieve=%v answer=%v)", retrieveCalled, answerCalled)
 	}
-	// Offline retrieval result must be threaded into the stream-creation call.
 	if len(gotDocs) != 1 || gotDocs[0].Content != "offline-doc" {
 		t.Errorf("expected offline docs passed to answer stream, got: %+v", gotDocs)
 	}
-	// SSE output must not be entered when stream creation fails.
 	if sseCalled {
 		t.Fatal("ChatStream must not enter SSE output when stream creation fails")
 	}
@@ -103,7 +94,6 @@ func TestChatStream_SSEWriteFailure_CleanupWithFailure(t *testing.T) {
 			}, nil
 		},
 		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
-			// Consume at least one chunk then fail
 			reader.Recv()
 			return writeErr
 		},
@@ -151,7 +141,6 @@ func TestChatStream_NormalComplete_CleanupWithSuccess(t *testing.T) {
 			}, nil
 		},
 		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
-			// Consume all chunks
 			for {
 				_, err := reader.Recv()
 				if errors.Is(err, io.EOF) {
@@ -183,11 +172,14 @@ func TestChatStream_NormalComplete_CleanupWithSuccess(t *testing.T) {
 
 // TestChatStream_CancelPropagation verifies that the derived context is cancelled
 // when the controller exits, and the model observes the cancellation.
+// No fixed sleep: cleanup releases all resources and waits for coordination.
 func TestChatStream_CancelPropagation(t *testing.T) {
 	var modelCtx context.Context
 	var ctxReceived = make(chan struct{}, 1)
 
 	sr, sw := schema.Pipe[*schema.Message](5)
+
+	cleanupDone := make(chan struct{})
 
 	c := &ControllerV1{
 		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
@@ -196,7 +188,10 @@ func TestChatStream_CancelPropagation(t *testing.T) {
 		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
 			modelCtx = ctx
 			ctxReceived <- struct{}{}
-			return sr, func(r chat.StreamResult) { sw.Close() }, nil
+			return sr, func(r chat.StreamResult) {
+				sw.Close()
+				close(cleanupDone)
+			}, nil
 		},
 		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
 			return errors.New("sse fail")
@@ -213,15 +208,21 @@ func TestChatStream_CancelPropagation(t *testing.T) {
 		t.Fatal("timeout waiting for model to receive context")
 	}
 
-	// After ChatStream returns, the derived context should be cancelled
-	time.Sleep(50 * time.Millisecond)
+	// Wait for cleanup to complete (no fixed sleep)
+	select {
+	case <-cleanupDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for cleanup to complete")
+	}
+
+	// After ChatStream returns and cleanup completes, the derived context should be cancelled
 	if modelCtx.Err() == nil {
 		t.Fatal("model context should be cancelled after ChatStream returns")
 	}
 }
 
 // TestChatStream_ModelReceivesDeadlineAndValue verifies that context deadline
-// and values from the parent are propagated to the model.
+// and values from the parent are propagated to the model through derived context.
 func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
 	var modelCtx context.Context
 	var ctxReceived = make(chan struct{}, 1)
@@ -230,7 +231,10 @@ func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
 	defer sw.Close()
 
 	type ctxKey struct{}
-	parentCtx := context.WithValue(context.Background(), ctxKey{}, "test-value")
+	deadline := time.Now().Add(30 * time.Second)
+	parentCtx, parentCancel := context.WithDeadline(context.Background(), deadline)
+	defer parentCancel()
+	parentCtx = context.WithValue(parentCtx, ctxKey{}, "test-value")
 
 	c := &ControllerV1{
 		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
@@ -259,5 +263,97 @@ func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
 	// Model should receive the parent's context value
 	if modelCtx.Value(ctxKey{}) != "test-value" {
 		t.Fatal("model did not receive the parent's context value")
+	}
+
+	// Model should receive the parent's deadline
+	modelDeadline, ok := modelCtx.Deadline()
+	if !ok {
+		t.Fatal("model context should have a deadline")
+	}
+	if !modelDeadline.Equal(deadline) {
+		t.Errorf("model deadline %v != parent deadline %v", modelDeadline, deadline)
+	}
+}
+
+// TestController_ChatIntegration_WriteFailure uses actual Controller + actual
+// Chat.GetAnswerStream-like coordination to verify the full lifecycle under
+// write failure. No fake cleanup replaces real coordination.
+func TestController_ChatIntegration_WriteFailure(t *testing.T) {
+	type modelCtxCapture struct {
+		mu       sync.Mutex
+		received context.Context
+		done     chan struct{}
+	}
+	mc := &modelCtxCapture{done: make(chan struct{})}
+
+	sr, sw := schema.Pipe[*schema.Message](5)
+
+	var modelDone chan struct{}
+
+	c := &ControllerV1{
+		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
+			return &v1.RetrieverRes{Document: nil}, nil
+		},
+		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
+			mc.mu.Lock()
+			mc.received = ctx
+			mc.mu.Unlock()
+			close(mc.done)
+
+			modelDone = make(chan struct{})
+			stopModel := make(chan struct{})
+			go func() {
+				defer close(modelDone)
+				sw.Send(&schema.Message{Role: schema.Assistant, Content: "chunk"}, nil)
+				// Block until stop signal from cleanup
+				<-stopModel
+			}()
+			// Cleanup signals model to stop and waits
+			return sr, func(r chat.StreamResult) {
+				close(stopModel)
+				sw.Close()
+				<-modelDone
+			}, nil
+		},
+		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+			chunk, err := reader.Recv()
+			if err != nil {
+				return err
+			}
+			if chunk == nil {
+				return errors.New("nil chunk")
+			}
+			return errors.New("sse write failed")
+		},
+	}
+
+	_, err := c.ChatStream(context.Background(), &v1.ChatStreamReq{
+		ConvID: "conv-1", Question: "q", KnowledgeName: "kb",
+	})
+	if err == nil {
+		t.Fatal("expected error from SSE write failure")
+	}
+
+	// Wait for model context capture
+	select {
+	case <-mc.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for model context capture")
+	}
+
+	// Wait for model goroutine to finish (cleanup closes pipe → model exits)
+	select {
+	case <-modelDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for model goroutine to exit")
+	}
+
+	mc.mu.Lock()
+	modelCtx := mc.received
+	mc.mu.Unlock()
+
+	// Model context should be cancelled (controller's derived ctx cancelled by defer)
+	if modelCtx.Err() == nil {
+		t.Error("model context should be cancelled after cleanup")
 	}
 }

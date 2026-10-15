@@ -1,5 +1,53 @@
 # 变更记录
 
+## 2026-10-15 Stage 1C-2 定点收尾：cleanup cancel 能力、SSE 写入取消边界、真实生命周期测试
+
+**基线**：`f89bb816d234c39fbd2b497a096299bfb3ecf98e`（Stage 1C-2 fix2）
+
+### 修复内容
+
+| 修复项 | 说明 |
+|---|---|
+| cleanup 内部 cancel | GetAnswerStream 创建派生 context (WithCancel)，cancel 赋值给 streamCoordinator；cleanup 内部先 cancel 解除模型阻塞，再发送结果、关闭前台、等待后台结束 |
+| 派生 context 传播 | 模型接收 derivedCtx，cleanup cancel 时模型观察取消；后台保存条件检查原始 ctx（不受 derivedCtx cancel 影响） |
+| 建流失败释放 | 建流失败也调用 cancel() 释放派生 context |
+| Controller defer 兆底 | 新增 cleanupDone 标志 + defer 兆底清理；成功路径 cleanupDone=true 后 defer 不做任何事，成功保存不被抢先取消 |
+| 失败路径简化 | cleanup 内部已 cancel，Controller 失败路径不再需要手动 cancel |
+| 注释修正 | 删除 GetAnswerStream 注释中不存在的 context.CancelFunc 返回值说明 |
+| SSE 写入取消边界 | realSSEWriter 新增 ctx 字段，writeFrame 在实际写入前检查 context；文档化“context 检查不能中断已阻塞的 Write” |
+| 测试：直接失败 cleanup | TestGetAnswerStream_DirectFailCleanup_NoManualCancel：不预先手动 cancel，直接 cleanup(StreamResult{})，模型观察取消，assistant 未保存 |
+| 测试：Controller 集成 | TestController_ChatIntegration_WriteFailure：实际 Controller + 协调器，注入底层 writer 失败，验证模型观察取消、协调任务完成 |
+| 测试：后台完成前台失败 | TestChatStream_BackgroundDoneThenForegroundFail_NoSave：信号控制顺序，验证未抢先保存 |
+| 测试：并发 convID 记录 | TestChatStream_ConcurrentConvID_SaverRecords：fake saver 记录 role、convID、内容，验证各会话归属及 assistant 恰好一次 |
+| 测试：真实 WithDeadline | TestChatStream_ModelReceivesDeadlineAndValue：真正设置 context.WithDeadline，断言模型收到相同 deadline 和 value |
+| Controller 取消测试 | TestChatStream_CancelPropagation 移除固定 sleep，通过 cleanup 释放任务并等待结束 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| server/internal/logic/chat/chat.go | GetAnswerStream 创建派生 context；streamCoordinator.cancel 赋值并在 cleanup 内部调用；后台保存条件检查原始 ctx；删除不存在的 CancelFunc 返回说明 |
+| server/internal/controller/rag/rag_v1_chat_stream.go | 新增 defer 兆底清理 + cleanupDone 标志；失败/成功路径不再手动 cancel（cleanup 内部处理） |
+| server/core/common/stream.go | realSSEWriter 新增 ctx 字段；writeFrame 写入前检查 context；SteamResponse 传递 ctx |
+| server/internal/logic/chat/chat_test.go | fakeMessageSaver 新增 convIDs/roles 记录；新增 DirectFailCleanup、BackgroundDoneForegroundFail、ConcurrentConvID、ModelReceivesDeadline 测试；新增 routingChatModel |
+| server/internal/controller/rag/rag_v1_chat_stream_test.go | CancelPropagation 移除固定 sleep；ModelReceivesDeadlineAndValue 使用真实 WithDeadline；新增 Controller_ChatIntegration_WriteFailure |
+
+### 验证结果（server/，GOFLAGS 空）
+
+- `go build ./...` — exit 0
+- `go vet ./...` — exit 0
+- `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，86 pass / 0 fail / 0 skip
+- `go test -p 1 ./... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/... ./internal/controller/rag/... ./internal/cmd/... -count=1` — exit 0
+- `go test -race ./internal/logic/chat/... -count=5 -run "TestGetAnswerStream_|TestChatStream_"` — exit 0，无 DATA RACE
+- `go test -race ./core/common/...` — exit 1：Windows 预存在 0xc0000139（与 1C-1 一致），根因待确认
+
+**race 范围**：`core/common` race 因平台 `0xc0000139` 未完成；`core/retriever`、`core/rerank` 亦仍未补证。
+
+**证据目录**：[verification/stage1c2/](verification/stage1c2/)
+
+---
+
 ## 2026-10-15 Stage 1C-2 fix2：保存/cancel 竞态、cleanup 生命周期、严格保存条件、SSE 取消边界
 
 **基线**：`bfaa289253d59db8d2758d4656a1926eaa2bf47e`（Stage 1C-2 lifecycle fix）

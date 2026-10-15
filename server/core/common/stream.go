@@ -42,6 +42,7 @@ type jsonEncoder interface {
 // realSSEWriter wraps http.ResponseWriter for production SSE writing.
 type realSSEWriter struct {
 	w      http.ResponseWriter
+	ctx    context.Context // for cancel check before write; nil = non-cancellable
 	failed bool
 }
 
@@ -50,6 +51,12 @@ type realSSEWriter struct {
 func (s *realSSEWriter) writeFrame(frame string) error {
 	if s.failed {
 		return errWriteFailed
+	}
+	// 写入前检查 context（不声称能中断阻塞 Write）
+	// 注意：context 检查不能中断已经阻塞的底层 Write
+	if s.ctx != nil && s.ctx.Err() != nil {
+		s.failed = true
+		return s.ctx.Err()
 	}
 	n, err := s.w.Write([]byte(frame))
 	if err != nil {
@@ -185,7 +192,7 @@ func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schem
 	httpResp.Header().Set("X-Accel-Buffering", "no") // Disable Nginx buffering
 	httpResp.Header().Set("Access-Control-Allow-Origin", "*")
 
-	sw := &realSSEWriter{w: httpResp.RawWriter()}
+	sw := &realSSEWriter{w: httpResp.RawWriter(), ctx: ctx}
 	// Use sonic encoder (same as tests)
 	return streamResponse(ctx, sw, streamReader, docs, sonic.ConfigDefault)
 }

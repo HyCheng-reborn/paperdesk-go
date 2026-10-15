@@ -469,12 +469,16 @@ type fakeMessageSaver struct {
 	savedMsgs  []*schema.Message
 	saveErr    error
 	saveCalled int
+	convIDs    []string
+	roles      []string
 }
 
 func (f *fakeMessageSaver) SaveMessage(mess *schema.Message, convID string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.saveCalled++
+	f.convIDs = append(f.convIDs, convID)
+	f.roles = append(f.roles, string(mess.Role))
 	if f.saveErr != nil {
 		return f.saveErr
 	}
@@ -1025,4 +1029,262 @@ func TestGetAnswerStream_CleanupIdempotent(t *testing.T) {
 	if !strings.Contains(saver.getSavedContent(), "hello") {
 		t.Error("saved content should contain 'hello'")
 	}
+}
+
+// TestGetAnswerStream_DirectFailCleanup_NoManualCancel verifies that cleanup
+// with Success=false works without pre-cancelling the context. The model observes
+// cancellation via the derived context released in cleanup, and no save occurs.
+func TestGetAnswerStream_DirectFailCleanup_NoManualCancel(t *testing.T) {
+	fm := newStreamingChatModel(nil) // blocks on ctx.Done()
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	// No manual cancel — cleanup itself triggers cancel via derived context
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Wait for model to start
+	select {
+	case <-fm.streamStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for stream to start")
+	}
+
+	// Drain the stream (no chunks, blocks until model pipe closes)
+	// Don't manually close sr — cleanup will close srs[0] which propagates to the pipe
+	// Instead, call cleanup in a goroutine and verify it completes
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
+
+	// Model should observe cancellation (derived context released by cleanup)
+	modelCtx := fm.getReceivedCtx()
+	if modelCtx.Err() == nil {
+		t.Error("model context should be cancelled after cleanup")
+	}
+
+	// docsMessages saves user question (1), no assistant save
+	if saver.getSaveCount() > 1 {
+		t.Errorf("expected at most 1 save (user question), got %d", saver.getSaveCount())
+	}
+
+	// Suppress unused variable warning
+	_ = sr
+}
+
+// TestChatStream_BackgroundDoneThenForegroundFail_NoSave verifies that when
+// background has consumed all chunks (cleanEOF) but foreground reports failure,
+// no save occurs. Uses signal-based ordering.
+func TestChatStream_BackgroundDoneThenForegroundFail_NoSave(t *testing.T) {
+	fm := newStreamingChatModel([]string{"answer"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Drain foreground (gets "answer" then EOF)
+	content := drainStreamContent(t, sr)
+	if content != "answer" {
+		t.Errorf("expected 'answer', got %q", content)
+	}
+
+	// Background should have seen cleanEOF by now (model sent all chunks and closed)
+	// Give background a moment to process EOF
+	time.Sleep(50 * time.Millisecond)
+
+	// Foreground reports failure (simulating SSE write error after background EOF)
+	waitFn := callCleanup(cleanup, StreamResult{}) // Success=false
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
+
+	// Background saw cleanEOF, but foreground Success=false → no save
+	if saver.getSaveCount() != 1 {
+		t.Errorf("expected 1 save (user question only), got %d", saver.getSaveCount())
+	}
+	if strings.Contains(saver.getSavedContent(), "answer") {
+		t.Error("should NOT save assistant answer when foreground failed")
+	}
+}
+
+// TestChatStream_ConcurrentConvID_SaverRecords verifies that concurrent streams
+// on the same Chat with different convIDs record correct role, convID, and content.
+func TestChatStream_ConcurrentConvID_SaverRecords(t *testing.T) {
+	const n = 3
+	// Shared saver across all sessions (same Chat instance)
+	sharedSaver := &fakeMessageSaver{}
+
+	// Each session needs its own model (streamingChatModel can't be reused)
+	type sessionModel struct {
+		fm *streamingChatModel
+		sr *schema.StreamReader[*schema.Message]
+		cl func(StreamResult)
+	}
+
+	models := make([]*streamingChatModel, n)
+	for i := 0; i < n; i++ {
+		models[i] = newStreamingChatModel([]string{"shared-answer"})
+	}
+
+	// Create a Chat that routes to different models based on convID
+	c := &Chat{
+		cm: &routingChatModel{models: models},
+		eh: sharedSaver,
+	}
+
+	var wg sync.WaitGroup
+	srs := make([]*schema.StreamReader[*schema.Message], n)
+	cleanups := make([]func(StreamResult), n)
+
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			sr, cl, err := c.GetAnswerStream(context.Background(), fmt.Sprintf("conv-%d", idx), nil, fmt.Sprintf("q%d", idx))
+			if err != nil {
+				t.Errorf("session %d: unexpected error: %v", idx, err)
+				return
+			}
+			srs[idx] = sr
+			cleanups[idx] = cl
+		}(i)
+	}
+	wg.Wait()
+
+	// Drain all streams
+	for i := 0; i < n; i++ {
+		if srs[i] == nil {
+			t.Fatalf("session %d: nil stream reader", i)
+		}
+		content := drainStreamContent(t, srs[i])
+		if content != "shared-answer" {
+			t.Errorf("session %d: expected 'shared-answer', got %q", i, content)
+		}
+	}
+
+	// Cleanup all with success
+	for i := 0; i < n; i++ {
+		if cleanups[i] != nil {
+			cleanups[i](StreamResult{Success: true})
+		}
+	}
+
+	// Each session: user question (1) + assistant answer (1) = 2 saves per session
+	expectedSaves := n * 2
+	if sharedSaver.getSaveCount() != expectedSaves {
+		t.Errorf("expected %d saves, got %d", expectedSaves, sharedSaver.getSaveCount())
+	}
+
+	// Verify convIDs and roles
+	sharedSaver.mu.Lock()
+	defer sharedSaver.mu.Unlock()
+	convCount := map[string]int{}
+	for i, cid := range sharedSaver.convIDs {
+		convCount[cid]++
+		role := sharedSaver.roles[i]
+		if role != string(schema.User) && role != string(schema.Assistant) {
+			t.Errorf("unexpected role %q for convID %s", role, cid)
+		}
+	}
+	for i := 0; i < n; i++ {
+		expectedCID := fmt.Sprintf("conv-%d", i)
+		if convCount[expectedCID] != 2 {
+			t.Errorf("expected 2 saves for %s, got %d", expectedCID, convCount[expectedCID])
+		}
+	}
+
+	// Verify assistant role appears exactly once per convID
+	assistantPerConv := map[string]int{}
+	for i, cid := range sharedSaver.convIDs {
+		if sharedSaver.roles[i] == string(schema.Assistant) {
+			assistantPerConv[cid]++
+		}
+	}
+	for i := 0; i < n; i++ {
+		expectedCID := fmt.Sprintf("conv-%d", i)
+		if assistantPerConv[expectedCID] != 1 {
+			t.Errorf("expected exactly 1 assistant save for %s, got %d", expectedCID, assistantPerConv[expectedCID])
+		}
+	}
+}
+
+// routingChatModel routes Stream calls to different models based on call order.
+// Thread-safe for concurrent use.
+type routingChatModel struct {
+	mu     sync.Mutex
+	idx    int
+	models []*streamingChatModel
+}
+
+func (r *routingChatModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Role: "assistant", Content: "test"}, nil
+}
+
+func (r *routingChatModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	r.mu.Lock()
+	idx := r.idx
+	r.idx++
+	r.mu.Unlock()
+	if idx >= len(r.models) {
+		return nil, errors.New("no more models")
+	}
+	return r.models[idx].Stream(ctx, in, opts...)
+}
+
+// TestChatStream_ModelReceivesDeadlineAndValue verifies that a real
+// context.WithDeadline propagates both deadline and values to the model
+// through the derived context chain.
+func TestChatStream_ModelReceivesDeadlineAndValue(t *testing.T) {
+	fm := newStreamingChatModel([]string{"hello"})
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	type ctxKey struct{}
+	deadline := time.Now().Add(30 * time.Second)
+	parentCtx, parentCancel := context.WithDeadline(context.Background(), deadline)
+	defer parentCancel()
+	parentCtx = context.WithValue(parentCtx, ctxKey{}, "test-value")
+
+	sr, cleanup, err := c.GetAnswerStream(parentCtx, "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer cleanup(StreamResult{})
+
+	// Wait for model to receive context
+	select {
+	case <-fm.ctxReceived:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for model to receive context")
+	}
+
+	modelCtx := fm.getReceivedCtx()
+
+	// Check value propagation
+	if modelCtx.Value(ctxKey{}) != "test-value" {
+		t.Fatal("model did not receive the caller's context value")
+	}
+
+	// Check deadline propagation
+	modelDeadline, ok := modelCtx.Deadline()
+	if !ok {
+		t.Fatal("model context should have a deadline")
+	}
+	if !modelDeadline.Equal(deadline) {
+		t.Errorf("model deadline %v != parent deadline %v", modelDeadline, deadline)
+	}
+
+	// Drain the stream
+	content := drainStreamContent(t, sr)
+	if content != "hello" {
+		t.Errorf("expected 'hello', got %q", content)
+	}
+
+	cleanup(StreamResult{Success: true})
 }

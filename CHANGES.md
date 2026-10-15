@@ -1,6 +1,26 @@
 # 变更记录
 
-## 2026-10-15 Stage 1C-2 定点修正：补齐成功路径流关闭 + 集成测试走真实 SSE 编排（待独立复核）
+## 2026-10-15 Stage 1C-2 验收记录：复核通过 + 生命周期 race 补证（无业务代码变更）
+
+**验收基线**：`26e55ee2ea43daf703ed72da60425ff5b7980cba`。
+
+### 独立复核结论
+- Stage 1C-2 已通过**源码及提交日志复核**，复核方未独立重跑测试。
+- Stage 1C-1、1C-2 均已通过；**Stage 1 整体尚未完成**（1A 待独立复核、1D 待实施）。
+
+### 生命周期 race 证据修正
+- 早前 `verification/stage1c2/race-lifecycle-chatctrl-r2.log` 的命令使用占位符 `<chat+controller lifecycle>`，未记录实际 `-run` 正则，不作为有效证据（保留不覆盖）。
+- 本轮以准确正则重跑并新增证据 `race-lifecycle-chatctrl-explicit-r3.log`：
+  `go test -race -count=5 -v -run "TestGetAnswerStream_|TestChatStream_|TestController_ChatIntegration_" ./internal/logic/chat/... ./internal/controller/rag/...`
+  — exit 0，命中 23 个生命周期用例（含两包同名 `TestChatStream_ModelReceivesDeadlineAndValue`）×5=115 全 PASS，0 FAIL，无 DATA RACE，无 "no tests to run"（未将未命中测试记为通过）。日志头部记录完整可复制命令、实际正则、GOFLAGS 与退出码。
+
+### 保留边界（未变）
+- `core/common` race 因 `0xc0000139` 运行异常未完成、根因待确认；`core/retriever`、`core/rerank` race 仍未补证。
+- History 保存不支持 context timeout；部分刷新错误无法检测（无返回值 Flusher）。
+
+---
+
+## 2026-10-15 Stage 1C-2 定点修正：补齐成功路径流关闭 + 集成测试走真实 SSE 编排（已通过源码及提交日志复核）
 
 **基线**：`96c7f90355bc74895b21d27aa95560957c2f62a4`。只完成两项修正；不实施 Stage 1D，不重构整体流架构，不改前端协议/History 接口/数据库模型。Stage 1C-1 已通过独立源码与提交日志复核。
 

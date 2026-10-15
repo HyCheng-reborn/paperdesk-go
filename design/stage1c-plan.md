@@ -336,7 +336,7 @@ fullMsgs = append(fullMsgs, chunk)  // ← ★ F04-5: 非 EOF 错误时 chunk �
 - 依赖 1C-1 的 SSE 错误语义（后台 goroutine 的错误处理需要与 SSE 层一致）
 - 需要可注入的模型工厂来测试 context 传递
 
-**状态**：✅ 1C-1 已通过独立源码复核；1C-2 定点修正完成（基于 96c7f90），待独立复核；Stage 1 尚未整体完成
+**状态**：✅ 1C-1 已通过独立源码复核；1C-2 已通过源码及提交日志复核（验收基线 `26e55ee2ea43daf703ed72da60425ff5b7980cba`，复核方未独立重跑测试）；Stage 1 尚未整体完成
 
 **1C-2 定点修正补充（本轮）**：
 - 成功路径 `cleanupOK` 新增关闭前台 `srs[0]`（`Copy(2)` 需两分支都关才释放上游）；回归测试用 `schema.ErrRecvAfterClosed` 观察前台已关闭。

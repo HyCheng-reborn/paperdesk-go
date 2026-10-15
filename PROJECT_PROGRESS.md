@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-15
-**阶段**：Stage 1C-1 已通过独立源码复核，Stage 1C-2 本轮定点修正（关闭前台分支+真实 SSE 编排集成）完成待独立复核，Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1 尚未全部验收
+**阶段**：Stage 1C-1 与 Stage 1C-2 均已通过独立源码及提交日志复核（复核方未独立重跑测试；1C-2 验收基线 `26e55ee2ea43daf703ed72da60425ff5b7980cba`），Stage 1B 三个批次均已完成（1B-1 ✅、1B-2 ✅ 已通过复核、1B-3 ✅ 已通过独立源码与提交日志复核），Stage 1-Pre 已完成，Stage 1A 待独立复核，Stage 1 整体尚未全部验收
 
 ## Stage 0：事实基线与只读核对
 
@@ -36,7 +36,7 @@
 | 1B-1 | F05 Rerank HTTP ctx 绑定与校验 | F05 | 1A | **✅ 已完成** |
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
-| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过独立源码复核；1C-2 定点修正完成，待独立复核** |
+| 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过；1C-2 ✅ 已通过源码及提交日志复核（未独立重跑测试）** |
 | 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | 待实施 |
 
 ### Stage 1-Pre 完成记录
@@ -287,7 +287,7 @@
 
 **日期**：2026-10-15
 **基线**：`96c7f90355bc74895b21d27aa95560957c2f62a4`（Stage 1C-2 last）
-**状态**：✅ 定点修正完成，待独立复核
+**状态**：✅ 已通过独立源码及提交日志复核（复核方未独立重跑测试；验收基线 `26e55ee2ea43daf703ed72da60425ff5b7980cba`）
 **范围约束**：只完成两项修正；不实施 Stage 1D，不重构整体流架构，不改前端协议、History 接口或数据库模型。
 
 **一、补齐成功路径的流关闭（server/internal/logic/chat/chat.go）**
@@ -308,12 +308,15 @@
 - `go test ./internal/logic/chat/... ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1 -v` — exit 0，86 pass / 0 fail / 0 skip
 - `go test -p 1 ./... -count=1` — exit 0
 - `go test -race ./internal/logic/chat/...`、`go test -race ./internal/controller/rag/... ./internal/cmd/...` — exit 0
-- `go test -race -count=5 -run <chat+controller lifecycle> ./internal/logic/chat/... ./internal/controller/rag/...` — exit 0，无 DATA RACE
+- `go test -race -count=5 -run <chat+controller lifecycle> ./internal/logic/chat/... ./internal/controller/rag/...` — 早前日志命令使用占位符、未记录实际正则，不作为有效证据
+- 生命周期重复 race（准确正则、已补证）：`go test -race -count=5 -v -run "TestGetAnswerStream_|TestChatStream_|TestController_ChatIntegration_" ./internal/logic/chat/... ./internal/controller/rag/...` — exit 0，命中 23 个生命周期用例（含两包同名 `TestChatStream_ModelReceivesDeadlineAndValue`）×5=115 全 PASS，0 FAIL，无 DATA RACE，无 "no tests to run"；证据 `verification/stage1c2/race-lifecycle-chatctrl-explicit-r3.log`
 - `go test -race ./core/common/...`（含其 lifecycle -count=5）— exit 1：Windows `0xc0000139` 运行异常，race 未完成、根因待确认
 
 **race 范围**：`core/common` race 因 `0xc0000139` 运行异常未完成（新入口 `StreamToResponseWriter` 的 common 级 race 未能验证）；chat/controller/cmd race 通过；`core/retriever`、`core/rerank` 亦仍未补证。普通测试通过不写成 race 通过。
 
-**证据目录**：[verification/stage1c2/](verification/stage1c2/)（`*-r2.log`）
+**证据目录**：[verification/stage1c2/](verification/stage1c2/)（`*-r2.log`；生命周期补证 `race-lifecycle-chatctrl-explicit-r3.log`）
+
+**验收复核结论**：Stage 1C-2 已通过源码及提交日志复核，复核方未独立重跑测试；验收基线 `26e55ee2ea43daf703ed72da60425ff5b7980cba`。Stage 1C-1/1C-2 均已通过，但 Stage 1 整体尚未完成（1A 待复核、1D 待实施）。
 
 ### Stage 1C-2 完成记录
 

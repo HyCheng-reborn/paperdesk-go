@@ -58,7 +58,7 @@ go test ./internal/controller/rag/... -run TestIndexer -v
 
 ---
 
-### 批次 1A：初始化副作用清理 + 离线测试隔离 ✅ 复核修复已完成
+### 批次 1A：初始化副作用清理 + 离线测试隔离 ✅ 已通过复核
 
 **对应 F 编号**：F12（init 副作用）
 
@@ -229,6 +229,8 @@ go test -race ./core/common/... ./internal/logic/chat/... -count=1 -v
 
 ### 批次 1D：Chunk 写入错误传播 + QA 有限并发和失败状态 + goroutine 入库止损
 
+> 细化实施计划见 [design/stage1d-plan.md](./stage1d-plan.md)
+
 **对应 F 编号**：F07、F08、F09
 
 **触发条件**：
@@ -299,7 +301,7 @@ go test -race ./core/indexer/... ./internal/logic/knowledge/... -count=1 -v
 
 推荐顺序：1-Pre 和 1A 并行 → 1B → 1C → 1D
 
-**当前进度**：1-Pre 已完成，1A 复核修复已完成，1B 三个批次均已完成（1B-3 已通过独立复核），1C 计划已制定（2026-10-14）
+**当前进度**：1-Pre 已完成，1A 已通过复核（基线 3b8f7a0），1B 三个批次均已完成（1B-3 已通过独立复核），1C 已通过复核（1C-1/1C-2 均已通过），1D 计划已制定、待实施
 
 ## 全局验证命令
 

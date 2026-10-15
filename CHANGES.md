@@ -1,12 +1,28 @@
 # 变更记录
 
+## 2026-10-15 Stage 1D 细化实施计划
+
+### Stage 1D 细化实施计划（2026-10-15）
+
+- **类型**：计划文档
+- **分支**：review/stage1a
+- **内容**：
+  - 创建 `design/stage1d-plan.md`：Stage 1D 细化实施计划（F09 Chunk 写入错误传播 → F08 QA 有限并发 → F07 goroutine 入库止损）
+  - 修正 `PROJECT_PROGRESS.md`：统一 Stage 1A 已通过复核、1C-2 验收基线 26e55ee、7fb5b77 为补证提交
+  - 修正 `CHANGES.md`：同步状态事实
+  - 修正 `design/stage1-plan.md`：更新 1D 状态描述
+- **范围**：仅文档变更，不修改业务代码
+- **状态**：Stage 1D 待实施，Stage 1 整体尚未完成
+
+---
+
 ## 2026-10-15 Stage 1C-2 验收记录：复核通过 + 生命周期 race 补证（无业务代码变更）
 
 **验收基线**：`26e55ee2ea43daf703ed72da60425ff5b7980cba`。
 
 ### 独立复核结论
 - Stage 1C-2 已通过**源码及提交日志复核**，复核方未独立重跑测试。
-- Stage 1C-1、1C-2 均已通过；**Stage 1 整体尚未完成**（1A 待独立复核、1D 待实施）。
+- Stage 1C-1、1C-2 均已通过；**Stage 1 整体尚未完成**（1A 已通过复核、1D 待实施）。
 
 ### 生命周期 race 证据修正
 - 早前 `verification/stage1c2/race-lifecycle-chatctrl-r2.log` 的命令使用占位符 `<chat+controller lifecycle>`，未记录实际 `-run` 正则，不作为有效证据（保留不覆盖）。

@@ -236,7 +236,7 @@ rag.markFailed = defaultMarkFailed
 
 ## 6. 批次 1D-1：F09 Chunk 写入错误传播
 
-> **状态**：定点修正完成，待独立复核（2026-10-16）——在 ff0b872 实施基础上新增 indexAsyncByDocsID 返回集合完整性校验（非 nil/非预期 ID/重复 ID）与两项验收测试（knowledge 双 sentinel+update 分支、core 事件序列与非法返回三阶段未调用）；重试固定延迟与统一 markFailed 仍归 1D-3；不进入 1D-2/1D-3。
+> **状态**：已通过独立复核（基线 `644642712bcb04e820e345598a98d99c78277175`，2026-10-17，源码及提交日志复核，未独立重跑测试）——在 ff0b872 实施基础上新增 indexAsyncByDocsID 返回集合完整性校验（非 nil/非预期 ID/重复 ID）与两项验收测试（knowledge 双 sentinel+update 分支、core 事件序列与非法返回三阶段未调用）；重试固定延迟与统一 markFailed 仍归 1D-3；不进入 1D-2/1D-3。
 
 ### 6.1 修改文件清单
 
@@ -475,6 +475,8 @@ err := testRag.asyncIndexer.indexAsyncByDocsID(ctx, "kb1", 42, []string{"id1","i
 ---
 
 ## 7. 批次 1D-2：F08 QA 有限并发和失败状态
+
+> **状态**：实施完成，待独立复核（2026-10-17）——基线 `644642712bcb04e820e345598a98d99c78277175`。errgroup 有限并发 + 首错取消 + QA 可配置关闭 + GetQAModel sync.Once + DocumentToFields 条件写入 + BuildIndexerAsync qaModelFactory 注入 + x/sync v0.15.0 直接依赖；11 个 QA 测试 + core 39 PASS；不实施 1D-3。
 
 ### 7.1 修改文件清单
 

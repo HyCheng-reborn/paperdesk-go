@@ -1,5 +1,32 @@
 # 变更记录
 
+### Stage 1D-1 独立复核通过（2026-10-17）
+
+- **复核方式**：源码及提交日志复核，复核方未独立重跑测试
+- **验收基线**：`644642712bcb04e820e345598a98d99c78277175`
+- **结论**：1D-1（F09 Chunk 写入错误传播）通过复核
+- **保留边界**：预取消测试仅证明应用层快速返回；部分写入不回滚；markFailed 归属 1D-3
+
+---
+
+### Stage 1D-2 实施完成（2026-10-17，待独立复核）
+
+- **基线**：`644642712bcb04e820e345598a98d99c78277175`
+- **范围**：仅 1D-2（F08 QA 有限并发和失败状态）；不实施 1D-3，不修改已验收的 1D-1/1C/1B/1A/1-Pre
+- **一、QA 并发控制与失败传播（server/core/indexer/qa.go）**：裸 `sync.WaitGroup` 替换为 `errgroup.WithContext` + `SetLimit(maxConcurrent)`；首错取消；`getQAContent` 失败传播到 errgroup；nil doc/nil MetaData 防护；重复指针检测；结果写入独立 `results` 数组，Wait 后统一写回 `doc.MetaData`（防止并发写共享 map）
+- **二、QA 可配置关闭（config + retriever 级联）**：`Config` 新增 `QAEnabled *bool` + `QAMaxConcurrent int`；`RagConfig` 级联；`WithQAConfig` context 注入；缺失默认启用（向后兼容）；`maxConcurrent` 范围 1-32 钳位
+- **三、GetQAModel 并发安全（server/core/common/chat_model.go）**：`sync.Once` 保护懒加载，消除无锁缓存 race
+- **四、DocumentToFields 条件写入（server/core/indexer/indexer_async.go）**：`FieldQAContent`/`FieldQAContentVector` 仅在值非空时写入，QA 关闭或无内容时不写空值
+- **五、BuildIndexerAsync 接收 qaModelFactory（server/core/indexer/async.go）**：QA model 通过构建时工厂函数注入，运行期只读；eino Graph 集成不变，QA 节点失败通过 `NodeRunError` 中断 Graph
+- **六、New() 预热 qaModel（server/core/rag.go）**：仅当 QA 启用时预热
+- **七、x/sync 依赖**：`golang.org/x/sync` v0.15.0 从传递依赖提升为直接依赖（`go mod tidy`）
+- **测试**：11 个离线 QA 测试（AllSuccess/PartialFailure/ConcurrencyLimit/Disabled/ExistingContent/ContextCancel/EmptyDocs/NilDoc/DuplicatePointer/ExistingContentSkips/GraphIntegration）；`-count=10` 压测无 DATA RACE
+- **验证**（server/，GOFLAGS 空）：go build/vet exit 0；qa 11/11 + core 39/39 PASS；`go test -p 1 ./...` exit 0；`go mod tidy` 无残留
+- **保留边界**：QA 关闭时 `qaRtrvr` 对 `FieldQAContentVector` 缺失的 kNN 行为待验证（不影响主检索路径 `rtrvr`）；Qdrant 异步 indexer 路径保留现状；`core/retriever`、`core/rerank` race 仍待补证
+- **状态**：Stage 1D-2 实施完成，待独立复核（1D-3 未实施，Stage 1 整体尚未完成）
+
+---
+
 ### Stage 1D-1 定点修正：检索返回完整性校验 + 两项验收测试（2026-10-16，待独立复核）
 
 - **基线**：`ff0b87230e307ced2746e6b84fc11e99192cd572`。只处理两项事项；不进入 1D-2/1D-3，不重构整体索引架构。

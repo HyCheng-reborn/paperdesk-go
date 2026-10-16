@@ -24,11 +24,13 @@ var (
 
 // RagConfig 完整 RAG 初始化配置
 type RagConfig struct {
-	VectorCfg      vector.Config
+	VectorCfg       vector.Config
 	EmbeddingAPIKey string
-	BaseURL        string
-	EmbeddingModel string
-	ChatModel      string
+	BaseURL         string
+	EmbeddingModel  string
+	ChatModel       string
+	QAEnabled       *bool // nil = 默认启用
+	QAMaxConcurrent int   // 0 或负数 = 默认 4
 }
 
 // RagFactory 创建 *core.Rag 的工厂接口
@@ -54,13 +56,15 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	}
 
 	return core.New(ctx, &config.Config{
-		Client:         client,
-		QdrantClient:   qdrantClient,
-		IndexName:      cfg.VectorCfg.IndexName,
-		APIKey:         cfg.EmbeddingAPIKey,
-		BaseURL:        cfg.BaseURL,
-		EmbeddingModel: cfg.EmbeddingModel,
-		ChatModel:      cfg.ChatModel,
+		Client:          client,
+		QdrantClient:    qdrantClient,
+		IndexName:       cfg.VectorCfg.IndexName,
+		APIKey:          cfg.EmbeddingAPIKey,
+		BaseURL:         cfg.BaseURL,
+		EmbeddingModel:  cfg.EmbeddingModel,
+		ChatModel:       cfg.ChatModel,
+		QAEnabled:       cfg.QAEnabled,
+		QAMaxConcurrent: cfg.QAMaxConcurrent,
 	})
 }
 
@@ -121,12 +125,25 @@ func readRagConfig() (RagConfig, error) {
 		return RagConfig{}, err
 	}
 
+	// QA 配置（缺失不报错，使用默认值）
+	var qaEnabled *bool
+	if v, err := g.Cfg().Get(ctx, "qa.enabled"); err == nil && !v.IsNil() {
+		b := v.Bool()
+		qaEnabled = &b
+	}
+	qaMaxConcurrent := 0
+	if v, err := g.Cfg().Get(ctx, "qa.maxConcurrent"); err == nil && !v.IsNil() {
+		qaMaxConcurrent = v.Int()
+	}
+
 	return RagConfig{
-		VectorCfg:      *vectorCfg,
+		VectorCfg:       *vectorCfg,
 		EmbeddingAPIKey: apiKey,
-		BaseURL:        baseURL,
-		EmbeddingModel: embeddingModel,
-		ChatModel:      chatModel,
+		BaseURL:         baseURL,
+		EmbeddingModel:  embeddingModel,
+		ChatModel:       chatModel,
+		QAEnabled:       qaEnabled,
+		QAMaxConcurrent: qaMaxConcurrent,
 	}, nil
 }
 

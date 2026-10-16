@@ -1,0 +1,6 @@
+﻿# CMD: gofmt -l .
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-17 00:56:45
+
+core\indexer\qa_test.go

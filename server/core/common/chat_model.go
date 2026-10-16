@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"sync"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino-ext/components/model/qwen"
@@ -14,6 +15,7 @@ var (
 	rerankModel    model.BaseChatModel
 	rewriteModel   model.BaseChatModel
 	qaModel        model.BaseChatModel
+	qaModelOnce    sync.Once // 保护 qaModel 初始化，仅执行一次
 	chatModel      model.BaseChatModel
 )
 
@@ -95,21 +97,26 @@ func GetRerankModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.Bas
 }
 
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
-	if qaModel != nil {
-		return qaModel, nil
-	}
-	if cfg == nil {
-		cfg = &qwen.ChatModelConfig{}
-		err := g.Cfg().MustGet(ctx, "qa").Scan(cfg)
-		cfg.EnableThinking = Of(false)
-		if err != nil {
-			return nil, err
+	var initErr error
+	qaModelOnce.Do(func() {
+		if cfg == nil {
+			cfg = &qwen.ChatModelConfig{}
+			err := g.Cfg().MustGet(ctx, "qa").Scan(cfg)
+			cfg.EnableThinking = Of(false)
+			if err != nil {
+				initErr = err
+				return
+			}
 		}
+		cm, err := qwen.NewChatModel(ctx, cfg)
+		if err != nil {
+			initErr = err
+			return
+		}
+		qaModel = cm
+	})
+	if initErr != nil {
+		return nil, initErr
 	}
-	cm, err := qwen.NewChatModel(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	qaModel = cm
-	return cm, nil
+	return qaModel, nil
 }

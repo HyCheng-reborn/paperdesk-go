@@ -31,8 +31,8 @@ type docSearcher interface {
 }
 
 type Rag struct {
-	syncIndexer  syncIndexer                                 // 注入边界：同步索引
-	asyncIndexer asyncIndexer                                // 注入边界：异步索引
+	syncIndexer  syncIndexer                                    // 注入边界：同步索引
+	asyncIndexer asyncIndexer                                   // 注入边界：异步索引
 	idxerAsync   compose.Runnable[[]*schema.Document, []string] // 异步文档索引器
 	rtrvr        compose.Runnable[string, []*schema.Document]
 	qaRtrvr      compose.Runnable[string, []*schema.Document]
@@ -48,9 +48,9 @@ type Rag struct {
 
 	// 以下三个字段与 syncIndexer/asyncIndexer/docRet 同模式：
 	// 构建时固定、运行期只读，不使用可变包级函数替换。
-	docSearch       docSearcher                                                                     // 注入边界：文档检索
-	saveChunksFn    func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error   // 注入边界：保存 chunks
-	updateDocStatus func(ctx context.Context, docID int64, status int) error                        // 注入边界：更新文档状态
+	docSearch       docSearcher                                                                   // 注入边界：文档检索
+	saveChunksFn    func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error // 注入边界：保存 chunks
+	updateDocStatus func(ctx context.Context, docID int64, status int) error                      // 注入边界：更新文档状态
 }
 
 func New(ctx context.Context, conf *config.Config) (*Rag, error) {
@@ -72,7 +72,22 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 	if err != nil {
 		return nil, err
 	}
-	buildIndexAsync, err := indexer.BuildIndexerAsync(ctx, conf)
+
+	// QA 配置：条件预热 qaModel
+	qaEnabled := conf.QAEnabled == nil || *conf.QAEnabled
+	var qaFactory func(context.Context) (model.BaseChatModel, error)
+	if qaEnabled {
+		qaModel, err := common.GetQAModel(ctx, nil)
+		if err != nil {
+			return nil, fmt.Errorf("GetQAModel failed: %w", err)
+		}
+		_ = qaModel // 预热完成
+		qaFactory = func(ctx context.Context) (model.BaseChatModel, error) {
+			return common.GetQAModel(ctx, nil)
+		}
+	}
+
+	buildIndexAsync, err := indexer.BuildIndexerAsync(ctx, conf, qaFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +114,10 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		conf:       conf,
 		// grader:  grader.NewGrader(cm),
 	}
-	rag.syncIndexer = &prodSyncIndexer{runnable: buildIndex}   // 发布前设置注入字段，运行期间只读
-	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}              // 发布前设置注入字段，运行期间只读
-	rag.docRet = &prodDocRetriever{rag: rag}                    // 发布前设置注入字段，运行期间只读
-	rag.docSearch = conf                                        // *config.Config 实现 SearchDocumentsByIDs
+	rag.syncIndexer = &prodSyncIndexer{runnable: buildIndex} // 发布前设置注入字段，运行期间只读
+	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}           // 发布前设置注入字段，运行期间只读
+	rag.docRet = &prodDocRetriever{rag: rag}                 // 发布前设置注入字段，运行期间只读
+	rag.docSearch = conf                                     // *config.Config 实现 SearchDocumentsByIDs
 	rag.saveChunksFn = knowledge.SaveChunksData
 	rag.updateDocStatus = knowledge.UpdateDocumentsStatus
 	return rag, nil

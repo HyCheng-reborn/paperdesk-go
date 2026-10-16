@@ -27,6 +27,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/qdrant/go-client v1.15.2
 	github.com/wangle201210/chat-history v0.0.1
+	golang.org/x/sync v0.15.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.30.0

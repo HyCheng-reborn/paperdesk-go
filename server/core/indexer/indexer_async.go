@@ -40,7 +40,9 @@ func newAsyncIndexer(ctx context.Context, conf *config.Config) (idr indexer.Inde
 					marshal, _ := sonic.Marshal(getExtData(doc))
 					doc.MetaData[coretypes.FieldExtra] = string(marshal)
 				}
-				return map[string]es8.FieldValue{
+
+				// 构建基础 fields
+				fields := map[string]es8.FieldValue{
 					coretypes.FieldContent: {
 						Value:    doc.Content,
 						EmbedKey: coretypes.FieldContentVector,
@@ -51,11 +53,16 @@ func newAsyncIndexer(ctx context.Context, conf *config.Config) (idr indexer.Inde
 					coretypes.KnowledgeName: {
 						Value: knowledgeName,
 					},
-					coretypes.FieldQAContent: {
-						Value:    doc.MetaData[coretypes.FieldQAContent],
+				}
+
+				// 条件添加 QA 字段（仅当值非空时）
+				if qaVal, ok := doc.MetaData[coretypes.FieldQAContent].(string); ok && qaVal != "" {
+					fields[coretypes.FieldQAContent] = es8.FieldValue{
+						Value:    qaVal,
 						EmbedKey: coretypes.FieldQAContentVector,
-					},
-				}, nil
+					}
+				}
+				return fields, nil
 			},
 		}
 		indexerConfig.Embedding = embeddingIns11

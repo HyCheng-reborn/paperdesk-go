@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-**日期**：2026-10-16
-**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）均已通过复核，Stage 1D-1 定点修正完成待独立复核，Stage 1 整体尚未完成
+**日期**：2026-10-17
+**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1 均已通过复核，Stage 1D-2 实施完成待独立复核，Stage 1 整体尚未完成
 **复核方式**：源码及提交日志复核，复核方未独立重跑测试
-**验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `261da44a080112dbf0b1fb352e1f43ef22a189a7`
+**验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
 
 ## Stage 0：事实基线与只读核对
@@ -28,7 +28,7 @@
 
 ## Stage 1：初始化副作用清理 + 并发安全修复
 
-**状态**：1-Pre/1A/1B/1C 已通过复核，1D-1 定点修正完成待独立复核
+**状态**：1-Pre/1A/1B/1C/1D-1 已通过复核，1D-2 实施完成待独立复核
 
 ### 批次计划
 
@@ -40,7 +40,7 @@
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过；1C-2 ✅ 已通过源码及提交日志复核（未独立重跑测试）** |
-| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 定点修正完成，待独立复核（1D-2/1D-3 未实施）** |
+| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 实施完成，待独立复核（1D-3 未实施）** |
 
 ### Stage 1-Pre 完成记录
 
@@ -325,7 +325,7 @@
 
 **日期**：2026-10-16
 **基线**：`ff0b87230e307ced2746e6b84fc11e99192cd572`（Stage 1D-1 实施提交）
-**状态**：✅ 定点修正完成，待独立复核
+**状态**：✅ 已通过独立复核（基线 `644642712bcb04e820e345598a98d99c78277175`，源码及提交日志复核，未独立重跑测试）
 **范围约束**：只处理两项事项；不进入 1D-2/1D-3，不重构整体索引架构。
 
 **一、补齐检索返回集合检查（server/core/indexer.go）**
@@ -353,6 +353,41 @@
 - `go test -p 1 ./... -count=1` — exit 0
 
 **证据目录**：[verification/stage1d1/](verification/stage1d1/)（`*-fix.log`，未覆盖历史证据）
+
+### Stage 1D-2 实施记录（QA 有限并发和失败状态）
+
+**日期**：2026-10-17
+**基线**：`644642712bcb04e820e345598a98d99c78277175`
+**状态**：✅ 实施完成，待独立复核
+**范围约束**：仅 1D-2（F08）；不实施 1D-3，不修改已验收的 1D-1/1C/1B/1A/1-Pre。
+
+**修改文件**：
+- `server/core/indexer/qa.go` — 裸 `sync.WaitGroup` 替换为 `errgroup.WithContext` + `SetLimit(maxConcurrent)`；首错取消；nil doc/nil MetaData 防护；重复指针检测；结果写入独立 `results` 数组，Wait 后统一写回 `doc.MetaData`
+- `server/core/indexer/async.go` — `BuildIndexerAsync` 接收 `qaModelFactory` 参数；QA model 构建时注入，运行期只读
+- `server/core/indexer/indexer_async.go` — `DocumentToFields` 条件写入 `FieldQAContent`/`FieldQAContentVector`（仅当值非空时）
+- `server/core/config/config.go` — `Config` 新增 `QAEnabled *bool` + `QAMaxConcurrent int`
+- `server/core/rag.go` — `New()` 仅当 QA 启用时预热 `qaModel`；传递 `qaModelFactory` 给 `BuildIndexerAsync`
+- `server/internal/logic/rag/retriever.go` — `RagConfig` 级联 QA 配置字段；`defaultRagFactory.Create` 传递
+- `server/core/common/chat_model.go` — `GetQAModel` 使用 `sync.Once` 保护懒加载，消除无锁缓存 race
+- `server/manifest/config/config_demo.yaml` + `config_qd_demo.yaml` — 新增 `qa.enabled` / `qa.maxConcurrent` 示例
+- `server/core/indexer/qa_test.go`（新建）— 11 个离线 QA 测试
+- `server/go.mod` / `server/go.sum` — `go mod tidy` 补充 `golang.org/x/sync` v0.15.0 为直接依赖
+
+**测试覆盖（11 个）**：AllSuccess / PartialFailure / ConcurrencyLimit / Disabled / ExistingContent_Preserved / ContextCancel / EmptyDocs / NilDoc / DuplicatePointer / ExistingContent_Skips / GraphIntegration_ErrorBreaksGraph
+
+**验证结果（server/，GOFLAGS 空）**：
+- `gofmt -l` 无输出；`go build ./...`、`go vet ./...` — exit 0
+- `go test ./core/indexer/... -count=1 -v` — exit 0，11 pass / 0 fail
+- `go test ./core -count=1 -v` — exit 0，39 pass / 0 fail（11 QA + 9 Indexer + 19 Retrieve）
+- `go test -race ./core/indexer/... -count=1` — exit 0
+- `go test -race ./core -count=1` — exit 0
+- `go test -race -count=10 -v -run "TestQA_" ./core/indexer/...` — exit 0，无 DATA RACE
+- `go test -p 1 ./... -count=1` — exit 0
+- `go mod tidy` — 无残留
+
+**保留边界**：QA 关闭时 `qaRtrvr` 对 `FieldQAContentVector` 缺失的 kNN 行为待验证（不影响主检索路径 `rtrvr`）；Qdrant 异步 indexer 路径保留现状；`core/retriever`、`core/rerank` race 仍待补证。
+
+**证据目录**：[verification/stage1d2/](verification/stage1d2/)
 
 ### Stage 1C-2 完成记录
 

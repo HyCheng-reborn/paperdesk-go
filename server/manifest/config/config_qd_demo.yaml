@@ -54,6 +54,8 @@ qa:
   apiKey: "sk-****"
   baseURL: "https://api.siliconflow.cn/v1"
   model: "Qwen/Qwen3-14B" # 测试下来14b速度最快
+  enabled: true            # 是否启用 QA 生成（默认 true）
+  maxConcurrent: 4         # 单次索引 QA 生成并发上限（默认 4，最大 32）
 
 chat:
   apiKey: "sk-****"

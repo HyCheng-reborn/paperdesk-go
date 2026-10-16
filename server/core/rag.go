@@ -15,6 +15,8 @@ import (
 	"github.com/wangle201210/go-rag/server/core/indexer"
 	"github.com/wangle201210/go-rag/server/core/retriever"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
+	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
+	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
 
 const (
@@ -23,9 +25,14 @@ const (
 	esTryFindDoc   = 10
 )
 
+// docSearcher 文档检索边界：按 ID 集合从向量库/ES 取回文档，支持测试注入。
+type docSearcher interface {
+	SearchDocumentsByIDs(ctx context.Context, knowledgeName string, docIDs []string, size int) ([]*schema.Document, error)
+}
+
 type Rag struct {
-	syncIndexer  syncIndexer       // 注入边界：同步索引
-	asyncIndexer asyncIndexer      // 注入边界：异步索引
+	syncIndexer  syncIndexer                                 // 注入边界：同步索引
+	asyncIndexer asyncIndexer                                // 注入边界：异步索引
 	idxerAsync   compose.Runnable[[]*schema.Document, []string] // 异步文档索引器
 	rtrvr        compose.Runnable[string, []*schema.Document]
 	qaRtrvr      compose.Runnable[string, []*schema.Document]
@@ -35,9 +42,15 @@ type Rag struct {
 	grader *grader.Grader // 暂时先弃用，使用 grader 会严重影响rag的速度
 	conf   *config.Config
 
-	docRet    docRetriever       // 注入边界：用于测试替换
+	docRet    docRetriever        // 注入边界：用于测试替换
 	rwModel   model.BaseChatModel // 注入边界：用于测试替换 rewrite model
-	asyncWait func()            // 可注入等待机制，测试用
+	asyncWait func()              // 可注入等待机制，测试用
+
+	// 以下三个字段与 syncIndexer/asyncIndexer/docRet 同模式：
+	// 构建时固定、运行期只读，不使用可变包级函数替换。
+	docSearch       docSearcher                                                                     // 注入边界：文档检索
+	saveChunksFn    func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error   // 注入边界：保存 chunks
+	updateDocStatus func(ctx context.Context, docID int64, status int) error                        // 注入边界：更新文档状态
 }
 
 func New(ctx context.Context, conf *config.Config) (*Rag, error) {
@@ -89,6 +102,9 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 	rag.syncIndexer = &prodSyncIndexer{runnable: buildIndex}   // 发布前设置注入字段，运行期间只读
 	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}              // 发布前设置注入字段，运行期间只读
 	rag.docRet = &prodDocRetriever{rag: rag}                    // 发布前设置注入字段，运行期间只读
+	rag.docSearch = conf                                        // *config.Config 实现 SearchDocumentsByIDs
+	rag.saveChunksFn = knowledge.SaveChunksData
+	rag.updateDocStatus = knowledge.UpdateDocumentsStatus
 	return rag, nil
 }
 

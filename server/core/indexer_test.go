@@ -5,11 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/cloudwego/eino/components/document"
+	"github.com/cloudwego/eino/compose"
+	"github.com/cloudwego/eino/schema"
+	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
+	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
 
 // --- 测试用 fake ---
@@ -476,5 +481,309 @@ drain:
 		if !reflect.DeepEqual(c.docsIDs, wantIDs) {
 			t.Errorf("cross-task on %s: background docsIDs=%v want %v", kn, c.docsIDs, wantIDs)
 		}
+	}
+}
+
+// --- 编排测试 fake 类型（indexAsyncByDocsID 直接调用）---
+
+// fakeDocSearcher 实现 docSearcher 接口
+type fakeDocSearcher struct {
+	result []*schema.Document
+	err    error
+	called bool
+}
+
+func (f *fakeDocSearcher) SearchDocumentsByIDs(_ context.Context, _ string, _ []string, _ int) ([]*schema.Document, error) {
+	f.called = true
+	return f.result, f.err
+}
+
+// fakeAsyncRunnable 实现 compose.Runnable[[]*schema.Document, []string]，仅 Invoke 被调用
+type fakeAsyncRunnable struct {
+	ids    []string
+	err    error
+	called bool
+}
+
+func (f *fakeAsyncRunnable) Invoke(_ context.Context, _ []*schema.Document, _ ...compose.Option) ([]string, error) {
+	f.called = true
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.ids, nil
+}
+
+func (f *fakeAsyncRunnable) Stream(_ context.Context, _ []*schema.Document, _ ...compose.Option) (*schema.StreamReader[[]string], error) {
+	panic("not implemented in test")
+}
+
+func (f *fakeAsyncRunnable) Collect(_ context.Context, _ *schema.StreamReader[[]*schema.Document], _ ...compose.Option) ([]string, error) {
+	panic("not implemented in test")
+}
+
+func (f *fakeAsyncRunnable) Transform(_ context.Context, _ *schema.StreamReader[[]*schema.Document], _ ...compose.Option) (*schema.StreamReader[[]string], error) {
+	panic("not implemented in test")
+}
+
+// newOrchestrationTestRag 构建仅用于 indexAsyncByDocsID 编排测试的 Rag
+func newOrchestrationTestRag(
+	searcher docSearcher,
+	saveFn func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error,
+	updateFn func(ctx context.Context, docID int64, status int) error,
+	asyncRunnable compose.Runnable[[]*schema.Document, []string],
+) *Rag {
+	return &Rag{
+		docSearch:       searcher,
+		saveChunksFn:    saveFn,
+		updateDocStatus: updateFn,
+		idxerAsync:      asyncRunnable,
+	}
+}
+
+var errSentinel = fmt.Errorf("sentinel test error")
+
+func TestIndexAsyncByDocsID_Over1000Docs_Error(t *testing.T) {
+	ids := make([]string, 1001)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("id-%d", i)
+	}
+
+	searcher := &fakeDocSearcher{}
+	saveCalled := false
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
+		func(_ context.Context, _ int64, _ int) error { return nil },
+		&fakeAsyncRunnable{},
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: ids, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if err == nil {
+		t.Fatal("expected over-limit error")
+	}
+	if searcher.called {
+		t.Fatal("docSearch should not be called when over limit")
+	}
+	if saveCalled {
+		t.Fatal("saveChunksFn should not be called when over limit")
+	}
+}
+
+func TestIndexAsyncByDocsID_MarshalError_NoActive(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "doc1", Content: "ok", MetaData: map[string]any{"bad": make(chan int)}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	saveCalled := false
+	updateCalled := false
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
+		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
+		&fakeAsyncRunnable{ids: []string{"id1"}},
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"doc1"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if err == nil {
+		t.Fatal("expected marshal error")
+	}
+	if !strings.Contains(err.Error(), "doc1") {
+		t.Fatalf("error should mention doc ID, got: %v", err)
+	}
+	if saveCalled {
+		t.Fatal("saveChunksFn should not be called on marshal error")
+	}
+	if updateCalled {
+		t.Fatal("updateDocStatus should not be called on marshal error")
+	}
+}
+
+func TestIndexAsyncByDocsID_MissingDocs_ReturnsError(t *testing.T) {
+	// docSearch 返回 ["a","c"]，但期望 ["a","b"]，try=0 不重试直接报错
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+		{ID: "c", Content: "cc", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { return nil },
+		func(_ context.Context, _ int64, _ int) error { return nil },
+		&fakeAsyncRunnable{},
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a", "b"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if err == nil {
+		t.Fatal("expected missing docs error")
+	}
+	if !strings.Contains(err.Error(), "b") {
+		t.Fatalf("error should mention missing ID 'b', got: %v", err)
+	}
+}
+
+func TestIndexAsyncByDocsID_RetryExhausted_Missing(t *testing.T) {
+	// try=1，两次都返回部分缺失
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { return nil },
+		func(_ context.Context, _ int64, _ int) error { return nil },
+		&fakeAsyncRunnable{},
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a", "b"}, KnowledgeName: "kb", DocumentsId: 1, try: 1,
+	})
+	if err == nil {
+		t.Fatal("expected error after retry exhausted")
+	}
+	if !strings.Contains(err.Error(), "b") {
+		t.Fatalf("error should mention missing ID 'b', got: %v", err)
+	}
+}
+
+func TestIndexAsyncByDocsID_SaveChunksError_Stops(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	updateCalled := false
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"id1"}}
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { return errSentinel },
+		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
+		asyncRunnable,
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"d1"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if !errors.Is(err, errSentinel) {
+		t.Fatalf("expected sentinel error, got: %v", err)
+	}
+	if asyncRunnable.called {
+		t.Fatal("idxerAsync should not be called when saveChunks fails")
+	}
+	if updateCalled {
+		t.Fatal("updateDocStatus should not be called Active when saveChunks fails")
+	}
+}
+
+func TestIndexAsyncByDocsID_IndexAsyncError_NoActive(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	saveCalled := false
+	updateCalled := false
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
+		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
+		&fakeAsyncRunnable{err: errSentinel},
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"d1"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if !errors.Is(err, errSentinel) {
+		t.Fatalf("expected sentinel error, got: %v", err)
+	}
+	if !saveCalled {
+		t.Fatal("saveChunksFn should have been called")
+	}
+	if updateCalled {
+		t.Fatal("updateDocStatus should not be called Active when IndexAsync fails")
+	}
+}
+
+func TestIndexAsyncByDocsID_ActiveUpdateError(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { return nil },
+		func(_ context.Context, _ int64, _ int) error { return errSentinel },
+		&fakeAsyncRunnable{ids: []string{"id1"}},
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"d1"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if !errors.Is(err, errSentinel) {
+		t.Fatalf("expected sentinel error from updateDocStatus, got: %v", err)
+	}
+}
+
+func TestIndexAsyncByDocsID_FullSuccess(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
+		{ID: "d2", Content: "c2", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	saveCalled := false
+	var savedDocID int64
+	var savedChunks []entity.KnowledgeChunks
+	var updateStatus int
+	var updateDocID int64
+
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"idx1", "idx2"}}
+
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, docID int64, chunks []entity.KnowledgeChunks) error {
+			saveCalled = true
+			savedDocID = docID
+			savedChunks = chunks
+			return nil
+		},
+		func(_ context.Context, docID int64, status int) error {
+			updateDocID = docID
+			updateStatus = status
+			return nil
+		},
+		asyncRunnable,
+	)
+
+	ids, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"d1", "d2"}, KnowledgeName: "kb", DocumentsId: 42, try: 0,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !searcher.called {
+		t.Fatal("docSearch should have been called")
+	}
+	if !saveCalled {
+		t.Fatal("saveChunksFn should have been called")
+	}
+	if savedDocID != 42 {
+		t.Fatalf("saveChunksFn docID = %d, want 42", savedDocID)
+	}
+	if len(savedChunks) != 2 {
+		t.Fatalf("savedChunks len = %d, want 2", len(savedChunks))
+	}
+	if !asyncRunnable.called {
+		t.Fatal("idxerAsync should have been called")
+	}
+	if !reflect.DeepEqual(ids, []string{"idx1", "idx2"}) {
+		t.Fatalf("ids = %v, want [idx1 idx2]", ids)
+	}
+	if updateDocID != 42 {
+		t.Fatalf("updateDocStatus docID = %d, want 42", updateDocID)
+	}
+	if updateStatus != int(v1.StatusActive) {
+		t.Fatalf("updateDocStatus status = %d, want %d", updateStatus, int(v1.StatusActive))
 	}
 }

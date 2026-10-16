@@ -1,0 +1,6 @@
+﻿# CMD: go test -race ./internal/logic/knowledge/... -count=1
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-16 12:30:38
+
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	1.922s

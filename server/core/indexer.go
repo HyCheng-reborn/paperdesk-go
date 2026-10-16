@@ -2,7 +2,9 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -13,7 +15,6 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
-	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
 
@@ -136,36 +137,71 @@ func (x *Rag) IndexAsync(ctx context.Context, req *IndexAsyncReq) (ids []string,
 
 // 通过docIDs 异步 生成QA&embedding
 // 这个方法不用暴露出去
+//
+// 错误传播契约（Stage 1D-1）：任一阶段失败都立即返回错误，不继续后续阶段，
+// 且绝不把文档标为 Active。统一的 Failed 标记（markFailed）归属 1D-3。
 func (x *Rag) indexAsyncByDocsID(ctx context.Context, req *IndexAsyncByDocsIDReq) (ids []string, err error) {
-	// 搜索文档
+	// 0. 超限保护：避免递归重试把异常入参放大成超大检索
+	if len(req.DocsIDs) > 1000 {
+		return nil, fmt.Errorf("indexAsyncByDocsID: DocsIDs count %d exceeds limit 1000", len(req.DocsIDs))
+	}
+	// 空入参无法做任何完整性校验，直接报错（保持原有「no documents found」语义，不误标 Active）
+	if len(req.DocsIDs) == 0 {
+		return nil, fmt.Errorf("indexAsyncByDocsID: empty DocsIDs for document %d", req.DocumentsId)
+	}
+
+	// 1. 检索文档
 	g.Log().Infof(ctx, "indexAsyncByDocsID searching for %d docs in knowledge base: %s, IDs: %v", len(req.DocsIDs), req.KnowledgeName, req.DocsIDs)
-	searchResp, err := x.conf.SearchDocumentsByIDs(ctx, req.KnowledgeName, req.DocsIDs, 1000)
+	searchResp, err := x.docSearch.SearchDocumentsByIDs(ctx, req.KnowledgeName, req.DocsIDs, 1000)
 	if err != nil {
 		g.Log().Errorf(ctx, "indexAsyncByDocsID SearchDocumentsByIDs failed, err=%v", err)
-		return nil, err
+		return nil, fmt.Errorf("indexAsyncByDocsID search documents: %w", err)
 	}
 
-	var chunks []entity.KnowledgeChunks
-	if len(searchResp) < len(req.DocsIDs) && req.try > 0 {
-		g.Log().Warningf(ctx, "indexAsyncByDocsID Hits < DocsIDs, Hits=%d, DocsIDs=%d, remaining tries=%d", len(searchResp), len(req.DocsIDs), req.try)
+	// 2. 按 ID 集合核对完整性（不再用数量比较：数量相同但 ID 不匹配同样是缺失）
+	expected := make(map[string]struct{}, len(req.DocsIDs))
+	for _, id := range req.DocsIDs {
+		expected[id] = struct{}{}
+	}
+	actual := make(map[string]struct{}, len(searchResp))
+	for _, doc := range searchResp {
+		if doc != nil {
+			actual[doc.ID] = struct{}{}
+		}
+	}
+	var missing []string
+	for id := range expected {
+		if _, ok := actual[id]; !ok {
+			missing = append(missing, id)
+		}
+	}
+
+	// 3. 缺失时重试；重试耗尽仍缺失则报错，不带着不完整数据继续
+	if len(missing) > 0 && req.try > 0 {
+		g.Log().Warningf(ctx, "indexAsyncByDocsID missing %d docs, missing=%v, remaining tries=%d", len(missing), missing, req.try)
 		req.try--
-		time.Sleep(time.Second)
+		time.Sleep(time.Second) // es 数据同步有延迟；1D-3 改为可取消等待
 		return x.indexAsyncByDocsID(ctx, req)
 	}
-
-	if len(searchResp) == 0 {
-		g.Log().Errorf(ctx, "indexAsyncByDocsID no documents found in Qdrant after all retries, DocsIDs=%v", req.DocsIDs)
-		return nil, fmt.Errorf("no documents found in Qdrant for IDs: %v", req.DocsIDs)
+	if len(missing) > 0 {
+		sort.Strings(missing) // 确定性错误文本，便于断言与日志比对
+		g.Log().Errorf(ctx, "indexAsyncByDocsID documents missing after retries, missing=%v", missing)
+		return nil, fmt.Errorf("indexAsyncByDocsID: documents missing after retries: %v", missing)
 	}
 
-	var docs []*schema.Document
+	// 4. 构建 chunks（含元数据编码）
+	var chunks []entity.KnowledgeChunks
+	var marshalErrs []error
 	for _, doc := range searchResp {
+		if doc == nil {
+			marshalErrs = append(marshalErrs, fmt.Errorf("nil document in search response"))
+			continue
+		}
 		docParseExt(doc)
-		docs = append(docs, doc)
-
-		ext, err := sonic.Marshal(doc.MetaData)
-		if err != nil {
-			g.Log().Errorf(ctx, "sonic.Marshal failed, err=%v", err)
+		ext, marshalErr := sonic.Marshal(doc.MetaData)
+		if marshalErr != nil {
+			g.Log().Errorf(ctx, "indexAsyncByDocsID sonic.Marshal failed for doc %s, err=%v", doc.ID, marshalErr)
+			marshalErrs = append(marshalErrs, fmt.Errorf("marshal doc %s metadata: %w", doc.ID, marshalErr))
 			continue
 		}
 		// Id 设置为 0，让数据库自动分配（兼容 MySQL 和 SQLite）
@@ -177,22 +213,37 @@ func (x *Rag) indexAsyncByDocsID(ctx context.Context, req *IndexAsyncByDocsIDReq
 			Ext:            string(ext),
 		})
 	}
-	if err = knowledge.SaveChunksData(ctx, req.DocumentsId, chunks); err != nil {
-		// 这里不返回err，不影响用户使用
-		g.Log().Errorf(ctx, "indexAsyncByDocsID insert chunks failed, err=%v", err)
+
+	// 元数据编码失败 → 聚合返回，不继续后续阶段（旧行为是 continue 静默丢 chunk）
+	if len(marshalErrs) > 0 {
+		return nil, errors.Join(marshalErrs...)
 	}
 
+	// 5. 保存 chunks：失败则传播，不再继续 IndexAsync，也不标 Active
+	if err = x.saveChunksFn(ctx, req.DocumentsId, chunks); err != nil {
+		g.Log().Errorf(ctx, "indexAsyncByDocsID insert chunks failed, err=%v", err)
+		return nil, err
+	}
+
+	// 6. 后续索引（QA + embedding）
 	asyncReq := &IndexAsyncReq{
-		Docs:          docs,
+		Docs:          searchResp,
 		KnowledgeName: req.KnowledgeName,
 		DocumentsId:   req.DocumentsId,
 	}
 	ids, err = x.IndexAsync(ctx, asyncReq)
 	if err != nil {
-		return
+		g.Log().Errorf(ctx, "indexAsyncByDocsID IndexAsync failed, err=%v", err)
+		return nil, err // 后续索引失败不标 Active
 	}
-	knowledge.UpdateDocumentsStatus(ctx, req.DocumentsId, int(v1.StatusActive))
-	return
+
+	// 7. 标记 Active（所有前置条件均满足）
+	if err = x.updateDocStatus(ctx, req.DocumentsId, int(v1.StatusActive)); err != nil {
+		g.Log().Errorf(ctx, "indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=%v", err)
+		return nil, err
+	}
+
+	return ids, nil
 }
 
 // 检索会把原来的 MetaData 放到 MetaData.ext 中，这里需要把原来的 MetaData 恢复

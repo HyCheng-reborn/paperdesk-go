@@ -1,0 +1,163 @@
+﻿# CMD: go test ./core -count=1 -v
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-16 12:30:21
+
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-16T12:30:19.925+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:84
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:92
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.01s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-16T12:30:19.925+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_AsyncFailure_SyncReturnUnchanged
+2026-10-16T12:30:20.025+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-16T12:30:20.025+08:00 [ERRO] {c441b7eb35e8de1874fc7e5bfa092811} indexAsyncByDocsID failed, err=async error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func1
+    C:/Zhy/code/go-rag/server/core/indexer.go:119
+
+--- PASS: TestIndex_AsyncFailure_SyncReturnUnchanged (0.00s)
+=== RUN   TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot
+2026-10-16T12:30:20.025+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot (0.00s)
+=== RUN   TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged
+2026-10-16T12:30:20.025+08:00 [INFO] Index success, generated 2 chunks with IDs: [id1 id2]
+--- PASS: TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged (0.00s)
+=== RUN   TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged
+2026-10-16T12:30:20.025+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged (0.00s)
+=== RUN   TestIndex_AsyncWaitInvoked_BeforeBackground
+2026-10-16T12:30:20.025+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_AsyncWaitInvoked_BeforeBackground (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-16T12:30:20.125+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-16T12:30:20.125+08:00 [ERRO] {80a9b0f135e8de1879fc7e5bcdbb883b} recover indexAsyncByDocsID failed, err=boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func1.1
+    C:/Zhy/code/go-rag/server/core/indexer.go:105
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:373
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func1
+    C:/Zhy/code/go-rag/server/core/indexer.go:111
+
+=== RUN   TestIndex_ConcurrentCalls_Isolation
+2026-10-16T12:30:20.125+08:00 [INFO] Index success, generated 2 chunks with IDs: [chunk-kb2 chunk-doc2.pdf]
+2026-10-16T12:30:20.125+08:00 [INFO] Index success, generated 2 chunks with IDs: [chunk-kb0 chunk-doc0.pdf]
+2026-10-16T12:30:20.125+08:00 [INFO] Index success, generated 2 chunks with IDs: [chunk-kb1 chunk-doc1.pdf]
+--- PASS: TestIndex_ConcurrentCalls_Isolation (0.00s)
+=== RUN   TestIndexAsyncByDocsID_Over1000Docs_Error
+--- PASS: TestIndexAsyncByDocsID_Over1000Docs_Error (0.00s)
+=== RUN   TestIndexAsyncByDocsID_MarshalError_NoActive
+2026-10-16T12:30:20.126+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [doc1]
+2026-10-16T12:30:20.126+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:203
+2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:587
+
+--- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
+=== RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
+2026-10-16T12:30:20.126+08:00 [INFO] indexAsyncByDocsID searching for 2 docs in knowledge base: kb, IDs: [a b]
+2026-10-16T12:30:20.126+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:188
+2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:618
+
+--- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
+=== RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
+2026-10-16T12:30:20.126+08:00 [INFO] indexAsyncByDocsID searching for 2 docs in knowledge base: kb, IDs: [a b]
+2026-10-16T12:30:20.126+08:00 [WARN] indexAsyncByDocsID missing 1 docs, missing=[b], remaining tries=1
+2026-10-16T12:30:21.127+08:00 [INFO] indexAsyncByDocsID searching for 2 docs in knowledge base: kb, IDs: [a b]
+2026-10-16T12:30:21.127+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:188
+2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:184
+3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:642
+
+--- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
+=== RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
+2026-10-16T12:30:21.127+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-16T12:30:21.127+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:224
+2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:667
+
+--- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
+=== RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
+2026-10-16T12:30:21.127+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-16T12:30:21.127+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:236
+2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:695
+
+--- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
+=== RUN   TestIndexAsyncByDocsID_ActiveUpdateError
+2026-10-16T12:30:21.127+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-16T12:30:21.127+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:242
+2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:721
+
+--- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
+=== RUN   TestIndexAsyncByDocsID_FullSuccess
+2026-10-16T12:30:21.127+08:00 [INFO] indexAsyncByDocsID searching for 2 docs in knowledge base: kb, IDs: [d1 d2]
+--- PASS: TestIndexAsyncByDocsID_FullSuccess (0.00s)
+=== RUN   TestRetrieve_NilRequest
+--- PASS: TestRetrieve_NilRequest (0.00s)
+=== RUN   TestRetrieve_InvalidTopK
+--- PASS: TestRetrieve_InvalidTopK (0.00s)
+=== RUN   TestRetrieve_ThreeRoundsUseOwnQuery
+--- PASS: TestRetrieve_ThreeRoundsUseOwnQuery (0.00s)
+=== RUN   TestRetrieve_InputRequestUnchanged
+--- PASS: TestRetrieve_InputRequestUnchanged (0.00s)
+=== RUN   TestRetrieve_ConcurrentCallsNoPollution
+--- PASS: TestRetrieve_ConcurrentCallsNoPollution (0.00s)
+=== RUN   TestRetrieve_SameIDKeepHighestScore
+--- PASS: TestRetrieve_SameIDKeepHighestScore (0.00s)
+=== RUN   TestRetrieve_SortAndTopK
+--- PASS: TestRetrieve_SortAndTopK (0.00s)
+=== RUN   TestRetrieve_WorkerError_Propagates
+--- PASS: TestRetrieve_WorkerError_Propagates (0.00s)
+=== RUN   TestRetrieve_WorkerSentinelError_Identifiable
+--- PASS: TestRetrieve_WorkerSentinelError_Identifiable (0.00s)
+=== RUN   TestRetrieve_PreCancel
+--- PASS: TestRetrieve_PreCancel (0.00s)
+=== RUN   TestRetrieve_Round1WorkerBlocked_Round2RewriteFails
+--- PASS: TestRetrieve_Round1WorkerBlocked_Round2RewriteFails (0.20s)
+=== RUN   TestRetrieve_WorkerFails_OthersCanceled
+--- PASS: TestRetrieve_WorkerFails_OthersCanceled (0.00s)
+=== RUN   TestRetrieve_CancelWinsOverSuccess
+--- PASS: TestRetrieve_CancelWinsOverSuccess (0.00s)
+=== RUN   TestRetrieve_InFlightCancel
+--- PASS: TestRetrieve_InFlightCancel (0.00s)
+=== RUN   TestRetrieve_Timeout
+--- PASS: TestRetrieve_Timeout (0.10s)
+=== RUN   TestRetrieve_InjectedDepsRemainUnchanged
+--- PASS: TestRetrieve_InjectedDepsRemainUnchanged (0.00s)
+=== RUN   TestRetrieve_ConcurrentDifferentQueries
+--- PASS: TestRetrieve_ConcurrentDifferentQueries (0.00s)
+=== RUN   TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs
+--- PASS: TestRetrieve_InputUnchanged_WorkerModifiesExcludeIDs (0.00s)
+=== RUN   TestRetrieve_SameScoreSortByID
+--- PASS: TestRetrieve_SameScoreSortByID (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	2.785s

@@ -1,5 +1,23 @@
 # 变更记录
 
+### Stage 1D-1 实施完成（2026-10-16）
+
+- **类型**：业务代码实施
+- **分支**：review/stage1a
+- **基线**：261da44a080112dbf0b1fb352e1f43ef22a189a7
+- **内容**：
+  - `server/internal/logic/knowledge/chunks.go`：新增 chunkStore/docStatusUpdater 接口、daoChunkStore/daoDocStatusUpdater 生产实现、saveChunks 内部 helper；SaveChunksData 公开签名不变，委派到 helper；区分 sql.ErrNoRows 与 DB error；errors.Join 聚合错误含 chunk ID；update 路径不写 status 字段；空输入/预取消/循环中取消边界
+  - `server/internal/logic/knowledge/chunks_test.go`（新建）：8 个单元测试（AllSuccess/PartialFailure/ScanDBError/UpdatePath_NoStatusOverwrite/EmptyChunks/PreCancelled/MidLoopCancel/StatusWriteError_Joined）
+  - `server/core/rag.go`：新增 docSearcher 接口、docSearch/saveChunksFn/updateDocStatus 三个构建时固定字段、New() 中初始化生产默认值
+  - `server/core/indexer.go`：indexAsyncByDocsID 改造——>1000 超限保护、set-based ID 完整性核对（含重试耗尽返回缺失 IDs）、sonic.Marshal 失败聚合中止后续、saveChunksFn 失败传播、updateDocStatus 失败传播、Active 五条件全满足
+  - `server/core/indexer_test.go`：新增 8 个编排测试（Over1000Docs/MarshalError/MissingDocs/RetryExhausted/SaveChunksError/IndexAsyncError/ActiveUpdateError/FullSuccess），直接调用 indexAsyncByDocsID 生产编排
+- **验证**：gofmt/build/vet exit 0；knowledge 8/8 + core 17/17 测试通过；race 检测通过；压测 -count=10 无 DATA RACE；全项目 go test -p 1 ./... 14 包 ok
+- **范围**：仅 1D-1（F09），不实施 1D-2/1D-3
+- **已知边界**：预取消测试证明应用层快速返回，不证明 driver 中断正在执行的 SQL；部分写入不回滚（保留现状）；统一 markFailed 归属 1D-3
+- **状态**：Stage 1D-1 实施完成，待独立复核
+
+---
+
 ## 2026-10-16 Stage 1D 计划定点修订
 
 ### Stage 1D 计划定点修订（2026-10-16）

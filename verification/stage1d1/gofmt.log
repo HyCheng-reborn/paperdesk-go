@@ -1,0 +1,8 @@
+﻿# CMD: gofmt -l internal/logic/knowledge/chunks.go internal/logic/knowledge/chunks_test.go core/rag.go core/indexer.go core/indexer_test.go
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-16 12:29:58
+
+internal/logic/knowledge/chunks.go
+internal/logic/knowledge/chunks_test.go
+core/rag.go

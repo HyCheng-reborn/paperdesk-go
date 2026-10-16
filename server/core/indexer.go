@@ -189,14 +189,27 @@ func (x *Rag) indexAsyncByDocsID(ctx context.Context, req *IndexAsyncByDocsIDReq
 		return nil, fmt.Errorf("indexAsyncByDocsID: documents missing after retries: %v", missing)
 	}
 
-	// 4. 构建 chunks（含元数据编码）
+	// 3.5 返回集合完整性校验：非 nil、ID 必须属于预期集合、无重复 ID。
+	// 任一非法返回都在保存/后续索引之前直接报错，绝不调用 saveChunksFn/idxerAsync/updateDocStatus，
+	// 避免把非预期文档写入当前文档或重复保存/重复索引。（缺失/重试已在前面处理）
+	seen := make(map[string]struct{}, len(searchResp))
+	for i, doc := range searchResp {
+		if doc == nil {
+			return nil, fmt.Errorf("indexAsyncByDocsID: nil document at index %d in search response", i)
+		}
+		if _, ok := expected[doc.ID]; !ok {
+			return nil, fmt.Errorf("indexAsyncByDocsID: unexpected document id %q returned for document %d", doc.ID, req.DocumentsId)
+		}
+		if _, dup := seen[doc.ID]; dup {
+			return nil, fmt.Errorf("indexAsyncByDocsID: duplicate document id %q in search response", doc.ID)
+		}
+		seen[doc.ID] = struct{}{}
+	}
+
+	// 4. 构建 chunks（含元数据编码）；nil/非预期/重复已在上一步拒绝，此处 doc 均为有效非 nil
 	var chunks []entity.KnowledgeChunks
 	var marshalErrs []error
 	for _, doc := range searchResp {
-		if doc == nil {
-			marshalErrs = append(marshalErrs, fmt.Errorf("nil document in search response"))
-			continue
-		}
 		docParseExt(doc)
 		ext, marshalErr := sonic.Marshal(doc.MetaData)
 		if marshalErr != nil {

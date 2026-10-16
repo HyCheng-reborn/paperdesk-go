@@ -1,5 +1,17 @@
 # 变更记录
 
+### Stage 1D-1 定点修正：检索返回完整性校验 + 两项验收测试（2026-10-16，待独立复核）
+
+- **基线**：`ff0b87230e307ced2746e6b84fc11e99192cd572`。只处理两项事项；不进入 1D-2/1D-3，不重构整体索引架构。
+- **一、检索返回集合检查（server/core/indexer.go）**：`indexAsyncByDocsID` 在保存/后续索引前新增校验——返回文档非 nil、返回 ID 必须属于预期集合、重复 ID 明确报错；保留缺失 ID 的重试与耗尽错误；非法返回不调用 saveChunksFn/idxerAsync/updateDocStatus。
+- **二、验收测试**：knowledge 新增 `TestSaveChunks_ChunkAndStatusErrorsBothJoined`（一次调用 insert+状态各返回不同 sentinel，errors.Is 同时识别且含 chunk ID/doc ID）与 `TestSaveChunks_UpdateFailure_Propagated`（update 分支）；core 将 `TestIndexAsyncByDocsID_FullSuccess` 改为事件序列精确断言 search→saveChunks→IndexAsync→Active 并校验 chunk ID/内容/docID 及传入 IndexAsync 的文档；`MarshalError_NoActive` 增加 idxerAsync 未调用断言；新增 `UnexpectedExtraDoc`/`DuplicateDocID`/`NilDoc` 验证非法返回下三阶段均未调用。
+- **边界（保留）**：重试仍为固定延迟（可取消生命周期归 1D-3）；统一 markFailed 归 1D-3；预取消测试不证明 driver 能中断 SQL；core/common(retriever/rerank) race 待补证。
+- **测试计数**：core 全包 39、knowledge 10、合计 49 PASS；本批新增 5（+强化 2）。
+- **验证**（`verification/stage1d1/*-fix.log`）：go test -v exit 0（49/0/0）；go test -race knowledge+core exit 0；`go test -race -count=10 -v -run "TestSaveChunks_|TestIndexAsyncByDocsID_"` exit 0（命中 21 ×10=210 PASS，无 DATA RACE，无 no-tests-to-run）；`go test -p 1 ./...` exit 0；vet/build exit 0；GOFLAGS 空。
+- **状态**：Stage 1D-1 定点修正完成，待独立复核（不标记 Stage 1 整体完成）。
+
+---
+
 ### Stage 1D-1 实施完成（2026-10-16）
 
 - **类型**：业务代码实施

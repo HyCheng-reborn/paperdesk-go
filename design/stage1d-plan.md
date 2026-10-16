@@ -236,7 +236,7 @@ rag.markFailed = defaultMarkFailed
 
 ## 6. 批次 1D-1：F09 Chunk 写入错误传播
 
-> **状态**：实施完成，待独立复核（2026-10-16）
+> **状态**：定点修正完成，待独立复核（2026-10-16）——在 ff0b872 实施基础上新增 indexAsyncByDocsID 返回集合完整性校验（非 nil/非预期 ID/重复 ID）与两项验收测试（knowledge 双 sentinel+update 分支、core 事件序列与非法返回三阶段未调用）；重试固定延迟与统一 markFailed 仍归 1D-3；不进入 1D-2/1D-3。
 
 ### 6.1 修改文件清单
 

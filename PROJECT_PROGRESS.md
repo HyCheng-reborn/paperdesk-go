@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-16
-**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）均已通过复核，Stage 1D-1 实施完成待独立复核，Stage 1 整体尚未完成
+**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）均已通过复核，Stage 1D-1 定点修正完成待独立复核，Stage 1 整体尚未完成
 **复核方式**：源码及提交日志复核，复核方未独立重跑测试
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `261da44a080112dbf0b1fb352e1f43ef22a189a7`
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
@@ -28,7 +28,7 @@
 
 ## Stage 1：初始化副作用清理 + 并发安全修复
 
-**状态**：1-Pre/1A/1B/1C 已通过复核，1D-1 实施完成待独立复核
+**状态**：1-Pre/1A/1B/1C 已通过复核，1D-1 定点修正完成待独立复核
 
 ### 批次计划
 
@@ -40,7 +40,7 @@
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过；1C-2 ✅ 已通过源码及提交日志复核（未独立重跑测试）** |
-| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 实施完成，待独立复核** |
+| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 定点修正完成，待独立复核（1D-2/1D-3 未实施）** |
 
 ### Stage 1-Pre 完成记录
 
@@ -320,6 +320,39 @@
 **证据目录**：[verification/stage1c2/](verification/stage1c2/)（`*-r2.log`；生命周期补证 `race-lifecycle-chatctrl-explicit-r3.log`）
 
 **验收复核结论**：Stage 1C-2 已通过源码及提交日志复核，复核方未独立重跑测试；验收基线 `26e55ee2ea43daf703ed72da60425ff5b7980cba`。`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`。Stage 1-Pre/1A/1B/1C 均已通过复核，Stage 1 整体尚未完成（1D 待实施）。
+
+### Stage 1D-1 定点修正记录（检索返回完整性校验 + 两项验收测试）
+
+**日期**：2026-10-16
+**基线**：`ff0b87230e307ced2746e6b84fc11e99192cd572`（Stage 1D-1 实施提交）
+**状态**：✅ 定点修正完成，待独立复核
+**范围约束**：只处理两项事项；不进入 1D-2/1D-3，不重构整体索引架构。
+
+**一、补齐检索返回集合检查（server/core/indexer.go）**
+- `indexAsyncByDocsID` 在保存与后续索引之前新增返回集合完整性校验：返回文档不能为 nil、返回 ID 必须属于预期集合、重复返回 ID 明确报错（避免重复保存/重复索引）。
+- 保留缺失 ID 的重试与耗尽错误（缺失/重试在完整性校验之前处理）；非法返回一律在 saveChunksFn/idxerAsync/updateDocStatus 之前返回错误。
+- 不扩大到跨请求索引幂等或数据库唯一约束设计。
+
+**二、补齐两项已有验收测试**
+- knowledge（chunks_test.go）：`TestSaveChunks_ChunkAndStatusErrorsBothJoined` 一次调用让 insert 与状态更新返回不同 sentinel，`errors.Is` 同时识别两者且含 chunk ID 与 doc ID；`TestSaveChunks_UpdateFailure_Propagated` 覆盖 update 分支（与 insert 不同）失败传播。
+- core（indexer_test.go）：`TestIndexAsyncByDocsID_FullSuccess` 记录事件序列并精确断言 search→saveChunks→IndexAsync→Active，校验保存的 chunk ID/内容/docID 及传入 IndexAsync 的文档；`TestIndexAsyncByDocsID_MarshalError_NoActive` 增加 idxerAsync 未调用断言。新增非法返回编排测试 `TestIndexAsyncByDocsID_UnexpectedExtraDoc`（[a]→[a,unrelated]）、`TestIndexAsyncByDocsID_DuplicateDocID`（[a]→[a,a]）、`TestIndexAsyncByDocsID_NilDoc`（含 nil），各断言返回错误且三阶段均未调用。
+
+**本轮边界（准确记录）**：
+- 重试等待仍为原有固定延迟（`time.Sleep`），可取消生命周期归属 1D-3，本批未改。
+- 统一 markFailed 仍归属 1D-3。
+- 预取消 fake 测试仅证明应用层入口检查，不证明 driver 能中断执行中的 SQL。
+- core/common、core/retriever、core/rerank 的 race 仍待补证（core/common 为 Windows `0xc0000139` 运行异常）。
+
+**测试数量（按日志实际计数）**：core 全包 39（9 TestIndex 生命周期 + 11 TestIndexAsyncByDocsID 编排 + 19 TestRetrieve）、knowledge 10（TestSaveChunks）、两包合计 49 PASS；本批新增测试 5（knowledge 2 + core 编排 3），另强化既有 2（FullSuccess 事件序列、MarshalError idxerAsync 断言）。
+
+**验证结果（server/，GOFLAGS 空；`verification/stage1d1/*-fix.log`）**：
+- `gofmt -l` 无输出；`go build ./...`、`go vet ./...` — exit 0
+- `go test ./internal/logic/knowledge/... ./core -count=1 -v` — exit 0，49 pass / 0 fail / 0 skip
+- `go test -race ./internal/logic/knowledge/... ./core -count=1` — exit 0
+- `go test -race -count=10 -v -run "TestSaveChunks_|TestIndexAsyncByDocsID_" ./internal/logic/knowledge/... ./core` — exit 0，命中 21 用例 ×10=210 PASS，0 FAIL，无 DATA RACE，无 "no tests to run"
+- `go test -p 1 ./... -count=1` — exit 0
+
+**证据目录**：[verification/stage1d1/](verification/stage1d1/)（`*-fix.log`，未覆盖历史证据）
 
 ### Stage 1C-2 完成记录
 

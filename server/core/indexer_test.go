@@ -491,22 +491,32 @@ type fakeDocSearcher struct {
 	result []*schema.Document
 	err    error
 	called bool
+	events *[]string // 可选：追加 "search"，用于断言事件顺序
 }
 
 func (f *fakeDocSearcher) SearchDocumentsByIDs(_ context.Context, _ string, _ []string, _ int) ([]*schema.Document, error) {
 	f.called = true
+	if f.events != nil {
+		*f.events = append(*f.events, "search")
+	}
 	return f.result, f.err
 }
 
 // fakeAsyncRunnable 实现 compose.Runnable[[]*schema.Document, []string]，仅 Invoke 被调用
 type fakeAsyncRunnable struct {
-	ids    []string
-	err    error
-	called bool
+	ids         []string
+	err         error
+	called      bool
+	events      *[]string          // 可选：追加 "IndexAsync"
+	invokedDocs []*schema.Document // 记录传入 IndexAsync 的文档
 }
 
-func (f *fakeAsyncRunnable) Invoke(_ context.Context, _ []*schema.Document, _ ...compose.Option) ([]string, error) {
+func (f *fakeAsyncRunnable) Invoke(_ context.Context, docs []*schema.Document, _ ...compose.Option) ([]string, error) {
 	f.called = true
+	f.invokedDocs = docs
+	if f.events != nil {
+		*f.events = append(*f.events, "IndexAsync")
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -578,10 +588,11 @@ func TestIndexAsyncByDocsID_MarshalError_NoActive(t *testing.T) {
 
 	saveCalled := false
 	updateCalled := false
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"id1"}}
 	r := newOrchestrationTestRag(searcher,
 		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
 		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
-		&fakeAsyncRunnable{ids: []string{"id1"}},
+		asyncRunnable,
 	)
 
 	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
@@ -595,6 +606,9 @@ func TestIndexAsyncByDocsID_MarshalError_NoActive(t *testing.T) {
 	}
 	if saveCalled {
 		t.Fatal("saveChunksFn should not be called on marshal error")
+	}
+	if asyncRunnable.called {
+		t.Fatal("idxerAsync should not be called on marshal error")
 	}
 	if updateCalled {
 		t.Fatal("updateDocStatus should not be called on marshal error")
@@ -731,26 +745,32 @@ func TestIndexAsyncByDocsID_FullSuccess(t *testing.T) {
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
 		{ID: "d2", Content: "c2", MetaData: map[string]any{}},
 	}
-	searcher := &fakeDocSearcher{result: docs}
 
-	saveCalled := false
+	// 事件序列记录：search → saveChunks → IndexAsync → Active
+	var events []string
+	evp := &events
+	searcher := &fakeDocSearcher{result: docs, events: evp}
+
 	var savedDocID int64
 	var savedChunks []entity.KnowledgeChunks
-	var updateStatus int
 	var updateDocID int64
+	var updateStatus int
 
-	asyncRunnable := &fakeAsyncRunnable{ids: []string{"idx1", "idx2"}}
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"idx1", "idx2"}, events: evp}
 
 	r := newOrchestrationTestRag(searcher,
 		func(_ context.Context, docID int64, chunks []entity.KnowledgeChunks) error {
-			saveCalled = true
 			savedDocID = docID
 			savedChunks = chunks
+			events = append(events, "saveChunks")
 			return nil
 		},
 		func(_ context.Context, docID int64, status int) error {
 			updateDocID = docID
 			updateStatus = status
+			if status == int(v1.StatusActive) {
+				events = append(events, "Active")
+			}
 			return nil
 		},
 		asyncRunnable,
@@ -762,28 +782,137 @@ func TestIndexAsyncByDocsID_FullSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !searcher.called {
-		t.Fatal("docSearch should have been called")
+
+	// 精确断言事件顺序
+	if !reflect.DeepEqual(events, []string{"search", "saveChunks", "IndexAsync", "Active"}) {
+		t.Fatalf("event sequence = %v, want [search saveChunks IndexAsync Active]", events)
 	}
-	if !saveCalled {
-		t.Fatal("saveChunksFn should have been called")
-	}
+
+	// 保存的 chunk ID / 内容 / docID
 	if savedDocID != 42 {
-		t.Fatalf("saveChunksFn docID = %d, want 42", savedDocID)
+		t.Fatalf("saveChunks docID = %d, want 42", savedDocID)
 	}
 	if len(savedChunks) != 2 {
 		t.Fatalf("savedChunks len = %d, want 2", len(savedChunks))
 	}
-	if !asyncRunnable.called {
-		t.Fatal("idxerAsync should have been called")
+	wantChunks := map[string]string{"d1": "c1", "d2": "c2"}
+	for _, ch := range savedChunks {
+		if want, ok := wantChunks[ch.ChunkId]; !ok || ch.Content != want {
+			t.Fatalf("unexpected saved chunk: %+v", ch)
+		}
+		if ch.KnowledgeDocId != 42 {
+			t.Fatalf("saved chunk %s KnowledgeDocId = %d, want 42", ch.ChunkId, ch.KnowledgeDocId)
+		}
 	}
+
+	// 传入 IndexAsync 的文档
+	var invokedIDs []string
+	for _, d := range asyncRunnable.invokedDocs {
+		invokedIDs = append(invokedIDs, d.ID)
+	}
+	if !reflect.DeepEqual(invokedIDs, []string{"d1", "d2"}) {
+		t.Fatalf("IndexAsync invoked docs = %v, want [d1 d2]", invokedIDs)
+	}
+
+	// 返回 ids + Active 状态/docID
 	if !reflect.DeepEqual(ids, []string{"idx1", "idx2"}) {
 		t.Fatalf("ids = %v, want [idx1 idx2]", ids)
 	}
-	if updateDocID != 42 {
-		t.Fatalf("updateDocStatus docID = %d, want 42", updateDocID)
+	if updateDocID != 42 || updateStatus != int(v1.StatusActive) {
+		t.Fatalf("updateDocStatus = (%d, %d), want (42, Active)", updateDocID, updateStatus)
 	}
-	if updateStatus != int(v1.StatusActive) {
-		t.Fatalf("updateDocStatus status = %d, want %d", updateStatus, int(v1.StatusActive))
+}
+
+// assertNoDownstreamStages 断言非法返回集下三个阶段都未被调用。
+func assertNoDownstreamStages(t *testing.T, saveCalled, updateCalled, asyncCalled bool) {
+	t.Helper()
+	if saveCalled {
+		t.Error("saveChunksFn must not be called for illegal return set")
 	}
+	if asyncCalled {
+		t.Error("idxerAsync must not be called for illegal return set")
+	}
+	if updateCalled {
+		t.Error("updateDocStatus must not be called for illegal return set")
+	}
+}
+
+// TestIndexAsyncByDocsID_UnexpectedExtraDoc 请求 [a]，返回 [a, unrelated]：
+// 非预期文档必须拒绝，且 saveChunksFn/idxerAsync/updateDocStatus 均未调用。
+func TestIndexAsyncByDocsID_UnexpectedExtraDoc(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+		{ID: "unrelated", Content: "u", MetaData: map[string]any{}},
+	}
+	var saveCalled, updateCalled bool
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"x"}}
+	r := newOrchestrationTestRag(&fakeDocSearcher{result: docs},
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
+		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
+		asyncRunnable,
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if err == nil {
+		t.Fatal("expected error for unexpected document")
+	}
+	if !strings.Contains(err.Error(), "unrelated") {
+		t.Fatalf("error should name unexpected id, got: %v", err)
+	}
+	assertNoDownstreamStages(t, saveCalled, updateCalled, asyncRunnable.called)
+}
+
+// TestIndexAsyncByDocsID_DuplicateDocID 请求 [a]，返回 [a, a]：重复 ID 明确报错，
+// 且三个阶段均未调用（避免重复保存/重复索引）。
+func TestIndexAsyncByDocsID_DuplicateDocID(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+	}
+	var saveCalled, updateCalled bool
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"x"}}
+	r := newOrchestrationTestRag(&fakeDocSearcher{result: docs},
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
+		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
+		asyncRunnable,
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if err == nil {
+		t.Fatal("expected error for duplicate doc id")
+	}
+	if !strings.Contains(err.Error(), "duplicate") {
+		t.Fatalf("error should indicate duplicate, got: %v", err)
+	}
+	assertNoDownstreamStages(t, saveCalled, updateCalled, asyncRunnable.called)
+}
+
+// TestIndexAsyncByDocsID_NilDoc 返回包含 nil：明确报错，且三个阶段均未调用。
+func TestIndexAsyncByDocsID_NilDoc(t *testing.T) {
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+		nil,
+	}
+	var saveCalled, updateCalled bool
+	asyncRunnable := &fakeAsyncRunnable{ids: []string{"x"}}
+	r := newOrchestrationTestRag(&fakeDocSearcher{result: docs},
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { saveCalled = true; return nil },
+		func(_ context.Context, _ int64, _ int) error { updateCalled = true; return nil },
+		asyncRunnable,
+	)
+
+	_, err := r.indexAsyncByDocsID(context.Background(), &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+	if err == nil {
+		t.Fatal("expected error for nil document")
+	}
+	if !strings.Contains(err.Error(), "nil document") {
+		t.Fatalf("error should indicate nil document, got: %v", err)
+	}
+	assertNoDownstreamStages(t, saveCalled, updateCalled, asyncRunnable.called)
 }

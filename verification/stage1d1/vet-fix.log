@@ -1,0 +1,5 @@
+﻿CMD: go vet ./...
+GOFLAGS=[]  (untagged default)
+---- output ----
+
+---- EXIT: 0 ----

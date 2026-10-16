@@ -434,3 +434,75 @@ func TestSaveChunks_StatusWriteError_Joined(t *testing.T) {
 		t.Fatalf("status updater should be called exactly once, got %d", len(calls))
 	}
 }
+
+// TestSaveChunks_ChunkAndStatusErrorsBothJoined 一次调用中让 chunk 写入(insert) 与
+// 文档状态更新分别返回不同 sentinel：断言 errors.Is 同时识别两个错误，且消息包含
+// 对应的 chunk ID 与 doc ID。
+func TestSaveChunks_ChunkAndStatusErrorsBothJoined(t *testing.T) {
+	sentinelInsert := errors.New("insert rejected")
+	sentinelStatus := errors.New("status write rejected")
+
+	store := &fakeChunkStore{
+		insert: func(_ context.Context, chunk entity.KnowledgeChunks) error {
+			if chunk.ChunkId == "c1" {
+				return sentinelInsert
+			}
+			return nil
+		},
+	}
+	su := &fakeDocStatusUpdater{err: sentinelStatus}
+
+	err := saveChunks(context.Background(), 42, newChunks("c1", "c2"), store, su)
+	if err == nil {
+		t.Fatal("expected aggregated error")
+	}
+	if !errors.Is(err, sentinelInsert) {
+		t.Fatalf("errors.Is should recognize chunk insert failure: %v", err)
+	}
+	if !errors.Is(err, sentinelStatus) {
+		t.Fatalf("errors.Is should recognize status write failure: %v", err)
+	}
+	if !strings.Contains(err.Error(), "insert chunk c1") {
+		t.Fatalf("error should include failing chunk id c1: %v", err)
+	}
+	if !strings.Contains(err.Error(), "update doc 42 status") {
+		t.Fatalf("error should include doc id 42: %v", err)
+	}
+	// chunk 失败 → 文档状态降为 Failed
+	assertLastStatus(t, su, 42, int(v1.StatusFailed))
+}
+
+// TestSaveChunks_UpdateFailure_Propagated 覆盖与 insert 不同的 update 分支：
+// 已存在记录→Update 返回 sentinel，错误应被传播且包含 chunk ID，状态降为 Failed。
+func TestSaveChunks_UpdateFailure_Propagated(t *testing.T) {
+	sentinelUpdate := errors.New("update rejected")
+
+	store := &fakeChunkStore{
+		findByID: func(_ context.Context, chunkID string) (*entity.KnowledgeChunks, error) {
+			return &entity.KnowledgeChunks{Id: 5, ChunkId: chunkID}, nil // 命中 → update 路径
+		},
+		update: func(_ context.Context, _ string, _ map[string]interface{}) error {
+			return sentinelUpdate
+		},
+		insert: func(_ context.Context, chunk entity.KnowledgeChunks) error {
+			t.Errorf("Insert must not run on the update branch, got %s", chunk.ChunkId)
+			return nil
+		},
+	}
+	su := &fakeDocStatusUpdater{}
+
+	err := saveChunks(context.Background(), 7, newChunks("cU"), store, su)
+	if err == nil {
+		t.Fatal("expected error from update failure")
+	}
+	if !errors.Is(err, sentinelUpdate) {
+		t.Fatalf("errors.Is should recognize update failure: %v", err)
+	}
+	if !strings.Contains(err.Error(), "update chunk cU") {
+		t.Fatalf("error should name the failing chunk on update branch: %v", err)
+	}
+	if calls := store.getInsertCalls(); len(calls) != 0 {
+		t.Fatalf("Insert should not be called on update branch, got %v", calls)
+	}
+	assertLastStatus(t, su, 7, int(v1.StatusFailed))
+}

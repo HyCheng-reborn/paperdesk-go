@@ -1,0 +1,3 @@
+﻿CMD: gofmt -l core/indexer.go core/indexer_test.go internal/logic/knowledge/chunks_test.go
+(empty output above = all formatted)
+---- EXIT: 0 ----

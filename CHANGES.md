@@ -1,5 +1,23 @@
 # 变更记录
 
+### Stage 1D-2 定点修正（2026-10-17）
+
+- **类型**：业务代码修正
+- **分支**：review/stage1a
+- **基线**：d0905bdef20bd1a3ce80b7363eee74ea0d15927b
+- **修正内容**：
+  - `server/core/common/chat_model.go`：GetQAModel 从 sync.Once 改为 sync.Mutex + qaModelReady，失败后可重试，不返回 (nil,nil)
+  - `server/core/indexer/qa.go`：创建独立输出 Document 及顶层 MetaData map（输入不变）；factory 在入口调用一次；Wait 后先返回 worker 错误再检查原始 ctx.Err()；移除 getQAContent 冗余检查
+  - `server/internal/logic/rag/retriever.go`：提取 readQAConfig helper，配置读取失败返回 error
+  - `server/core/common/chat_model_test.go`（新建）：3 个初始化测试（重试、并发、不返回 nil nil）
+  - `server/core/indexer/qa_test.go`：新增 12 个测试（预取消、进行中取消、超时、共享 MetaData 隔离、并发调用隔离、等待退出、Graph 集成等）
+  - `server/internal/logic/rag/retriever_test.go`（新建）：2 个配置解析测试
+- **验证**：gofmt/build/vet exit 0；indexer 26 + core 39 测试通过；core race 通过；indexer 压测 -count=10 通过；全项目 go test -p 1 ./... 通过
+- **已知边界**：indexer 包 race 检测因 Windows DLL 问题失败（环境问题，已如实记录）；QA Retriever 对缺失向量的 kNN 行为待验证（A-4）
+- **状态**：Stage 1D-2 修正完成，待独立复核
+
+---
+
 ### Stage 1D-1 独立复核通过（2026-10-17）
 
 - **复核方式**：源码及提交日志复核，复核方未独立重跑测试

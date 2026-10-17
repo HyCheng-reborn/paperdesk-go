@@ -2,7 +2,9 @@ package indexer
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -147,16 +149,9 @@ func TestQA_ConcurrencyLimit(t *testing.T) {
 }
 
 func TestQA_Disabled_ReturnsDocsUnchanged(t *testing.T) {
-	// QA 关闭时，BuildIndexerAsync 会创建 identity lambda
-	// 这里测试 qa() 函数本身不会被调用（通过 async.go 的分支控制）
-	// 但为了完整性，我们测试 qa() 在 nil factory 时的行为
 	ctx := qaCtx()
 	docs := makeQADocs(2)
 
-	// 使用 nil factory 会导致 panic，所以这里测试的是 async.go 的逻辑
-	// 实际上 QA 关闭时不会调用 qa()，而是直接返回 docs
-	// 这个测试验证 async.go 的 identity lambda 行为
-	// 由于 qa() 本身需要 factory，我们测试 factory 返回 error 的情况
 	factory := func(ctx context.Context) (model.BaseChatModel, error) {
 		return nil, fmt.Errorf("QA disabled")
 	}
@@ -168,7 +163,6 @@ func TestQA_Disabled_ReturnsDocsUnchanged(t *testing.T) {
 }
 
 func TestQA_Disabled_ExistingContent_Preserved(t *testing.T) {
-	// 测试已有 QA 内容在 qa() 调用时被保留
 	ctx := qaCtx()
 	docs := makeQADocs(2)
 	docs[0].MetaData[coretypes.FieldQAContent] = "existing QA"
@@ -333,5 +327,312 @@ func TestQA_KnowledgeNameMissing(t *testing.T) {
 	}
 	if err.Error() != "必须提供知识库名称" {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+// --- 1D-2 新增测试 ---
+
+// TestQA_PreCancelled 传入已取消 ctx，验证快速返回 error，不调用模型
+func TestQA_PreCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(qaCtx())
+	cancel() // 立即取消
+
+	docs := makeQADocs(3)
+	modelCalled := false
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			modelCalled = true
+			return &schema.Message{Content: "qa"}, nil
+		},
+	}
+
+	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 4)
+	if err == nil {
+		t.Fatal("expected error for pre-cancelled ctx")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got: %v", err)
+	}
+	if modelCalled {
+		t.Error("model should not be called for pre-cancelled ctx")
+	}
+}
+
+// TestQA_MidCancel 进行中取消，验证返回 error，不发布部分结果
+func TestQA_MidCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(qaCtx())
+	docs := makeQADocs(5)
+	firstStarted := make(chan struct{})
+
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			select {
+			case firstStarted <- struct{}{}:
+			default:
+			}
+			// 等待取消
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		result, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 1)
+		if result != nil {
+			// 不应该发布部分结果
+			for i, d := range result {
+				if _, ok := d.MetaData[coretypes.FieldQAContent]; ok {
+					t.Errorf("doc %d: QA content should not be set on mid-cancel", i)
+				}
+			}
+		}
+		done <- err
+	}()
+
+	select {
+	case <-firstStarted:
+		cancel()
+	case <-time.After(2 * time.Second):
+		t.Fatal("no task started")
+	}
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected error after mid-cancel")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for qa() to return")
+	}
+}
+
+// TestQA_Timeout 超时场景，验证返回 error
+func TestQA_Timeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(qaCtx(), 50*time.Millisecond)
+	defer cancel()
+
+	docs := makeQADocs(3)
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+	if err == nil {
+		t.Fatal("expected error for timeout")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("expected context.DeadlineExceeded, got: %v", err)
+	}
+}
+
+// TestQA_SharedMetaData_InputUnchanged_OutputIsolated 两个 Document 共享同一 MetaData map
+func TestQA_SharedMetaData_InputUnchanged_OutputIsolated(t *testing.T) {
+	ctx := qaCtx()
+	sharedMeta := map[string]any{"key": "value"}
+	docs := []*schema.Document{
+		{ID: "doc-a", Content: "content-a", MetaData: sharedMeta},
+		{ID: "doc-b", Content: "content-b", MetaData: sharedMeta},
+	}
+
+	docIdx := 0
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			docIdx++
+			return &schema.Message{Content: fmt.Sprintf("qa-for-%d", docIdx)}, nil
+		},
+	}
+
+	result, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 输入不变
+	if _, ok := sharedMeta[coretypes.FieldQAContent]; ok {
+		t.Error("input shared MetaData should not be modified")
+	}
+
+	// 输出独立
+	if len(result) != 2 {
+		t.Fatalf("expected 2 output docs, got %d", len(result))
+	}
+	qaA := result[0].MetaData[coretypes.FieldQAContent].(string)
+	qaB := result[1].MetaData[coretypes.FieldQAContent].(string)
+	if qaA == qaB {
+		t.Error("output docs should have different QA content")
+	}
+	// 输出 MetaData 是独立的 map
+	if fmt.Sprintf("%p", result[0].MetaData) == fmt.Sprintf("%p", result[1].MetaData) {
+		t.Error("output docs should have independent MetaData maps")
+	}
+}
+
+// TestQA_ConcurrentCalls_Isolated 同一组件对同一组只读输入并发调用，结果隔离
+func TestQA_ConcurrentCalls_Isolated(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(3)
+
+	var callCount atomic.Int32
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			n := callCount.Add(1)
+			return &schema.Message{Content: fmt.Sprintf("qa-%d", n)}, nil
+		},
+	}
+
+	const numCalls = 3
+	results := make([][]*schema.Document, numCalls)
+	errs := make([]error, numCalls)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numCalls; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			r, e := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+			results[idx] = r
+			errs[idx] = e
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < numCalls; i++ {
+		if errs[i] != nil {
+			t.Errorf("call %d: unexpected error: %v", i, errs[i])
+		}
+		if len(results[i]) != 3 {
+			t.Errorf("call %d: expected 3 docs, got %d", i, len(results[i]))
+		}
+	}
+
+	// 输入不变
+	for i, d := range docs {
+		if _, ok := d.MetaData[coretypes.FieldQAContent]; ok {
+			t.Errorf("input doc %d should not be modified", i)
+		}
+	}
+}
+
+// TestQA_WaitDrains_Success 正常路径等待已启动任务退出
+func TestQA_WaitDrains_Success(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(4)
+	var completed atomic.Int32
+
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			time.Sleep(50 * time.Millisecond)
+			completed.Add(1)
+			return &schema.Message{Content: "qa"}, nil
+		},
+	}
+
+	result, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// 所有任务应完成
+	if c := completed.Load(); c != 4 {
+		t.Errorf("expected 4 completed tasks, got %d", c)
+	}
+	if len(result) != 4 {
+		t.Fatalf("expected 4 result docs, got %d", len(result))
+	}
+}
+
+// TestQA_WaitDrains_Failure 失败路径等待已启动任务退出
+func TestQA_WaitDrains_Failure(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(3)
+	var started atomic.Int32
+	failNow := make(chan struct{})
+
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			n := started.Add(1)
+			if n == 1 {
+				// 第一个任务失败
+				close(failNow)
+				return nil, fmt.Errorf("model error on first doc")
+			}
+			// 其他任务等待一下模拟工作
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				return &schema.Message{Content: "qa"}, nil
+			}
+		},
+	}
+
+	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	// 验证错误包含 model error
+	if !strings.Contains(err.Error(), "model error") {
+		t.Errorf("expected model error, got: %v", err)
+	}
+}
+
+// TestQA_NilModelFromFactory 工厂返回 nil model，验证返回错误
+func TestQA_NilModelFromFactory(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(1)
+
+	factory := func(ctx context.Context) (model.BaseChatModel, error) {
+		return nil, nil // nil model, nil error
+	}
+
+	_, err := qa(ctx, docs, factory, 4)
+	if err == nil {
+		t.Fatal("expected error for nil model from factory")
+	}
+	if err.Error() != "qa: nil model from factory" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// TestQA_OutputDoesNotModifyInput 验证输出不修改输入文档
+func TestQA_OutputDoesNotModifyInput(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(2)
+	// 记录输入原始状态
+	origMeta0 := make(map[string]any)
+	origMeta1 := make(map[string]any)
+	for k, v := range docs[0].MetaData {
+		origMeta0[k] = v
+	}
+	for k, v := range docs[1].MetaData {
+		origMeta1[k] = v
+	}
+
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			return &schema.Message{Content: "new QA"}, nil
+		},
+	}
+
+	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 输入 MetaData 不应被修改
+	if len(docs[0].MetaData) != len(origMeta0) {
+		t.Error("input doc 0 MetaData was modified")
+	}
+	if len(docs[1].MetaData) != len(origMeta1) {
+		t.Error("input doc 1 MetaData was modified")
+	}
+	if _, ok := docs[0].MetaData[coretypes.FieldQAContent]; ok {
+		t.Error("input doc 0 should not have QA content")
+	}
+	if _, ok := docs[1].MetaData[coretypes.FieldQAContent]; ok {
+		t.Error("input doc 1 should not have QA content")
 	}
 }

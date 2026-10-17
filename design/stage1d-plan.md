@@ -476,7 +476,7 @@ err := testRag.asyncIndexer.indexAsyncByDocsID(ctx, "kb1", 42, []string{"id1","i
 
 ## 7. 批次 1D-2：F08 QA 有限并发和失败状态
 
-> **状态**：实施完成，待独立复核（2026-10-17）——基线 `644642712bcb04e820e345598a98d99c78277175`。errgroup 有限并发 + 首错取消 + QA 可配置关闭 + GetQAModel sync.Once + DocumentToFields 条件写入 + BuildIndexerAsync qaModelFactory 注入 + x/sync v0.15.0 直接依赖；11 个 QA 测试 + core 39 PASS；不实施 1D-3。
+> **状态**：修正完成，待独立复核（2026-10-17）——基线 `d0905bdef20bd1a3ce80b7363eee74ea0d15927b`。GetQAModel 改为 Mutex + qaModelReady 失败可重试；qa() 创建独立输出 Document 及顶层 MetaData map，factory 入口调用一次，Wait 后先返回 worker 错误再检查原始 ctx.Err()；retriever 提取 readQAConfig helper；新增 17 个测试（chat_model 3 + qa 12 + retriever 2）；indexer 26 + core 39 测试通过；core race 通过；不实施 1D-3。
 
 ### 7.1 修改文件清单
 

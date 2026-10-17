@@ -13,6 +13,7 @@ import (
 
 // qa 使用 errgroup 有限并发地为文档生成 QA 内容。
 // qaModelFactory: 构建时固定的模型获取函数；maxConcurrent: 单次调用并发上限。
+// 输出为独立 Document 切片，不修改输入。
 func qa(ctx context.Context, docs []*schema.Document, qaModelFactory func(context.Context) (model.BaseChatModel, error), maxConcurrent int) (output []*schema.Document, err error) {
 	// 1. 提取 knowledgeName
 	var knowledgeName string
@@ -39,11 +40,35 @@ func qa(ctx context.Context, docs []*schema.Document, qaModelFactory func(contex
 		seen[d] = struct{}{}
 	}
 
-	// 4. errgroup 有限并发
+	// 4. 在入口调用一次 factory 获取 model
+	cm, modelErr := qaModelFactory(ctx)
+	if modelErr != nil {
+		return nil, fmt.Errorf("qa: get model: %w", modelErr)
+	}
+	if cm == nil {
+		return nil, fmt.Errorf("qa: nil model from factory")
+	}
+
+	// 5. 创建输出 Document 数组（独立 MetaData，不修改输入）
+	output = make([]*schema.Document, len(docs))
+	for i, d := range docs {
+		outMeta := make(map[string]any, len(d.MetaData))
+		// 复制顶层 key-value（不递归复制嵌套值）
+		for k, v := range d.MetaData {
+			outMeta[k] = v
+		}
+		output[i] = &schema.Document{
+			ID:       d.ID,
+			Content:  d.Content,
+			MetaData: outMeta,
+		}
+	}
+
+	// 6. errgroup 有限并发
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(maxConcurrent)
 
-	// 5. results 数组（防御性，Wait 后统一写回）
+	// 7. results 数组（防御性，Wait 后统一写回）
 	results := make([]string, len(docs))
 
 	for i, d := range docs {
@@ -60,7 +85,7 @@ func qa(ctx context.Context, docs []*schema.Document, qaModelFactory func(contex
 				return egCtx.Err()
 			}
 
-			// 已有 QA 内容跳过
+			// 已有 QA 内容跳过（检查输入 doc）
 			if d.MetaData != nil {
 				if existing, ok := d.MetaData[coretypes.FieldQAContent].(string); ok && existing != "" {
 					results[i] = existing
@@ -68,48 +93,46 @@ func qa(ctx context.Context, docs []*schema.Document, qaModelFactory func(contex
 				}
 			}
 
-			// 获取 QA 模型
-			cm, modelErr := qaModelFactory(egCtx)
-			if modelErr != nil {
-				return fmt.Errorf("qa: get model for doc %s: %w", d.ID, modelErr)
+			// 模型调用前检查取消
+			if egCtx.Err() != nil {
+				return egCtx.Err()
 			}
 
 			// 生成 QA 内容
 			qaContent, genErr := getQAContent(egCtx, d, knowledgeName, cm)
 			if genErr != nil {
-				return fmt.Errorf("qa: generate for doc %s: %w", d.ID, genErr)
+				return fmt.Errorf("qa: doc %s: %w", d.ID, genErr)
 			}
 			results[i] = qaContent
 			return nil
 		})
 	}
 
-	// 6. 等待所有已启动任务退出
+	// 8. 等待所有已启动任务退出
 	waitErr := eg.Wait()
 
-	// 7. 统一写回结果
-	if waitErr == nil {
-		for i, d := range docs {
-			if results[i] != "" {
-				if d.MetaData == nil {
-					d.MetaData = make(map[string]any)
-				}
-				d.MetaData[coretypes.FieldQAContent] = results[i]
-			}
-		}
-		return docs, nil
+	// 9. 先返回 worker 错误
+	if waitErr != nil {
+		return nil, waitErr
 	}
 
-	return nil, waitErr
+	// 10. 再检查原始调用方 ctx 是否已取消
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	// 11. 统一写回输出 Document（不修改输入）
+	for i := range docs {
+		if results[i] != "" {
+			output[i].MetaData[coretypes.FieldQAContent] = results[i]
+		}
+	}
+
+	return output, nil
 }
 
 // getQAContent 使用给定的模型生成文档的 QA 内容。
 func getQAContent(ctx context.Context, doc *schema.Document, knowledgeName string, cm model.BaseChatModel) (qaContent string, err error) {
-	// 已经有数据了就不要再生成了
-	if s, ok := doc.MetaData[coretypes.FieldQAContent].(string); ok && len(s) > 0 {
-		return s, nil
-	}
-
 	generate, err := cm.Generate(ctx, []*schema.Message{
 		{
 			Role: schema.System,

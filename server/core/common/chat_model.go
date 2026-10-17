@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -14,9 +15,11 @@ var (
 	embeddingModel model.BaseChatModel
 	rerankModel    model.BaseChatModel
 	rewriteModel   model.BaseChatModel
-	qaModel        model.BaseChatModel
-	qaModelOnce    sync.Once // 保护 qaModel 初始化，仅执行一次
 	chatModel      model.BaseChatModel
+
+	qaModel      model.BaseChatModel
+	qaModelMu    sync.Mutex
+	qaModelReady bool
 )
 
 func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseChatModel, error) {
@@ -97,26 +100,32 @@ func GetRerankModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.Bas
 }
 
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
-	var initErr error
-	qaModelOnce.Do(func() {
-		if cfg == nil {
-			cfg = &qwen.ChatModelConfig{}
-			err := g.Cfg().MustGet(ctx, "qa").Scan(cfg)
-			cfg.EnableThinking = Of(false)
-			if err != nil {
-				initErr = err
-				return
-			}
-		}
-		cm, err := qwen.NewChatModel(ctx, cfg)
-		if err != nil {
-			initErr = err
-			return
-		}
-		qaModel = cm
-	})
-	if initErr != nil {
-		return nil, initErr
+	qaModelMu.Lock()
+	if qaModelReady && qaModel != nil {
+		m := qaModel
+		qaModelMu.Unlock()
+		return m, nil
 	}
-	return qaModel, nil
+
+	// 初始化
+	if cfg == nil {
+		cfg = &qwen.ChatModelConfig{}
+		v := g.Cfg().MustGet(ctx, "qa")
+		if err := v.Scan(cfg); err != nil {
+			qaModelMu.Unlock()
+			return nil, fmt.Errorf("scan qa config: %w", err)
+		}
+		cfg.EnableThinking = Of(false)
+	}
+
+	cm, err := qwen.NewChatModel(ctx, cfg)
+	if err != nil {
+		qaModelMu.Unlock()
+		return nil, fmt.Errorf("create qa model: %w", err)
+	}
+
+	qaModel = cm
+	qaModelReady = true
+	qaModelMu.Unlock()
+	return cm, nil
 }

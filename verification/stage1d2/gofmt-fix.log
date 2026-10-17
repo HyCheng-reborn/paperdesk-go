@@ -1,0 +1,6 @@
+﻿# CMD: gofmt -l .
+# GOFLAGS: (empty)
+# EXIT: 0
+# DATE: 2026-10-17 10:50:37
+
+core\common\chat_model_test.go

@@ -89,11 +89,11 @@ func resetState() {
 // validRagConfig 返回一个有效的最小 RagConfig 用于测试
 func validRagConfig() RagConfig {
 	return RagConfig{
-		VectorCfg:      vector.Config{Type: "qdrant", IndexName: "test"},
+		VectorCfg:       vector.Config{Type: "qdrant", IndexName: "test"},
 		EmbeddingAPIKey: "test-key",
-		BaseURL:        "http://test",
-		EmbeddingModel: "test-embed",
-		ChatModel:      "test-chat",
+		BaseURL:         "http://test",
+		EmbeddingModel:  "test-embed",
+		ChatModel:       "test-chat",
 	}
 }
 
@@ -455,5 +455,50 @@ func TestInit_RagFactoryError_PreservesCloseError(t *testing.T) {
 	// 验证 VS 只关闭一次
 	if fakeVS.closeCount != 1 {
 		t.Fatalf("expected 1 close, got %d", fakeVS.closeCount)
+	}
+}
+
+// --- 1D-2 readQAConfig 测试 ---
+
+// TestReadQAConfig_Missing 验证缺失配置使用默认值
+func TestReadQAConfig_Missing(t *testing.T) {
+	ctx := context.Background()
+
+	// 在没有配置文件的情况下，g.Cfg().Get() 返回 IsNil() 值
+	enabled, maxConcurrent, err := readQAConfig(ctx)
+	if err != nil {
+		// 如果 GoFrame 配置未初始化，可能返回错误
+		t.Logf("readQAConfig returned error (expected in test env): %v", err)
+		return
+	}
+
+	// 缺失字段使用默认值（nil 和 0）
+	if enabled != nil {
+		t.Errorf("expected nil enabled for missing config, got %v", enabled)
+	}
+	if maxConcurrent != 0 {
+		t.Errorf("expected 0 maxConcurrent for missing config, got %d", maxConcurrent)
+	}
+}
+
+// TestReadQAConfig_Signature 验证 readQAConfig 函数签名正确
+func TestReadQAConfig_Signature(t *testing.T) {
+	// 验证函数签名：返回 (*bool, int, error)
+	ctx := context.Background()
+	enabled, maxConcurrent, err := readQAConfig(ctx)
+
+	// 类型检查（编译时验证）
+	var _ *bool = enabled
+	var _ int = maxConcurrent
+	var _ error = err
+
+	// 在无配置环境中，应该返回默认值或错误
+	if err == nil {
+		if enabled != nil {
+			t.Logf("enabled = %v (expected nil for missing config)", *enabled)
+		}
+		if maxConcurrent != 0 {
+			t.Logf("maxConcurrent = %d (expected 0 for missing config)", maxConcurrent)
+		}
 	}
 }

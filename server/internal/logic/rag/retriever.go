@@ -99,6 +99,30 @@ func cfgGetInt(ctx context.Context, key string) (int, error) {
 	return v.Int(), nil
 }
 
+// readQAConfig 从配置读取 QA 设置。缺失字段使用默认值；读取失败返回 error。
+func readQAConfig(ctx context.Context) (qaEnabled *bool, qaMaxConcurrent int, err error) {
+	// qa.enabled
+	v, err := g.Cfg().Get(ctx, "qa.enabled")
+	if err != nil {
+		return nil, 0, fmt.Errorf("read qa.enabled: %w", err)
+	}
+	if !v.IsNil() {
+		b := v.Bool()
+		qaEnabled = &b
+	}
+
+	// qa.maxConcurrent
+	v, err = g.Cfg().Get(ctx, "qa.maxConcurrent")
+	if err != nil {
+		return nil, 0, fmt.Errorf("read qa.maxConcurrent: %w", err)
+	}
+	if !v.IsNil() {
+		qaMaxConcurrent = v.Int()
+	}
+
+	return qaEnabled, qaMaxConcurrent, nil
+}
+
 // readRagConfig 从 GoFrame 配置读取完整 RAG 配置（生产入口）
 func readRagConfig() (RagConfig, error) {
 	ctx := gctx.New()
@@ -125,15 +149,10 @@ func readRagConfig() (RagConfig, error) {
 		return RagConfig{}, err
 	}
 
-	// QA 配置（缺失不报错，使用默认值）
-	var qaEnabled *bool
-	if v, err := g.Cfg().Get(ctx, "qa.enabled"); err == nil && !v.IsNil() {
-		b := v.Bool()
-		qaEnabled = &b
-	}
-	qaMaxConcurrent := 0
-	if v, err := g.Cfg().Get(ctx, "qa.maxConcurrent"); err == nil && !v.IsNil() {
-		qaMaxConcurrent = v.Int()
+	// QA 配置
+	qaEnabled, qaMaxConcurrent, err := readQAConfig(ctx)
+	if err != nil {
+		return RagConfig{}, fmt.Errorf("read qa config: %w", err)
 	}
 
 	return RagConfig{

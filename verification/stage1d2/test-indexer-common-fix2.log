@@ -1,0 +1,141 @@
+﻿CMD: go test ./core/indexer/... ./core/common/... -count=1 -v
+GOFLAGS=[]  (untagged default)
+PASS=64 FAIL=0
+---- output ----
+=== RUN   TestGraph_QAError_StopsIndexer
+--- PASS: TestGraph_QAError_StopsIndexer (0.00s)
+=== RUN   TestGraph_QAFactoryError
+--- PASS: TestGraph_QAFactoryError (0.00s)
+=== RUN   TestGraph_QADisabled_FactoryNotCalled
+--- PASS: TestGraph_QADisabled_FactoryNotCalled (0.00s)
+=== RUN   TestGraph_QAEnabled_Success
+--- PASS: TestGraph_QAEnabled_Success (0.00s)
+=== RUN   TestDocumentToFields_BasicFieldsAndExtra
+--- PASS: TestDocumentToFields_BasicFieldsAndExtra (0.00s)
+=== RUN   TestDocumentToFields_QAEmptyAndNonEmpty
+--- PASS: TestDocumentToFields_QAEmptyAndNonEmpty (0.00s)
+=== RUN   TestDocumentToFields_QAMissing
+--- PASS: TestDocumentToFields_QAMissing (0.00s)
+=== RUN   TestDocumentToFields_DoesNotModifyInput
+--- PASS: TestDocumentToFields_DoesNotModifyInput (0.00s)
+=== RUN   TestDocumentToFields_ReturnsIndependentMap
+--- PASS: TestDocumentToFields_ReturnsIndependentMap (0.00s)
+=== RUN   TestDocumentToFields_MarshalError
+--- PASS: TestDocumentToFields_MarshalError (0.00s)
+=== RUN   TestDocumentToFields_NilMetaDataNoExtra
+--- PASS: TestDocumentToFields_NilMetaDataNoExtra (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_NilFactory
+--- PASS: TestQA_NilFactory (0.00s)
+=== RUN   TestQA_GenerateReturnsNil
+--- PASS: TestQA_GenerateReturnsNil (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/indexer	0.574s
+=== RUN   TestChatModelConfigMapping
+--- PASS: TestChatModelConfigMapping (0.00s)
+=== RUN   TestQAModelCache_FailRetryCached
+--- PASS: TestQAModelCache_FailRetryCached (0.00s)
+=== RUN   TestQAModelCache_ReadError_NoBuild
+--- PASS: TestQAModelCache_ReadError_NoBuild (0.00s)
+=== RUN   TestQAModelCache_BuilderNilNil_RetryAllowed
+--- PASS: TestQAModelCache_BuilderNilNil_RetryAllowed (0.00s)
+=== RUN   TestQAModelCache_ConcurrentBuildsOnce
+--- PASS: TestQAModelCache_ConcurrentBuildsOnce (0.00s)
+=== RUN   TestGetQAModel_PublishesAndCaches
+--- PASS: TestGetQAModel_PublishesAndCaches (0.00s)
+=== RUN   TestRemoveDuplicates
+    slices_test.go:32: i: 0, doc_id: 1
+    slices_test.go:32: i: 1, doc_id: 2
+    slices_test.go:32: i: 2, doc_id: 3
+--- PASS: TestRemoveDuplicates (0.00s)
+=== RUN   TestStreamResponse_NormalEOF
+--- PASS: TestStreamResponse_NormalEOF (0.00s)
+=== RUN   TestStreamResponse_EmptyStream
+--- PASS: TestStreamResponse_EmptyStream (0.00s)
+=== RUN   TestStreamResponse_EmptyContentChunks
+--- PASS: TestStreamResponse_EmptyContentChunks (0.00s)
+=== RUN   TestStreamResponse_StreamError_NoDone
+--- PASS: TestStreamResponse_StreamError_NoDone (0.00s)
+=== RUN   TestStreamResponse_NilChunk
+--- PASS: TestStreamResponse_NilChunk (0.00s)
+=== RUN   TestStreamResponse_ErrorChain
+--- PASS: TestStreamResponse_ErrorChain (0.00s)
+=== RUN   TestStreamResponse_SafeErrorEncoding
+--- PASS: TestStreamResponse_SafeErrorEncoding (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Documents
+--- PASS: TestStreamResponse_WriteFail_Documents (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Data
+--- PASS: TestStreamResponse_WriteFail_Data (0.00s)
+=== RUN   TestStreamResponse_WriteFail_Done
+--- PASS: TestStreamResponse_WriteFail_Done (0.00s)
+=== RUN   TestStreamResponse_ErrorEventWriteFailure
+--- PASS: TestStreamResponse_ErrorEventWriteFailure (0.00s)
+=== RUN   TestStreamResponse_NoContinueAfterWriteFailure
+--- PASS: TestStreamResponse_NoContinueAfterWriteFailure (0.00s)
+=== RUN   TestStreamResponse_WithDocuments
+--- PASS: TestStreamResponse_WithDocuments (0.00s)
+=== RUN   TestStreamResponse_DocumentsEncodeFailure
+--- PASS: TestStreamResponse_DocumentsEncodeFailure (0.00s)
+=== RUN   TestStreamResponse_EventFrameBoundary
+--- PASS: TestStreamResponse_EventFrameBoundary (0.00s)
+=== RUN   TestStreamResponse_ErrorEventFormat
+--- PASS: TestStreamResponse_ErrorEventFormat (0.00s)
+=== RUN   TestRealSSEWriter_ShortWrite
+--- PASS: TestRealSSEWriter_ShortWrite (0.00s)
+=== RUN   TestRealSSEWriter_WriteFailure
+--- PASS: TestRealSSEWriter_WriteFailure (0.00s)
+=== RUN   TestRealSSEWriter_FrontendCompatFrames
+--- PASS: TestRealSSEWriter_FrontendCompatFrames (0.00s)
+=== RUN   TestStreamResponse_CancelThenEOF_NoDONE
+--- PASS: TestStreamResponse_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestStreamResponse_CancelBeforeRead
+--- PASS: TestStreamResponse_CancelBeforeRead (0.00s)
+=== RUN   TestStreamResponse_CancelAfterReadBeforeWrite
+--- PASS: TestStreamResponse_CancelAfterReadBeforeWrite (0.00s)
+=== RUN   TestStreamToResponseWriter_ProductionPath
+--- PASS: TestStreamToResponseWriter_ProductionPath (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/common	0.216s
+
+---- EXIT: 0 ----

@@ -2,6 +2,8 @@ package indexer
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/cloudwego/eino-ext/components/indexer/es8"
@@ -9,177 +11,151 @@ import (
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 )
 
-func TestDocumentToFields_MissingQA(t *testing.T) {
-	ctx := context.Background()
+// 所有测试都调用生产回调委派使用的同一 helper：documentToFields。
+
+func TestDocumentToFields_BasicFieldsAndExtra(t *testing.T) {
 	doc := &schema.Document{
 		ID:      "doc-1",
 		Content: "test content",
 		MetaData: map[string]any{
-			coretypes.FieldExtra: "extra-data",
+			"_file_name": "report.pdf", // 真实 ExtKeys 成员，getExtData 会保留
 		},
 	}
 
-	fields, err := documentToFields(ctx, doc, "test-kb")
+	fields, err := documentToFields(context.Background(), doc, "test-kb")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 基础字段
-	if f, ok := fields[coretypes.FieldContent]; !ok || f.Value != "test content" {
-		t.Errorf("missing or wrong content field: %v", fields[coretypes.FieldContent])
+	if f := fields[coretypes.FieldContent]; f.Value != "test content" || f.EmbedKey != coretypes.FieldContentVector {
+		t.Errorf("content field wrong: %+v", f)
 	}
-	if f, ok := fields[coretypes.KnowledgeName]; !ok || f.Value != "test-kb" {
-		t.Errorf("missing or wrong knowledge name field: %v", fields[coretypes.KnowledgeName])
-	}
-
-	// QA 字段不应存在
-	if _, ok := fields[coretypes.FieldQAContent]; ok {
-		t.Error("QA field should not be present when missing")
-	}
-}
-
-func TestDocumentToFields_EmptyQA(t *testing.T) {
-	ctx := context.Background()
-	doc := &schema.Document{
-		ID:      "doc-1",
-		Content: "test content",
-		MetaData: map[string]any{
-			coretypes.FieldQAContent: "", // 空 QA
-		},
+	if f := fields[coretypes.KnowledgeName]; f.Value != "test-kb" {
+		t.Errorf("knowledge field wrong: %+v", f)
 	}
 
-	fields, err := documentToFields(ctx, doc, "test-kb")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// 空 QA 不应写入
-	if _, ok := fields[coretypes.FieldQAContent]; ok {
-		t.Error("empty QA field should not be present")
-	}
-}
-
-func TestDocumentToFields_NonEmptyQA(t *testing.T) {
-	ctx := context.Background()
-	doc := &schema.Document{
-		ID:      "doc-1",
-		Content: "test content",
-		MetaData: map[string]any{
-			coretypes.FieldQAContent: "What is this?",
-		},
-	}
-
-	fields, err := documentToFields(ctx, doc, "test-kb")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// QA 字段应存在且有 EmbedKey
-	f, ok := fields[coretypes.FieldQAContent]
+	// Extra 来自 getExtData 的序列化，且应包含真实 ext 数据
+	raw, ok := fields[coretypes.FieldExtra].Value.(string)
 	if !ok {
-		t.Fatal("QA field should be present")
+		t.Fatalf("extra field not a string: %#v", fields[coretypes.FieldExtra].Value)
 	}
-	if f.Value != "What is this?" {
-		t.Errorf("QA value = %q, want 'What is this?'", f.Value)
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		t.Fatalf("extra field is not valid JSON: %v (%q)", err, raw)
 	}
-	if f.EmbedKey != coretypes.FieldQAContentVector {
-		t.Errorf("QA EmbedKey = %q, want %q", f.EmbedKey, coretypes.FieldQAContentVector)
+	if decoded["_file_name"] != "report.pdf" {
+		t.Errorf("extra JSON missing _file_name: %v", decoded)
+	}
+}
+
+func TestDocumentToFields_QAEmptyAndNonEmpty(t *testing.T) {
+	// 空 QA 不写入
+	empty := &schema.Document{ID: "d", Content: "c", MetaData: map[string]any{coretypes.FieldQAContent: ""}}
+	f1, err := documentToFields(context.Background(), empty, "kb")
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if _, ok := f1[coretypes.FieldQAContent]; ok {
+		t.Error("empty QA field must not be present")
+	}
+
+	// 非空 QA 写入并带 EmbedKey
+	full := &schema.Document{ID: "d", Content: "c", MetaData: map[string]any{coretypes.FieldQAContent: "What?"}}
+	f2, err := documentToFields(context.Background(), full, "kb")
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	qa := f2[coretypes.FieldQAContent]
+	if qa.Value != "What?" || qa.EmbedKey != coretypes.FieldQAContentVector {
+		t.Errorf("QA field wrong: %+v", qa)
+	}
+}
+
+func TestDocumentToFields_QAMissing(t *testing.T) {
+	doc := &schema.Document{ID: "d", Content: "c", MetaData: map[string]any{"_source": "url"}}
+	fields, err := documentToFields(context.Background(), doc, "kb")
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if _, ok := fields[coretypes.FieldQAContent]; ok {
+		t.Error("QA field should be absent when missing")
 	}
 }
 
 func TestDocumentToFields_DoesNotModifyInput(t *testing.T) {
-	ctx := context.Background()
 	doc := &schema.Document{
 		ID:      "doc-1",
-		Content: "test content",
+		Content: "c",
 		MetaData: map[string]any{
-			"key": "value",
+			"_file_name": "a.txt",
+		},
+	}
+	origKeys := map[string]any{"_file_name": "a.txt"}
+
+	if _, err := documentToFields(context.Background(), doc, "kb"); err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+
+	// 输入 MetaData 不应被写入任何新键（尤其不得出现 FieldExtra）
+	if _, ok := doc.MetaData[coretypes.FieldExtra]; ok {
+		t.Error("helper must not write FieldExtra back into input MetaData")
+	}
+	if len(doc.MetaData) != len(origKeys) {
+		t.Errorf("input MetaData length changed: %v", doc.MetaData)
+	}
+	if doc.MetaData["_file_name"] != "a.txt" {
+		t.Errorf("input ext value changed: %v", doc.MetaData["_file_name"])
+	}
+	// Content 不得被修改
+	if doc.Content != "c" || doc.ID != "doc-1" {
+		t.Errorf("input doc identity/content changed: id=%q content=%q", doc.ID, doc.Content)
+	}
+}
+
+func TestDocumentToFields_ReturnsIndependentMap(t *testing.T) {
+	doc := &schema.Document{ID: "d", Content: "c", MetaData: map[string]any{"_file_name": "x"}}
+	f1, _ := documentToFields(context.Background(), doc, "kb")
+	f2, _ := documentToFields(context.Background(), doc, "kb")
+	f1["probe"] = es8.FieldValue{Value: "v"}
+	if _, ok := f2["probe"]; ok {
+		t.Error("returned maps must be independent")
+	}
+}
+
+// TestDocumentToFields_MarshalError 用 getExtData 实际保留的不可编码值（ExtKeys 成员下的 func）
+// 触发真实 sonic.Marshal 失败：必须返回可追踪错误且不返回成功字段。
+func TestDocumentToFields_MarshalError(t *testing.T) {
+	doc := &schema.Document{
+		ID:      "doc-bad",
+		Content: "c",
+		MetaData: map[string]any{
+			"_file_name": func() {}, // 属于 ExtKeys，getExtData 会保留 → 序列化必然失败
 		},
 	}
 
-	// 记录输入原始状态
-	origLen := len(doc.MetaData)
-	origKeys := make(map[string]struct{})
-	for k := range doc.MetaData {
-		origKeys[k] = struct{}{}
+	fields, err := documentToFields(context.Background(), doc, "kb")
+	if err == nil {
+		t.Fatal("expected marshal error")
 	}
-
-	_, err := documentToFields(ctx, doc, "test-kb")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if !strings.Contains(err.Error(), "marshal ext") || !strings.Contains(err.Error(), "doc-bad") {
+		t.Fatalf("error should be a traceable marshal-ext error naming the doc, got: %v", err)
 	}
-
-	// 输入 doc 不应被修改
-	if len(doc.MetaData) != origLen {
-		t.Errorf("MetaData length changed: %d -> %d", origLen, len(doc.MetaData))
-	}
-	for k := range doc.MetaData {
-		if _, ok := origKeys[k]; !ok {
-			t.Errorf("new key %q added to MetaData", k)
-		}
+	if fields != nil {
+		t.Fatalf("on marshal failure no fields should be returned, got: %v", fields)
 	}
 }
 
-func TestDocumentToFields_WithExtra(t *testing.T) {
-	ctx := context.Background()
-	doc := &schema.Document{
-		ID:      "doc-1",
-		Content: "test content",
-		MetaData: map[string]any{
-			coretypes.FieldExtra: "serialized-extra",
-		},
-	}
-
-	fields, err := documentToFields(ctx, doc, "test-kb")
+// TestDocumentToFields_NilMetaDataNoExtra：MetaData 为 nil 时不写 Extra 字段，也不应 panic。
+func TestDocumentToFields_NilMetaDataNoExtra(t *testing.T) {
+	doc := &schema.Document{ID: "d", Content: "c", MetaData: nil}
+	fields, err := documentToFields(context.Background(), doc, "kb")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected: %v", err)
 	}
-
-	// Extra 字段应存在
-	f, ok := fields[coretypes.FieldExtra]
-	if !ok {
-		t.Fatal("Extra field should be present")
+	if _, ok := fields[coretypes.FieldExtra]; ok {
+		t.Error("no Extra expected when MetaData is nil")
 	}
-	if f.Value != "serialized-extra" {
-		t.Errorf("Extra value = %v, want 'serialized-extra'", f.Value)
-	}
-}
-
-func TestDocumentToFields_ContentEmbedKey(t *testing.T) {
-	ctx := context.Background()
-	doc := &schema.Document{
-		ID:       "doc-1",
-		Content:  "test content",
-		MetaData: map[string]any{},
-	}
-
-	fields, err := documentToFields(ctx, doc, "test-kb")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Content 字段应有 EmbedKey
-	f := fields[coretypes.FieldContent]
-	if f.EmbedKey != coretypes.FieldContentVector {
-		t.Errorf("Content EmbedKey = %q, want %q", f.EmbedKey, coretypes.FieldContentVector)
-	}
-}
-
-// 确保 fields map 是新的，不共享引用
-func TestDocumentToFields_ReturnsNewMap(t *testing.T) {
-	ctx := context.Background()
-	doc := &schema.Document{
-		ID:       "doc-1",
-		Content:  "test content",
-		MetaData: map[string]any{},
-	}
-
-	fields1, _ := documentToFields(ctx, doc, "test-kb")
-	fields2, _ := documentToFields(ctx, doc, "test-kb")
-
-	// 修改 fields1 不应影响 fields2
-	fields1["new-key"] = es8.FieldValue{Value: "new"}
-	if _, ok := fields2["new-key"]; ok {
-		t.Error("fields maps should be independent")
+	if fields[coretypes.FieldContent].EmbedKey != coretypes.FieldContentVector {
+		t.Error("content EmbedKey should be preserved")
 	}
 }

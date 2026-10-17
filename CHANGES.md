@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 1D-2 定点修正（共享 helper：Graph 装配 / 字段转换 / QA 缓存）（2026-10-17）
+
+- **基线**：`575949abfde25ff0e5ffc68ed0211b92430f54a6`。只修正三项；不实施 1D-3，不改检索策略/数据库模型/整体索引架构。
+- **一、Graph 测试复用生产装配**：`server/core/indexer/async.go` 提取共享 `buildAsyncGraph(ctx, indexer.Indexer, qaEnabled, maxConcurrent, qaModelFactory)`（QA 节点/分支/并发上限/边/Compile 只实现一次并传播构图错误）；`BuildIndexerAsync` 委派它；`graph_test.go` 删除复制的 `buildTestGraph`，改用同一 helper + 实现 `indexer.Indexer` 的 `fakeIndexer`。4 个测试：QA 错误/factory 错误均中断下游、QA 关闭不调用 factory/Generate、QA 成功传递准确内容与 IDs。
+- **二、完整字段转换不修改输入**：`indexer_async.go` 的 `documentToFields` 成为唯一完整 helper（Extra 由 getExtData→sonic.Marshal 内部序列化，写新 map、不写回输入；序列化失败返回可追踪错误且不返回成功字段）；ES `DocumentToFields` 回调仅读 knowledgeName+委派。重写 `indexer_async_test.go` 直接测 helper（含真实 ExtKeys 序列化失败）。
+- **三、初始化重试经实际缓存**：`chat_model.go` 新增实例级 `qaModelCache`（锁/model/ready/注入 reader+builder），`GetQAModel` 委派 `qaDefaultCache`；删除包级 qaModel/qaModelMu/qaModelReady；无新增可变全局替换。`chat_model_test.go` 用独立实例验证：首次失败不发布缓存、第二次成功、第三次命中缓存且 builder 总次数=2、并发只构建一次、读失败不调 builder、(nil,nil) 报错可重试。
+- **交付（三入口共用实现）**：BuildIndexerAsync→buildAsyncGraph；newAsyncIndexer ES 回调→documentToFields；GetQAModel→qaDefaultCache.get；测试分别进入同一实现。
+- **验证**（`verification/stage1d2/*-fix2.log`）：gofmt/build/vet exit 0；`go test ./core/indexer/... ./core/common/... -count=1 -v` exit 0，64 pass/0 fail；`go test -p 1 ./...` exit 0（13 包 ok）；`go test -race ./core/indexer/... ./core/common/...` 两包均 `0xc0000139`（race 二进制无法启动、运行异常、race 未完成、根因待确认，未反复运行，不以普通测试替代 race 结论）。
+- **保留边界**：A-4 QA Retriever kNN 行为待验证；core/common、core/retriever、core/rerank 及本批 indexer/common 的 race 仍待补证；统一 markFailed、重试可取消生命周期、固定延迟归属 1D-3。
+- **状态**：Stage 1D-2 定点修正完成，待独立复核（1D-3 未实施，Stage 1 整体未完成）。
+
+---
+
 ### Stage 1D-2 定点修复（2026-10-17）
 
 - **类型**：业务代码修复

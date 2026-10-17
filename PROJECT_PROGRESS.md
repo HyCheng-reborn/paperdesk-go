@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-17
-**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1 均已通过复核，Stage 1D-2 定点修复完成待独立复核，Stage 1 整体尚未完成
+**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1 均已通过复核，Stage 1D-2 本轮定点修正（共享 helper：装配/转换/缓存）完成待独立复核，Stage 1 整体尚未完成
 **复核方式**：源码及提交日志复核，复核方未独立重跑测试
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
@@ -28,7 +28,7 @@
 
 ## Stage 1：初始化副作用清理 + 并发安全修复
 
-**状态**：1-Pre/1A/1B/1C/1D-1 已通过复核，1D-2 定点修复完成待独立复核
+**状态**：1-Pre/1A/1B/1C/1D-1 已通过复核，1D-2 定点修正完成待独立复核
 
 ### 批次计划
 
@@ -40,7 +40,7 @@
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过；1C-2 ✅ 已通过源码及提交日志复核（未独立重跑测试）** |
-| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 定点修复完成，待独立复核（1D-3 未实施）** |
+| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 定点修正完成（共享 helper，基线 575949a），待独立复核（1D-3 未实施）** |
 
 ### Stage 1-Pre 完成记录
 
@@ -415,6 +415,39 @@
 - `go test -p 1 ./... -count=1` — exit 0
 
 **已知边界**：indexer 包 race 检测因 Windows DLL 问题失败；QA Retriever kNN 行为待验证（A-4）
+
+**证据目录**：[verification/stage1d2/](verification/stage1d2/)（`*-fix2.log`）
+
+### Stage 1D-2 定点修正记录（共享 helper：Graph 装配 / 字段转换 / QA 缓存）
+
+**日期**：2026-10-17
+**基线**：`575949abfde25ff0e5ffc68ed0211b92430f54a6`（Stage 1D-2 定点修复）
+**状态**：✅ 定点修正完成，待独立复核
+**范围约束**：只修正三项；不实施 1D-3，不改检索策略、数据库模型、整体索引架构。
+
+**一、Graph 测试复用生产装配（server/core/indexer/async.go）**
+- 提取包内共享 helper `buildAsyncGraph(ctx, idr indexer.Indexer, qaEnabled, maxConcurrent, qaModelFactory)`：QA 节点、启用/关闭分支、并发上限处理、节点连接与 Compile 只在此实现一次，并检查/传播所有构图错误。
+- 生产 `BuildIndexerAsync` 创建真实 Indexer 后调用该 helper；测试 `graph_test.go` 删除独立复制的 `buildTestGraph`，改用同一 helper 注入实现 `indexer.Indexer` 接口的 `fakeIndexer`。
+- 4 个 Graph 测试验证：QA Generate 返 sentinel→下游不执行且 errors.Is 识别；factory 返 sentinel→下游不执行；QA 关闭→factory/Generate 均不调用且 Indexer 正常收到文档；QA 成功→下游收到准确 QA 内容与正确 IDs。
+
+**二、完整生产字段转换不修改输入（server/core/indexer/indexer_async.go）**
+- `documentToFields` 成为唯一完整转换 helper：内部对 getExtData 结果做 sonic.Marshal，Extra 直接放入新返回 map，不写回输入 doc/MetaData；序列化失败返回可追踪错误且不返回成功字段；保留正常 Extra 语义、Content/QA 的 EmbedKey 与非空 QA 才写 QA 的规则。
+- 生产 ES `DocumentToFields` 回调仅读 knowledgeName（缺失返回错误）并委派 helper，删除对 `doc.MetaData[FieldExtra]` 的写入与被忽略的 marshal 错误。
+- `indexer_async_test.go` 直接测试同一 helper：正常 Extra（真实 ExtKeys 数据经序列化）、输入不变、独立返回 map、QA 缺失/空/非空、nil MetaData，以及用 ExtKeys 下的不可编码值（func）触发真实序列化失败。
+
+**三、初始化失败重试经过实际缓存状态（server/core/common/chat_model.go）**
+- 引入实例级 `qaModelCache`（锁、model、ready、注入 readCfg/build）；`GetQAModel` 委派生产默认实例 `qaDefaultCache.get`，签名与成功缓存行为不变；未新增可变包级测试替换函数；其他模型缓存机制不变。
+- 测试创建独立 `qaModelCache` 实例确定性验证：首次 builder 失败→errors.Is 识别且未发布缓存；第二次成功；第三次命中缓存且 builder 总次数=2；并发只构建一次；配置读取失败不调用 builder；builder 返回 (nil,nil)→错误且允许重试。
+
+**交付：三个生产入口如何调用共享实现**：1) `BuildIndexerAsync`→`buildAsyncGraph`（测试同用）；2) `newAsyncIndexer` ES `DocumentToFields` 回调→`documentToFields`（测试同用）；3) `GetQAModel`→`qaDefaultCache.get`（测试用独立 `qaModelCache.get`，同一实现）。
+
+**验证结果（server/，GOFLAGS 空；`verification/stage1d2/*-fix2.log`）**：
+- `gofmt -l` 无输出（gofmt-fix2.log）；`go build ./...` exit 0（build-fix2.log）；`go vet ./...` exit 0（vet-fix2.log）
+- `go test ./core/indexer/... ./core/common/... -count=1 -v` exit 0，64 pass / 0 fail（test-indexer-common-fix2.log）
+- `go test -p 1 ./... -count=1` exit 0，13 包 ok（test-full-fix2.log）
+- `go test -race ./core/indexer/... ./core/common/... -count=1` exit 1：两包均 `0xc0000139`（race 二进制无法启动，运行异常、race 未完成、根因待确认；未反复运行），见 race-indexer-common-fix2.log；普通并发测试不作为 race 结论替代
+
+**保留边界**：A-4 QA Retriever 缺失向量 kNN 检索行为待验证；core/common、core/retriever、core/rerank 及本批 indexer/common 的 race 仍待补证（Windows 0xc0000139）；统一 markFailed、重试可取消生命周期、固定延迟归属 1D-3。
 
 **证据目录**：[verification/stage1d2/](verification/stage1d2/)（`*-fix2.log`）
 

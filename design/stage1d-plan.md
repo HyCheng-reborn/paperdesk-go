@@ -476,7 +476,7 @@ err := testRag.asyncIndexer.indexAsyncByDocsID(ctx, "kb1", 42, []string{"id1","i
 
 ## 7. 批次 1D-2：F08 QA 有限并发和失败状态
 
-> **状态**：定点修复完成，待独立复核（2026-10-17）——基线 `b24330d6eec11df006ba09d7664f7a2955df5bef`。提取 initQAModel 实例级初始化器，defaultQAConfigReader 使用 Get+error；qa() 预取消检查、nil factory 检查、Generate nil 明确错误；提取 documentToFields 纯函数；readQAConfig 接收 configGetter 接口；重写测试（chat_model 6 + qa 修复+新增 + graph 4 + indexer_async 7 + retriever 6）；indexer 35 + core 38 测试通过；core race 通过；不实施 1D-3。
+> **状态**：定点修正完成，待独立复核（2026-10-17）——基线 `575949abfde25ff0e5ffc68ed0211b92430f54a6`。本轮只修正三项：（一）提取包内共享 `buildAsyncGraph` 作为唯一 Graph 装配（QA 节点/分支/并发上限/边/Compile 仅一处并传播构图错误），`BuildIndexerAsync` 与 graph_test 共用，测试注入实现 `indexer.Indexer` 的 fake（删除复制的 buildTestGraph）；（二）`documentToFields` 为唯一完整转换 helper（内部序列化 getExtData、Extra 写新 map 不写回输入、失败返回可追踪错误），ES 回调仅委派；（三）`qaModelCache` 实例级锁/缓存，`GetQAModel` 委派 `qaDefaultCache`，删除包级 qaModel/qaModelMu/qaModelReady，测试用独立实例验证重试/缓存/并发只建一次。验证：build/vet/gofmt exit 0，indexer+common 64 pass，`go test -p 1 ./...` 13 包 ok；indexer/common 的 -race 因 Windows `0xc0000139` 无法启动（运行异常、race 未完成、根因待确认）。保留 A-4 检索行为待验证与历史 race 未补证边界；不实施 1D-3。
 
 ### 7.1 修改文件清单
 

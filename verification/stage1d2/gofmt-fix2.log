@@ -1,0 +1,3 @@
+﻿CMD: gofmt -l core/indexer/async.go core/indexer/indexer_async.go core/common/chat_model.go core/indexer/graph_test.go core/indexer/indexer_async_test.go core/common/chat_model_test.go
+(empty above = all formatted)
+---- EXIT: 0 ----

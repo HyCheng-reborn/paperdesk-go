@@ -1,0 +1,10 @@
+﻿CMD: go test -race ./core/indexer/... ./core/common/... -count=1
+GOFLAGS=[]
+---- output ----
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/indexer	0.118s
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/common	0.110s
+FAIL
+
+---- EXIT: 1 ----

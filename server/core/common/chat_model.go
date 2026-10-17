@@ -16,10 +16,6 @@ var (
 	rerankModel    model.BaseChatModel
 	rewriteModel   model.BaseChatModel
 	chatModel      model.BaseChatModel
-
-	qaModel      model.BaseChatModel
-	qaModelMu    sync.Mutex
-	qaModelReady bool
 )
 
 func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseChatModel, error) {
@@ -105,7 +101,7 @@ type qaModelBuilder func(ctx context.Context, cfg *qwen.ChatModelConfig) (model.
 // qaConfigReader 定义配置读取依赖
 type qaConfigReader func(ctx context.Context) (*qwen.ChatModelConfig, error)
 
-// initQAModel 实例级初始化器，生产与测试共用
+// initQAModel 无状态初始化流程：读配置→构建模型→校验非 nil，生产与测试共用。
 func initQAModel(ctx context.Context, readCfg qaConfigReader, build qaModelBuilder) (model.BaseChatModel, error) {
 	cfg, err := readCfg(ctx)
 	if err != nil {
@@ -140,31 +136,48 @@ func defaultQAModelBuilder(ctx context.Context, cfg *qwen.ChatModelConfig) (mode
 	return qwen.NewChatModel(ctx, cfg)
 }
 
-// GetQAModel 公开入口
-func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
-	qaModelMu.Lock()
-	defer qaModelMu.Unlock()
+// qaModelCache 封装 QA 模型专用的锁、缓存状态与初始化流程（实例级）。
+// 锁与缓存仅保护本实例；测试可创建独立实例并注入固定 reader/builder，
+// 确定性验证失败不发布缓存、成功缓存、并发只构建一次；不新增可变包级测试替换函数。
+type qaModelCache struct {
+	mu      sync.Mutex
+	model   model.BaseChatModel
+	ready   bool
+	readCfg qaConfigReader
+	build   qaModelBuilder
+}
 
-	if qaModelReady && qaModel != nil {
-		return qaModel, nil
+// get 返回缓存的 QA 模型；未就绪时经 initQAModel 构建，成功后才发布缓存。
+// 初始化失败不发布缓存（允许重试）。cfg != nil 时直接使用传入配置（保留原有行为）。
+func (c *qaModelCache) get(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.ready && c.model != nil {
+		return c.model, nil
 	}
 
-	// 如果传入了 cfg，直接使用；否则从配置读取
-	var readCfg qaConfigReader
+	read := c.readCfg
 	if cfg != nil {
-		readCfg = func(ctx context.Context) (*qwen.ChatModelConfig, error) {
-			return cfg, nil
-		}
-	} else {
-		readCfg = defaultQAConfigReader
+		read = func(context.Context) (*qwen.ChatModelConfig, error) { return cfg, nil }
 	}
 
-	cm, err := initQAModel(ctx, readCfg, defaultQAModelBuilder)
+	cm, err := initQAModel(ctx, read, c.build)
 	if err != nil {
-		return nil, err
+		return nil, err // 失败不发布缓存，允许重试
 	}
-
-	qaModel = cm
-	qaModelReady = true
+	c.model = cm
+	c.ready = true
 	return cm, nil
+}
+
+// qaDefaultCache 生产默认实例；GetQAModel 委派给它。
+var qaDefaultCache = &qaModelCache{
+	readCfg: defaultQAConfigReader,
+	build:   defaultQAModelBuilder,
+}
+
+// GetQAModel 公开入口，委派给生产默认实例；保留签名与成功缓存行为。
+func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	return qaDefaultCache.get(ctx, cfg)
 }

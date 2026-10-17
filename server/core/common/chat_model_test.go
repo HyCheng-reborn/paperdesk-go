@@ -2,12 +2,16 @@ package common
 
 import (
 	"context"
-	"strings"
+	"errors"
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino-ext/components/model/qwen"
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 )
 
 // TestChatModelConfigMapping 验证 ChatModel 配置映射逻辑。
@@ -38,47 +42,130 @@ func resetQAModelState() {
 	qaModelReady = false
 }
 
-// TestGetQAModel_RetryAfterFailure 首次失败、重试成功、并发调用、错误链和不返回 nil,nil
-func TestGetQAModel_RetryAfterFailure(t *testing.T) {
+// fakeQAModelForChat 实现 model.BaseChatModel 接口用于测试
+type fakeQAModelForChat struct{}
+
+func (f *fakeQAModelForChat) Generate(ctx context.Context, msgs []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Content: "fake QA"}, nil
+}
+func (f *fakeQAModelForChat) Stream(ctx context.Context, msgs []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	panic("not implemented")
+}
+
+// TestInitQAModel_FirstBuildFail_RetrySuccess 第一次构建返回 sentinel error，第二次返回有效 fake model
+func TestInitQAModel_FirstBuildFail_RetrySuccess(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("build failed")
+
+	var buildCount atomic.Int32
+	reader := func(ctx context.Context) (*qwen.ChatModelConfig, error) {
+		return &qwen.ChatModelConfig{}, nil
+	}
+	builder := func(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+		n := buildCount.Add(1)
+		if n == 1 {
+			return nil, sentinel
+		}
+		return &fakeQAModelForChat{}, nil
+	}
+
+	// 第一次：构建失败
+	_, err := initQAModel(ctx, reader, builder)
+	if err == nil {
+		t.Fatal("expected error on first build")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected sentinel error, got: %v", err)
+	}
+	// 错误链应包含 "build qa model"
+	if !errors.Is(err, sentinel) {
+		t.Errorf("error chain should contain sentinel: %v", err)
+	}
+	if c := buildCount.Load(); c != 1 {
+		t.Errorf("expected 1 build call, got %d", c)
+	}
+
+	// 第二次：构建成功
+	cm, err := initQAModel(ctx, reader, builder)
+	if err != nil {
+		t.Fatalf("unexpected error on retry: %v", err)
+	}
+	if cm == nil {
+		t.Fatal("expected non-nil model on retry")
+	}
+	if c := buildCount.Load(); c != 2 {
+		t.Errorf("expected 2 build calls, got %d", c)
+	}
+}
+
+// TestInitQAModel_ReaderError 配置读取失败，错误链可识别
+func TestInitQAModel_ReaderError(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("config read failed")
+	reader := func(ctx context.Context) (*qwen.ChatModelConfig, error) {
+		return nil, sentinel
+	}
+	builder := func(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+		t.Error("builder should not be called when reader fails")
+		return nil, nil
+	}
+
+	_, err := initQAModel(ctx, reader, builder)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected sentinel error, got: %v", err)
+	}
+}
+
+// TestInitQAModel_BuilderReturnsNil builder 返回 nil model 时报错
+func TestInitQAModel_BuilderReturnsNil(t *testing.T) {
+	ctx := context.Background()
+	reader := func(ctx context.Context) (*qwen.ChatModelConfig, error) {
+		return &qwen.ChatModelConfig{}, nil
+	}
+	builder := func(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+		return nil, nil
+	}
+
+	_, err := initQAModel(ctx, reader, builder)
+	if err == nil {
+		t.Fatal("expected error when builder returns nil")
+	}
+	if err.Error() != "qa model builder returned nil" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// TestGetQAModel_CachesAfterSuccess 成功后缓存，后续调用不重新构建
+func TestGetQAModel_CachesAfterSuccess(t *testing.T) {
 	defer resetQAModelState()
 
 	ctx := context.Background()
-
-	// 使用无效配置 - qwen SDK 可能允许创建但延迟验证
-	invalidCfg := &qwen.ChatModelConfig{
-		APIKey:  "",
-		BaseURL: "http://invalid-test-url",
-		Model:   "",
+	cfg := &qwen.ChatModelConfig{
+		APIKey:  "test-key",
+		BaseURL: "http://test",
+		Model:   "test-model",
 	}
 
-	// 首次调用 - 可能成功（SDK 延迟验证）或失败
-	model1, err1 := GetQAModel(ctx, invalidCfg)
-	
-	// 验证不返回 (nil, nil)
-	if model1 == nil && err1 == nil {
-		t.Fatal("GetQAModel returned (nil, nil) on first call - this should never happen")
-	}
-
-	// 再次调用 - 如果首次成功，应该返回同一实例；如果失败，应该可以重试
-	model2, err2 := GetQAModel(ctx, invalidCfg)
-	
-	// 验证不返回 (nil, nil)
-	if model2 == nil && err2 == nil {
-		t.Fatal("GetQAModel returned (nil, nil) on retry - this should never happen")
-	}
-
-	// 如果两次都成功，应该是同一实例（缓存生效）
-	if model1 != nil && model2 != nil && err1 == nil && err2 == nil {
-		if model1 != model2 {
-			t.Error("expected same cached instance on retry")
-		}
-	}
-
-	// 如果首次失败，错误应该可识别
+	// 第一次调用
+	model1, err1 := GetQAModel(ctx, cfg)
+	// qwen.NewChatModel 不实际验证配置，会成功
 	if err1 != nil {
-		if !strings.Contains(err1.Error(), "create qa model") && !strings.Contains(err1.Error(), "scan qa config") {
-			t.Logf("first call error: %v", err1)
-		}
+		t.Fatalf("unexpected error: %v", err1)
+	}
+	if model1 == nil {
+		t.Fatal("expected non-nil model")
+	}
+
+	// 第二次调用应返回同一实例
+	model2, err2 := GetQAModel(ctx, cfg)
+	if err2 != nil {
+		t.Fatalf("unexpected error on retry: %v", err2)
+	}
+	if model1 != model2 {
+		t.Error("expected same cached instance")
 	}
 }
 
@@ -87,40 +174,40 @@ func TestGetQAModel_ConcurrentCalls(t *testing.T) {
 	defer resetQAModelState()
 
 	ctx := context.Background()
-	invalidCfg := &qwen.ChatModelConfig{
-		APIKey:  "",
-		BaseURL: "http://invalid-test-url",
-		Model:   "",
+	cfg := &qwen.ChatModelConfig{
+		APIKey:  "test-key",
+		BaseURL: "http://test",
+		Model:   "test-model",
 	}
 
 	const numGoroutines = 5
 	var wg sync.WaitGroup
 	results := make([]struct {
-		model interface{}
-		err   error
+		m model.BaseChatModel
+		e error
 	}, numGoroutines)
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			m, e := GetQAModel(ctx, invalidCfg)
-			results[idx].model = m
-			results[idx].err = e
+			m, e := GetQAModel(ctx, cfg)
+			results[idx].m = m
+			results[idx].e = e
 		}(i)
 	}
 	wg.Wait()
 
-	// 所有调用应该返回相同结果
+	// 所有调用应成功且返回同一实例
 	for i := 0; i < numGoroutines; i++ {
-		if results[i].model == nil && results[i].err == nil {
-			t.Errorf("goroutine %d: returned (nil, nil)", i)
+		if results[i].e != nil {
+			t.Errorf("goroutine %d: unexpected error: %v", i, results[i].e)
 		}
-		// 所有错误应该相同
-		if i > 0 {
-			if (results[i].err == nil) != (results[0].err == nil) {
-				t.Errorf("goroutine %d: inconsistent error state", i)
-			}
+		if results[i].m == nil {
+			t.Errorf("goroutine %d: returned nil model", i)
+		}
+		if i > 0 && results[i].m != results[0].m {
+			t.Errorf("goroutine %d: different instance than goroutine 0", i)
 		}
 	}
 }
@@ -144,5 +231,31 @@ func TestGetQAModel_DoesNotReturnNilNil(t *testing.T) {
 		}
 		// 重置以测试下一个配置
 		resetQAModelState()
+	}
+}
+
+// TestGetQAModel_ConfigReadError 配置读取错误通过 Get 传播
+func TestGetQAModel_ConfigReadError(t *testing.T) {
+	defer resetQAModelState()
+
+	// 传入 cfg != nil 时不会触发 defaultQAConfigReader，
+	// 但传入的 cfg 本身有效，所以这里测试 defaultQAConfigReader 路径
+	// 由于无法注入 fake reader 到 GetQAModel，通过 initQAModel 直接测试
+	ctx := context.Background()
+	sentinel := fmt.Errorf("config unavailable")
+	reader := func(ctx context.Context) (*qwen.ChatModelConfig, error) {
+		return nil, sentinel
+	}
+	builder := func(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+		t.Error("builder should not be called")
+		return nil, nil
+	}
+
+	_, err := initQAModel(ctx, reader, builder)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("error chain should contain sentinel: %v", err)
 	}
 }

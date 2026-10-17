@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/qdrant/go-client/qdrant"
@@ -99,10 +100,22 @@ func cfgGetInt(ctx context.Context, key string) (int, error) {
 	return v.Int(), nil
 }
 
-// readQAConfig 从配置读取 QA 设置。缺失字段使用默认值；读取失败返回 error。
-func readQAConfig(ctx context.Context) (qaEnabled *bool, qaMaxConcurrent int, err error) {
+// configGetter 配置读取接口
+type configGetter interface {
+	Get(ctx context.Context, key string) (*gvar.Var, error)
+}
+
+// defaultConfigGetter 生产默认配置读取器
+type defaultConfigGetter struct{}
+
+func (d *defaultConfigGetter) Get(ctx context.Context, key string) (*gvar.Var, error) {
+	return g.Cfg().Get(ctx, key)
+}
+
+// readQAConfig 从 reader 读取 QA 配置。缺失字段使用默认值；读取失败返回 error。
+func readQAConfig(ctx context.Context, getter configGetter) (qaEnabled *bool, qaMaxConcurrent int, err error) {
 	// qa.enabled
-	v, err := g.Cfg().Get(ctx, "qa.enabled")
+	v, err := getter.Get(ctx, "qa.enabled")
 	if err != nil {
 		return nil, 0, fmt.Errorf("read qa.enabled: %w", err)
 	}
@@ -112,7 +125,7 @@ func readQAConfig(ctx context.Context) (qaEnabled *bool, qaMaxConcurrent int, er
 	}
 
 	// qa.maxConcurrent
-	v, err = g.Cfg().Get(ctx, "qa.maxConcurrent")
+	v, err = getter.Get(ctx, "qa.maxConcurrent")
 	if err != nil {
 		return nil, 0, fmt.Errorf("read qa.maxConcurrent: %w", err)
 	}
@@ -150,7 +163,7 @@ func readRagConfig() (RagConfig, error) {
 	}
 
 	// QA 配置
-	qaEnabled, qaMaxConcurrent, err := readQAConfig(ctx)
+	qaEnabled, qaMaxConcurrent, err := readQAConfig(ctx, &defaultConfigGetter{})
 	if err != nil {
 		return RagConfig{}, fmt.Errorf("read qa config: %w", err)
 	}

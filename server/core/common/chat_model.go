@@ -99,33 +99,72 @@ func GetRerankModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.Bas
 	return cm, nil
 }
 
+// qaModelBuilder 定义模型构建依赖
+type qaModelBuilder func(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error)
+
+// qaConfigReader 定义配置读取依赖
+type qaConfigReader func(ctx context.Context) (*qwen.ChatModelConfig, error)
+
+// initQAModel 实例级初始化器，生产与测试共用
+func initQAModel(ctx context.Context, readCfg qaConfigReader, build qaModelBuilder) (model.BaseChatModel, error) {
+	cfg, err := readCfg(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read qa config: %w", err)
+	}
+	cm, err := build(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("build qa model: %w", err)
+	}
+	if cm == nil {
+		return nil, fmt.Errorf("qa model builder returned nil")
+	}
+	return cm, nil
+}
+
+// defaultQAConfigReader 生产默认配置读取
+func defaultQAConfigReader(ctx context.Context) (*qwen.ChatModelConfig, error) {
+	cfg := &qwen.ChatModelConfig{}
+	v, err := g.Cfg().Get(ctx, "qa")
+	if err != nil {
+		return nil, fmt.Errorf("get qa config: %w", err)
+	}
+	if err := v.Scan(cfg); err != nil {
+		return nil, fmt.Errorf("scan qa config: %w", err)
+	}
+	cfg.EnableThinking = Of(false)
+	return cfg, nil
+}
+
+// defaultQAModelBuilder 生产默认模型构建
+func defaultQAModelBuilder(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	return qwen.NewChatModel(ctx, cfg)
+}
+
+// GetQAModel 公开入口
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
 	qaModelMu.Lock()
+	defer qaModelMu.Unlock()
+
 	if qaModelReady && qaModel != nil {
-		m := qaModel
-		qaModelMu.Unlock()
-		return m, nil
+		return qaModel, nil
 	}
 
-	// 初始化
-	if cfg == nil {
-		cfg = &qwen.ChatModelConfig{}
-		v := g.Cfg().MustGet(ctx, "qa")
-		if err := v.Scan(cfg); err != nil {
-			qaModelMu.Unlock()
-			return nil, fmt.Errorf("scan qa config: %w", err)
+	// 如果传入了 cfg，直接使用；否则从配置读取
+	var readCfg qaConfigReader
+	if cfg != nil {
+		readCfg = func(ctx context.Context) (*qwen.ChatModelConfig, error) {
+			return cfg, nil
 		}
-		cfg.EnableThinking = Of(false)
+	} else {
+		readCfg = defaultQAConfigReader
 	}
 
-	cm, err := qwen.NewChatModel(ctx, cfg)
+	cm, err := initQAModel(ctx, readCfg, defaultQAModelBuilder)
 	if err != nil {
-		qaModelMu.Unlock()
-		return nil, fmt.Errorf("create qa model: %w", err)
+		return nil, err
 	}
 
 	qaModel = cm
 	qaModelReady = true
-	qaModelMu.Unlock()
 	return cm, nil
 }

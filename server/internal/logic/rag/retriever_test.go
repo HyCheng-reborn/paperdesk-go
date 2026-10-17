@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
@@ -460,45 +461,137 @@ func TestInit_RagFactoryError_PreservesCloseError(t *testing.T) {
 
 // --- 1D-2 readQAConfig 测试 ---
 
-// TestReadQAConfig_Missing 验证缺失配置使用默认值
+// fakeConfigGetter 实现 configGetter 接口用于测试
+type fakeConfigGetter struct {
+	data map[string]*gvar.Var
+	err  error
+}
+
+func (f *fakeConfigGetter) Get(ctx context.Context, key string) (*gvar.Var, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	if v, ok := f.data[key]; ok {
+		return v, nil
+	}
+	// 缺失 key 返回 IsNil 的 Var
+	return gvar.New(nil), nil
+}
+
+// TestReadQAConfig_Missing 缺失配置使用默认值
 func TestReadQAConfig_Missing(t *testing.T) {
 	ctx := context.Background()
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{}}
 
-	// 在没有配置文件的情况下，g.Cfg().Get() 返回 IsNil() 值
-	enabled, maxConcurrent, err := readQAConfig(ctx)
+	enabled, maxConcurrent, err := readQAConfig(ctx, getter)
 	if err != nil {
-		// 如果 GoFrame 配置未初始化，可能返回错误
-		t.Logf("readQAConfig returned error (expected in test env): %v", err)
-		return
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 缺失字段使用默认值（nil 和 0）
+	// 缺失字段使用默认值
 	if enabled != nil {
-		t.Errorf("expected nil enabled for missing config, got %v", enabled)
+		t.Errorf("expected nil enabled for missing config, got %v", *enabled)
 	}
 	if maxConcurrent != 0 {
 		t.Errorf("expected 0 maxConcurrent for missing config, got %d", maxConcurrent)
 	}
 }
 
-// TestReadQAConfig_Signature 验证 readQAConfig 函数签名正确
-func TestReadQAConfig_Signature(t *testing.T) {
-	// 验证函数签名：返回 (*bool, int, error)
+// TestReadQAConfig_False 显式 false
+func TestReadQAConfig_False(t *testing.T) {
 	ctx := context.Background()
-	enabled, maxConcurrent, err := readQAConfig(ctx)
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{
+		"qa.enabled": gvar.New(false),
+	}}
 
-	// 类型检查（编译时验证）
-	var _ *bool = enabled
-	var _ int = maxConcurrent
-	var _ error = err
+	enabled, _, err := readQAConfig(ctx, getter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if enabled == nil {
+		t.Fatal("expected non-nil enabled")
+	}
+	if *enabled != false {
+		t.Errorf("expected false, got %v", *enabled)
+	}
+}
 
-	// 在无配置环境中，应该返回默认值或错误
+// TestReadQAConfig_True 显式 true
+func TestReadQAConfig_True(t *testing.T) {
+	ctx := context.Background()
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{
+		"qa.enabled": gvar.New(true),
+	}}
+
+	enabled, _, err := readQAConfig(ctx, getter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if enabled == nil {
+		t.Fatal("expected non-nil enabled")
+	}
+	if *enabled != true {
+		t.Errorf("expected true, got %v", *enabled)
+	}
+}
+
+// TestReadQAConfig_MaxConcurrent_Default 缺失默认为 0
+func TestReadQAConfig_MaxConcurrent_Default(t *testing.T) {
+	ctx := context.Background()
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{}}
+
+	_, maxConcurrent, err := readQAConfig(ctx, getter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if maxConcurrent != 0 {
+		t.Errorf("expected 0, got %d", maxConcurrent)
+	}
+}
+
+// TestReadQAConfig_MaxConcurrent_Boundary 边界值测试
+func TestReadQAConfig_MaxConcurrent_Boundary(t *testing.T) {
+	tests := []struct {
+		name  string
+		value int
+		want  int
+	}{
+		{"negative", -1, -1},
+		{"zero", 0, 0},
+		{"normal", 4, 4},
+		{"max", 32, 32},
+		{"over_max", 33, 33},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			getter := &fakeConfigGetter{data: map[string]*gvar.Var{
+				"qa.maxConcurrent": gvar.New(tt.value),
+			}}
+
+			_, maxConcurrent, err := readQAConfig(ctx, getter)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if maxConcurrent != tt.want {
+				t.Errorf("maxConcurrent = %d, want %d", maxConcurrent, tt.want)
+			}
+		})
+	}
+}
+
+// TestReadQAConfig_ReadError 读取错误传播
+func TestReadQAConfig_ReadError(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("config read failed")
+	getter := &fakeConfigGetter{err: sentinel}
+
+	_, _, err := readQAConfig(ctx, getter)
 	if err == nil {
-		if enabled != nil {
-			t.Logf("enabled = %v (expected nil for missing config)", *enabled)
-		}
-		if maxConcurrent != 0 {
-			t.Logf("maxConcurrent = %d (expected 0 for missing config)", maxConcurrent)
-		}
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected sentinel error, got: %v", err)
 	}
 }

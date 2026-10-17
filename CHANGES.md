@@ -1,5 +1,26 @@
 # 变更记录
 
+### Stage 1D-2 定点修复（2026-10-17）
+
+- **类型**：业务代码修复
+- **分支**：review/stage1a
+- **基线**：b24330d6eec11df006ba09d7664f7a2955df5bef
+- **修复内容**：
+  - `server/core/common/chat_model.go`：提取 initQAModel 实例级初始化器；defaultQAConfigReader 使用 Get+error 替代 MustGet；defer 释放锁
+  - `server/core/indexer/qa.go`：预取消检查（factory 和 Generate 均不调用）；nil factory 检查；Generate 返回 nil 时返回明确错误
+  - `server/core/indexer/indexer_async.go`：提取 documentToFields 纯函数，不修改输入 doc
+  - `server/internal/logic/rag/retriever.go`：readQAConfig 接收 configGetter 接口，生产与测试共用同一解析逻辑
+  - `server/core/common/chat_model_test.go`：重写，6 个测试覆盖初始化器重试、错误链、缓存、并发
+  - `server/core/indexer/qa_test.go`：修复无锁计数器（atomic.Int32）、共享 map 确定性回答、失败等待 channel 同步；新增 nil factory、Generate nil 测试
+  - `server/core/indexer/graph_test.go`（新建）：4 个 Graph 集成测试（QA 错误中断 Indexer、QA 关闭 factory 不调用、成功流程、factory 错误）
+  - `server/core/indexer/indexer_async_test.go`（新建）：7 个 DocumentToFields 测试
+  - `server/internal/logic/rag/retriever_test.go`：重写，6 个配置解析测试（缺失/false/true/边界/错误）
+- **验证**：gofmt/build/vet exit 0；indexer 35 + core 38 测试通过；core race 通过；压测 -count=10 通过；全项目 go test -p 1 ./... 通过
+- **已知边界**：indexer 包 race 检测因 Windows DLL 问题失败（运行异常、race 未完成、根因待确认）；QA Retriever 对缺失向量的 kNN 行为待验证（A-4）
+- **状态**：Stage 1D-2 定点修复完成，待独立复核
+
+---
+
 ### Stage 1D-2 定点修正（2026-10-17）
 
 - **类型**：业务代码修正

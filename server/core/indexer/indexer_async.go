@@ -35,34 +35,12 @@ func newAsyncIndexer(ctx context.Context, conf *config.Config) (idr indexer.Inde
 					err = fmt.Errorf("必须提供知识库名称")
 					return
 				}
+				// ext 序列化：在调用 documentToFields 之前完成，不修改输入 doc
 				if doc.MetaData != nil {
-					// 存储ext数据
 					marshal, _ := sonic.Marshal(getExtData(doc))
 					doc.MetaData[coretypes.FieldExtra] = string(marshal)
 				}
-
-				// 构建基础 fields
-				fields := map[string]es8.FieldValue{
-					coretypes.FieldContent: {
-						Value:    doc.Content,
-						EmbedKey: coretypes.FieldContentVector,
-					},
-					coretypes.FieldExtra: {
-						Value: doc.MetaData[coretypes.FieldExtra],
-					},
-					coretypes.KnowledgeName: {
-						Value: knowledgeName,
-					},
-				}
-
-				// 条件添加 QA 字段（仅当值非空时）
-				if qaVal, ok := doc.MetaData[coretypes.FieldQAContent].(string); ok && qaVal != "" {
-					fields[coretypes.FieldQAContent] = es8.FieldValue{
-						Value:    qaVal,
-						EmbedKey: coretypes.FieldQAContentVector,
-					}
-				}
-				return fields, nil
+				return documentToFields(ctx, doc, knowledgeName)
 			},
 		}
 		indexerConfig.Embedding = embeddingIns11
@@ -89,4 +67,29 @@ func newAsyncIndexer(ctx context.Context, conf *config.Config) (idr indexer.Inde
 	} else {
 		return nil, fmt.Errorf("no valid client configuration found")
 	}
+}
+
+// documentToFields 纯函数，将 Document 转换为 ES 字段映射，不修改输入 doc
+func documentToFields(ctx context.Context, doc *schema.Document, knowledgeName string) (map[string]es8.FieldValue, error) {
+	fields := map[string]es8.FieldValue{
+		coretypes.FieldContent:  {Value: doc.Content, EmbedKey: coretypes.FieldContentVector},
+		coretypes.KnowledgeName: {Value: knowledgeName},
+	}
+
+	// Extra 字段（如果已设置）
+	if doc.MetaData != nil {
+		if ext, ok := doc.MetaData[coretypes.FieldExtra]; ok {
+			fields[coretypes.FieldExtra] = es8.FieldValue{Value: ext}
+		}
+	}
+
+	// QA 字段条件写入
+	if qaVal, ok := doc.MetaData[coretypes.FieldQAContent].(string); ok && qaVal != "" {
+		fields[coretypes.FieldQAContent] = es8.FieldValue{
+			Value:    qaVal,
+			EmbedKey: coretypes.FieldQAContentVector,
+		}
+	}
+
+	return fields, nil
 }

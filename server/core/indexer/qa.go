@@ -40,6 +40,16 @@ func qa(ctx context.Context, docs []*schema.Document, qaModelFactory func(contex
 		seen[d] = struct{}{}
 	}
 
+	// 3.5 预取消检查：factory 和 Generate 均不得调用
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	// 3.6 nil factory 检查
+	if qaModelFactory == nil {
+		return nil, fmt.Errorf("qa: nil model factory")
+	}
+
 	// 4. 在入口调用一次 factory 获取 model
 	cm, modelErr := qaModelFactory(ctx)
 	if modelErr != nil {
@@ -155,10 +165,12 @@ func getQAContent(ctx context.Context, doc *schema.Document, knowledgeName strin
 		},
 	})
 	if err != nil {
-		return
+		return "", fmt.Errorf("generate: %w", err)
 	}
-	qaContent = generate.Content
-	return
+	if generate == nil {
+		return "", fmt.Errorf("generate returned nil response")
+	}
+	return generate.Content, nil
 }
 
 // defaultQAModelFactory 默认的 QA 模型工厂函数，调用 common.GetQAModel。

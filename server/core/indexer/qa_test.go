@@ -83,18 +83,18 @@ func TestQA_AllSuccess(t *testing.T) {
 func TestQA_PartialFailure_ReturnsError(t *testing.T) {
 	ctx := qaCtx()
 	docs := makeQADocs(3)
-	callCount := 0
+	var callCount atomic.Int32
 	fakeModel := &fakeQAModel{
 		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
-			callCount++
-			if callCount == 2 {
+			n := callCount.Add(1)
+			if n == 2 {
 				return nil, fmt.Errorf("model error")
 			}
 			return &schema.Message{Content: "ok"}, nil
 		},
 	}
 
-	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 4)
+	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 1) // 串行确保第2个失败
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -105,16 +105,11 @@ func TestQA_ConcurrencyLimit(t *testing.T) {
 	docs := makeQADocs(10)
 	var concurrent atomic.Int32
 	var maxConcurrent atomic.Int32
-	var wg sync.WaitGroup
 
 	fakeModel := &fakeQAModel{
 		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
 			cur := concurrent.Add(1)
-			wg.Add(1)
-			defer func() {
-				concurrent.Add(-1)
-				wg.Done()
-			}()
+			defer concurrent.Add(-1)
 			// 更新最大值
 			for {
 				old := maxConcurrent.Load()
@@ -438,11 +433,12 @@ func TestQA_SharedMetaData_InputUnchanged_OutputIsolated(t *testing.T) {
 		{ID: "doc-b", Content: "content-b", MetaData: sharedMeta},
 	}
 
-	docIdx := 0
+	// 按 doc.Content 决定返回结果，避免并发计数器竞争
 	fakeModel := &fakeQAModel{
 		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
-			docIdx++
-			return &schema.Message{Content: fmt.Sprintf("qa-for-%d", docIdx)}, nil
+			// 从 user message 提取 doc content
+			userMsg := msgs[len(msgs)-1]
+			return &schema.Message{Content: fmt.Sprintf("qa-for-%s", userMsg.Content)}, nil
 		},
 	}
 
@@ -464,6 +460,13 @@ func TestQA_SharedMetaData_InputUnchanged_OutputIsolated(t *testing.T) {
 	qaB := result[1].MetaData[coretypes.FieldQAContent].(string)
 	if qaA == qaB {
 		t.Error("output docs should have different QA content")
+	}
+	// 精确断言各文档内容
+	if qaA != "qa-for-content-a" {
+		t.Errorf("doc 0: expected 'qa-for-content-a', got %q", qaA)
+	}
+	if qaB != "qa-for-content-b" {
+		t.Errorf("doc 1: expected 'qa-for-content-b', got %q", qaB)
 	}
 	// 输出 MetaData 是独立的 map
 	if fmt.Sprintf("%p", result[0].MetaData) == fmt.Sprintf("%p", result[1].MetaData) {
@@ -549,33 +552,52 @@ func TestQA_WaitDrains_Failure(t *testing.T) {
 	ctx := qaCtx()
 	docs := makeQADocs(3)
 	var started atomic.Int32
-	failNow := make(chan struct{})
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
 
 	fakeModel := &fakeQAModel{
 		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
 			n := started.Add(1)
 			if n == 1 {
-				// 第一个任务失败
-				close(failNow)
-				return nil, fmt.Errorf("model error on first doc")
+				// 第一个任务：通知已启动，然后等待释放后失败
+				close(firstStarted)
+				<-releaseFirst
+				return nil, fmt.Errorf("sentinel failure")
 			}
-			// 其他任务等待一下模拟工作
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(100 * time.Millisecond):
-				return &schema.Message{Content: "qa"}, nil
-			}
+			// 其他任务：等待 context 取消
+			<-ctx.Done()
+			return nil, ctx.Err()
 		},
 	}
 
-	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
-	if err == nil {
-		t.Fatal("expected error")
+	done := make(chan error, 1)
+	go func() {
+		_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 2)
+		done <- err
+	}()
+
+	// 等待第一个 worker 启动
+	select {
+	case <-firstStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first worker did not start")
 	}
-	// 验证错误包含 model error
-	if !strings.Contains(err.Error(), "model error") {
-		t.Errorf("expected model error, got: %v", err)
+
+	// 释放第一个 worker，让它失败
+	close(releaseFirst)
+
+	// 验证 qa() 返回错误
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		// 验证错误包含 sentinel failure
+		if !strings.Contains(err.Error(), "sentinel failure") {
+			t.Errorf("expected sentinel failure, got: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for qa() to return")
 	}
 }
 
@@ -634,5 +656,39 @@ func TestQA_OutputDoesNotModifyInput(t *testing.T) {
 	}
 	if _, ok := docs[1].MetaData[coretypes.FieldQAContent]; ok {
 		t.Error("input doc 1 should not have QA content")
+	}
+}
+
+// TestQA_NilFactory 传入 nil factory，验证返回错误
+func TestQA_NilFactory(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(1)
+
+	_, err := qa(ctx, docs, nil, 4)
+	if err == nil {
+		t.Fatal("expected error for nil factory")
+	}
+	if err.Error() != "qa: nil model factory" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// TestQA_GenerateReturnsNil 模型 Generate 返回 (nil, nil) 时返回明确错误
+func TestQA_GenerateReturnsNil(t *testing.T) {
+	ctx := qaCtx()
+	docs := makeQADocs(1)
+
+	fakeModel := &fakeQAModel{
+		generateFn: func(ctx context.Context, msgs []*schema.Message) (*schema.Message, error) {
+			return nil, nil
+		},
+	}
+
+	_, err := qa(ctx, docs, qaFactoryWithModel(fakeModel), 4)
+	if err == nil {
+		t.Fatal("expected error when Generate returns nil")
+	}
+	if !strings.Contains(err.Error(), "nil response") {
+		t.Errorf("expected nil response error, got: %v", err)
 	}
 }

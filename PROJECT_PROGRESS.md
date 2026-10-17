@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-17
-**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1 均已通过复核，Stage 1D-2 修正完成待独立复核，Stage 1 整体尚未完成
+**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1 均已通过复核，Stage 1D-2 定点修复完成待独立复核，Stage 1 整体尚未完成
 **复核方式**：源码及提交日志复核，复核方未独立重跑测试
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
@@ -28,7 +28,7 @@
 
 ## Stage 1：初始化副作用清理 + 并发安全修复
 
-**状态**：1-Pre/1A/1B/1C/1D-1 已通过复核，1D-2 修正完成待独立复核
+**状态**：1-Pre/1A/1B/1C/1D-1 已通过复核，1D-2 定点修复完成待独立复核
 
 ### 批次计划
 
@@ -40,7 +40,7 @@
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过；1C-2 ✅ 已通过源码及提交日志复核（未独立重跑测试）** |
-| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 修正完成，待独立复核（1D-3 未实施）** |
+| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 定点修复完成，待独立复核（1D-3 未实施）** |
 
 ### Stage 1-Pre 完成记录
 
@@ -388,6 +388,35 @@
 **保留边界**：QA 关闭时 `qaRtrvr` 对 `FieldQAContentVector` 缺失的 kNN 行为待验证（不影响主检索路径 `rtrvr`）；Qdrant 异步 indexer 路径保留现状；`core/retriever`、`core/rerank` race 仍待补证。
 
 **证据目录**：[verification/stage1d2/](verification/stage1d2/)
+
+### Stage 1D-2 定点修复记录
+
+**日期**：2026-10-17
+**基线**：`b24330d6eec11df006ba09d7664f7a2955df5bef`
+**状态**：✅ 定点修复完成，待独立复核
+
+**修改文件**：
+- `server/core/common/chat_model.go` — 提取 initQAModel 实例级初始化器；defaultQAConfigReader 使用 Get+error 替代 MustGet；defer 释放锁
+- `server/core/indexer/qa.go` — 预取消检查（factory 和 Generate 均不调用）；nil factory 检查；Generate 返回 nil 时返回明确错误
+- `server/core/indexer/indexer_async.go` — 提取 documentToFields 纯函数，不修改输入 doc
+- `server/internal/logic/rag/retriever.go` — readQAConfig 接收 configGetter 接口，生产与测试共用同一解析逻辑
+- `server/core/common/chat_model_test.go` — 重写，6 个测试覆盖初始化器重试、错误链、缓存、并发
+- `server/core/indexer/qa_test.go` — 修复无锁计数器（atomic.Int32）、共享 map 确定性回答、失败等待 channel 同步；新增 nil factory、Generate nil 测试
+- `server/core/indexer/graph_test.go`（新建）— 4 个 Graph 集成测试
+- `server/core/indexer/indexer_async_test.go`（新建）— 7 个 DocumentToFields 测试
+- `server/internal/logic/rag/retriever_test.go` — 重写，6 个配置解析测试
+
+**验证结果（server/，GOFLAGS 空）**：
+- `gofmt -l` 无输出；`go build ./...`、`go vet ./...` — exit 0
+- `go test ./core/indexer/... -count=1 -v` — exit 0，35 pass
+- `go test ./core -count=1 -v` — exit 0，38 pass
+- `go test -race ./core -count=1` — exit 0
+- `go test -race -count=10` 压测通过
+- `go test -p 1 ./... -count=1` — exit 0
+
+**已知边界**：indexer 包 race 检测因 Windows DLL 问题失败；QA Retriever kNN 行为待验证（A-4）
+
+**证据目录**：[verification/stage1d2/](verification/stage1d2/)（`*-fix2.log`）
 
 ### Stage 1C-2 完成记录
 

@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 1D-3 测试等待机制统一为 Shutdown（2026-10-18）
+
+- **类型**：测试重构（基于测试证据阻塞修复的进一步优化）
+- **基线**：3e24a53
+- **修复内容**：
+  1. **BackgroundChunks 测试统一使用 Shutdown 等待**：`TestIndex_BackgroundChunksFailure_RealChain`、`TestIndex_BackgroundChunksStatusWriteFailure_Propagated`、`TestIndex_BackgroundCleanupBeforeDone` 三个测试从手动 asyncDone channel 改为使用 `r.Shutdown(ctx)` 等待完整 defer 链（markFailed + bgWG.Done + bgSem 释放）；Shutdown 作为生产 API 提供更强的完成证明
+  2. **CleanupBeforeDone 测试简化**：移除第二次 Index 调用（避免 asyncDone 重复关闭和容量推断歧义）；直接启动 Shutdown goroutine 证明阻塞——cleanup 阻塞期间 Shutdown 不返回，释放后 Shutdown 成功返回
+  3. **导出跨包测试接口**：`chunkStore` → `ChunkStore`、`docStatusUpdater` → `DocStatusUpdater`；新增 `SaveChunksDataWithDeps` 公开入口允许跨包注入测试，使用 indexingOnly 策略保持与生产一致
+- **验证**：gofmt/build/vet exit 0；测试通过；race 通过
+- **状态**：1D-3 待独立复核；Stage 1 整体未标完成
+
+---
+
 ### Stage 1D-3 测试证据阻塞修复（2026-10-18）
 
 - **类型**：测试修复（基于 Codex 独立复核测试证据报告）

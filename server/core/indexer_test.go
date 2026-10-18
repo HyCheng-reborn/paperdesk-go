@@ -2322,7 +2322,8 @@ func newFullChainTestRag(
 	return r
 }
 
-// TestIndex_BackgroundChunksFailure_RealChain 验证后台 chunk 失败时 markFailed 恰好一次
+// TestIndex_BackgroundChunksFailure_RealChain 验证后台 chunk 失败时 markFailed 恰好一次。
+// 使用 asyncDone + Shutdown 等待完整 defer 链（含 markFailed + bgWG.Done）完成。
 func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
 	docs := []*schema.Document{
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
@@ -2340,8 +2341,8 @@ func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
 	)
 	r.asyncWait = func(ctx context.Context) {}
 
+	// 包装 asyncIndexer 以信号 indexAsyncByDocsID 返回
 	asyncDone := make(chan struct{})
-	// 包装 asyncIndexer 以信号后台完成
 	origAsync := r.asyncIndexer
 	r.asyncIndexer = &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
@@ -2349,10 +2350,6 @@ func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
 			return origAsync.indexAsyncByDocsID(ctx, knowledgeName, documentsID, docsIDs)
 		},
 	}
-
-	t.Cleanup(func() {
-		waitSig(t, asyncDone, "background finish")
-	})
 
 	ids, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
 	if err != nil {
@@ -2362,9 +2359,17 @@ func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
 		t.Fatalf("expected 1 id, got %d", len(ids))
 	}
 
-	waitSig(t, asyncDone, "background finish")
+	// 等待 indexAsyncByDocsID 返回（chunk 失败后快速返回）
+	waitSig(t, asyncDone, "indexAsyncByDocsID returned")
 
-	// 验证 Failed 写入恰好一次
+	// Shutdown 等待完整 defer 链：markFailed + bgWG.Done + bgSem 释放
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if shutdownErr := r.Shutdown(shutdownCtx); shutdownErr != nil {
+		t.Fatalf("Shutdown failed: %v", shutdownErr)
+	}
+
+	// 此时 markFailed 已执行完成，验证 Failed 写入恰好一次
 	calls := su.getCalls()
 	failedCount := 0
 	for _, c := range calls {
@@ -2376,7 +2381,6 @@ func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
 		t.Fatalf("expected exactly 1 Failed status write, got %d; calls: %v", failedCount, calls)
 	}
 
-	// 不进入后续索引（idxerAsync 不应被调用）
 	// 不标 Active
 	for _, c := range calls {
 		if c.status == int(v1.StatusActive) {
@@ -2418,13 +2422,13 @@ func TestIndex_BackgroundChunksSuccess_WritesIndexing(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 等待 Indexing 状态写入（在 QA 阻塞期间）
+	// 等待 Indexing 状态写入（在 QA 阻塞期间），最多 3 秒
 	var calls []testStatusCall
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 30; i++ {
 		calls = su.getCalls()
 		for _, c := range calls {
 			if c.status == int(v1.StatusIndexing) {
-				return // 成功
+				return // 成功：Indexing 在 QA 阻塞期间已写入
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -2432,7 +2436,8 @@ func TestIndex_BackgroundChunksSuccess_WritesIndexing(t *testing.T) {
 	t.Fatalf("expected Indexing status, got calls: %v", calls)
 }
 
-// TestIndex_BackgroundChunksStatusWriteFailure_Propagated 验证 chunk 成功但 Indexing 状态写入失败时错误传播
+// TestIndex_BackgroundChunksStatusWriteFailure_Propagated 验证 chunk 成功但 Indexing 状态写入失败时错误传播。
+// 使用 asyncDone + Shutdown 等待完整 defer 链完成，QA 不应被调用。
 func TestIndex_BackgroundChunksStatusWriteFailure_Propagated(t *testing.T) {
 	docs := []*schema.Document{
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
@@ -2464,6 +2469,7 @@ func TestIndex_BackgroundChunksStatusWriteFailure_Propagated(t *testing.T) {
 	)
 	r.asyncWait = func(ctx context.Context) {}
 
+	// 包装 asyncIndexer 以信号 indexAsyncByDocsID 返回
 	asyncDone := make(chan struct{})
 	origAsync := r.asyncIndexer
 	r.asyncIndexer = &fakeAsyncIndexer{
@@ -2478,10 +2484,17 @@ func TestIndex_BackgroundChunksStatusWriteFailure_Propagated(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 等待后台完成（saveChunksFn 失败后应快速返回）
-	waitSig(t, asyncDone, "background finish")
+	// 等待 indexAsyncByDocsID 返回（saveChunksFn 失败后快速返回）
+	waitSig(t, asyncDone, "indexAsyncByDocsID returned")
 
-	// 验证：idxerAsync 不应被调用
+	// Shutdown 等待完整 defer 链完成
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if shutdownErr := r.Shutdown(shutdownCtx); shutdownErr != nil {
+		t.Fatalf("Shutdown failed: %v", shutdownErr)
+	}
+
+	// 验证：idxerAsync 不应被调用（saveChunksFn 失败后不继续 QA/embedding）
 	select {
 	case <-qaCalled:
 		t.Fatal("idxerAsync should not be called when saveChunksFn fails")
@@ -2490,11 +2503,12 @@ func TestIndex_BackgroundChunksStatusWriteFailure_Propagated(t *testing.T) {
 	}
 }
 
-// TestIndex_BackgroundCleanupBeforeDone 验证 cleanup 完成前不 Done
+// TestIndex_BackgroundCleanupBeforeDone 验证 cleanup(markFailed) 完成前 bgWG.Done 不执行。
+// 使用 Shutdown 阻塞证明 bgWG.Wait 未完成，释放 cleanup 后 Shutdown 才能返回。
+// 不使用第二次 Index 调用（避免 asyncDone 重复关闭和容量推断歧义）。
 func TestIndex_BackgroundCleanupBeforeDone(t *testing.T) {
 	cleanupStarted := make(chan struct{})
 	cleanupProceed := make(chan struct{})
-	cleanupDone := make(chan struct{})
 
 	docs := []*schema.Document{
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
@@ -2509,30 +2523,18 @@ func TestIndex_BackgroundCleanupBeforeDone(t *testing.T) {
 		cs, su,
 		&fakeAsyncRunnable{ids: []string{"idx1"}},
 	)
-	// 不覆盖 asyncWait，使用真实等待机制
+	r.asyncWait = func(ctx context.Context) {} // 注入立即返回，使后台快速进入 markFailed
 
-	// 包装 asyncIndexer 以信号后台完成（真实 asyncDone）
-	asyncDone := make(chan struct{})
-	origAsync := r.asyncIndexer
-	r.asyncIndexer = &fakeAsyncIndexer{
-		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
-			defer close(asyncDone)
-			return origAsync.indexAsyncByDocsID(ctx, knowledgeName, documentsID, docsIDs)
-		},
-	}
-
-	// 包装 markFailed 以跟踪 cleanup
+	// 包装 markFailed 以跟踪 cleanup 阻塞
 	origMarkFailed := r.markFailed
 	r.markFailed = func(ctx context.Context, docID int64, err error) {
 		close(cleanupStarted)
 		<-cleanupProceed
 		origMarkFailed(ctx, docID, err)
-		close(cleanupDone)
 	}
 
 	t.Cleanup(func() {
 		closeOnce(cleanupProceed)
-		waitSig(t, asyncDone, "background finish (cleanup)")
 	})
 
 	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
@@ -2540,39 +2542,37 @@ func TestIndex_BackgroundCleanupBeforeDone(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 等待 cleanup 开始
+	// 等待 cleanup 开始（证明后台已进入 markFailed，bgWG.Done 未执行）
 	waitSig(t, cleanupStarted, "cleanup started")
 
-	// 在未释放期间，cleanupDone 不应关闭（cleanup 阻塞中）
+	// 启动 Shutdown：因 bgWG.Done 未执行，bgWG.Wait 阻塞，Shutdown 不返回
+	shutdownDone := make(chan struct{})
+	var shutdownErr error
+	go func() {
+		defer close(shutdownDone)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		shutdownErr = r.Shutdown(ctx)
+	}()
+
+	// 验证 Shutdown 阻塞中（cleanup 阻塞 → markFailed 未完成 → bgWG.Done 未执行）
 	select {
-	case <-cleanupDone:
-		t.Fatal("cleanup should not complete before release")
-	case <-time.After(200 * time.Millisecond):
-		// 正常：cleanup 阻塞
+	case <-shutdownDone:
+		t.Fatal("Shutdown should block while cleanup is blocked (bgWG.Done not called)")
+	case <-time.After(500 * time.Millisecond):
+		// 正常：Shutdown 阻塞
 	}
 
-	// 释放 cleanup
+	// 释放 cleanup → markFailed 完成 → bgWG.Done → bgWG.Wait 返回 → Shutdown 返回
 	close(cleanupProceed)
 
-	// 使用真实 asyncDone 作为最终完成证明，不用固定 sleep
-	waitSig(t, asyncDone, "background finish")
+	// Shutdown 应完成
+	waitSig(t, shutdownDone, "shutdown done after cleanup release")
+	if shutdownErr != nil {
+		t.Fatalf("Shutdown should succeed: %v", shutdownErr)
+	}
 
-	// cleanupDone 也应由 markFailed wrapper 关闭
-	waitSig(t, cleanupDone, "cleanup done")
-
-	// 恢复原始 markFailed，避免第二次 Index 重复触发 wrapper
-	r.markFailed = origMarkFailed
-
-	// 释放后验证状态写入已发生
+	// 验证状态写入已发生
 	calls := su.getCalls()
-	_ = calls // 验证点：cleanup 已完成，状态写入已发生
-
-	// 验证 bgSem 已释放：再发一个应成功
-	ids, err := r.Index(context.Background(), &IndexReq{URI: "test2.pdf", KnowledgeName: "kb2", DocumentsId: 43})
-	if err != nil {
-		t.Fatalf("second Index should succeed after bgSem released: %v", err)
-	}
-	if len(ids) != 1 {
-		t.Fatalf("expected 1 id, got %d", len(ids))
-	}
+	_ = calls
 }

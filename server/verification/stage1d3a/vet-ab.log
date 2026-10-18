@@ -1,0 +1,6 @@
+﻿# CMD: go vet ./...
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 14:51:52
+
+

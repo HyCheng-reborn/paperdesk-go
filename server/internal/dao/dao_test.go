@@ -70,10 +70,10 @@ func (f *fakeDatabase) GormDB() *gorm.DB {
 
 // fakeDatabaseFactory 测试用的 DatabaseFactory 实现
 type fakeDatabaseFactory struct {
-	db           *fakeDatabase
-	createErr    error
-	createCount  int
-	lastConfig   database.Config
+	db          *fakeDatabase
+	createErr   error
+	createCount int
+	lastConfig  database.Config
 }
 
 func (f *fakeDatabaseFactory) Create(cfg database.Config) (database.Database, error) {

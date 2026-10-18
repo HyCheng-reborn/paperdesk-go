@@ -128,7 +128,7 @@ Stage 1D 目标：修复 Indexer 后台写入路径中的错误吞没、QA 无�
 |---|---|---|
 | 1D-1 | `SaveChunksData` 正确聚合错误；`indexAsyncByDocsID` 传播错误而非吞没；仅成功时标 Active | 无 |
 | 1D-2 | `qa()` 使用 errgroup 有限并发；失败返回 error；QA 可配置关闭；ctx 取消时停止 | 1D-1（QA 失败需通过 IndexAsync→indexAsyncByDocsID 传播） |
-| 1D-3 | 后台 goroutine 使用可取消 bgCtx；失败/panic/超时标记 Failed；并发准入；Shutdown 联动 | 1D-1+1D-2（需下游错误正确传播才能 markFailed） |
+| 1D-3 | 后台 goroutine 使用可取消 bgCtx；**同步索引前预留后台容量**（准入/登记/所有权转移）；失败/panic/超时标记 Failed；Shutdown 收敛与超时保护（等待已准入的同步阶段与后台） | 1D-1+1D-2（需下游错误正确传播才能 markFailed） |
 
 ---
 
@@ -526,15 +526,15 @@ qa:
 3. `manifest/config/config_demo.yaml` + `config_qd_demo.yaml` — 示例配置
 4. `readRagConfig()` — 读取 `qa.enabled` 和 `qa.maxConcurrent`（缺失不报错）
 
-### 7.4 GetQAModel 并发安全修复
+### 7.4 GetQAModel 并发安全修复（1D-2 已实现）
 
-**问题**：`common.qaModel` 是无锁懒加载缓存（chat_model.go L12-16, L97-115），并发调用存在 race。
+**问题（历史）**：`common.qaModel` 曾为无锁懒加载缓存，并发调用存在 race。
 
-**方案（已决策）**：对 `common.GetQAModel` 添加 `sync.Once` 保护（修改量小，属于 common 包内部修复）。预热只解决“Rag 实例构造后 qaModel 已非 nil”的特定场景；多实例并发构造或绕过 New() 直接调用时 race 仍存在。`sync.Once` 从根本上消除并发首次调用 race。
+**现行方案（已实现，非 sync.Once）**：采用**实例级 `qaModelCache`**（见 `server/core/common/chat_model.go`）：结构体自持 `mu sync.Mutex`+`model`+`ready`+注入的 `readCfg`/`build`；`get(ctx, cfg)` 失败不发布缓存（允许重试）、仅初始化成功才置 `ready`；`GetQAModel` 委派生产默认实例 `qaDefaultCache`。早期“对 GetQAModel 加 `sync.Once`”仅为历史方案，**不再作为现行决策**（sync.Once 无法失败重试且会发布 (nil,nil)）。
 
-**条件预热**：在 `core.New()` 中，仅当 QA 配置为启用时才预热。缺少 QA 配置不应阻止启动，只要 QAEnabled 为 false 或 QA 功能被禁用。
+**条件预热**：预热与开关不影响启动；缺 QA 配置不阻止启动（QAEnabled=false 或功能禁用时正常）。
 
-**测试注入**：通过 `BuildIndexerAsync` 接收的 `qaModelFactory` 函数（构建时固定），测试传入返回 fake model 的工厂。1D-2 的解决方案是**实例级模型构建**（工厂内部可每次构建新实例或返回已缓存实例）。
+**测试注入**：`qaModelCache` 可由测试创建独立实例并注入 fake reader/builder（见 `chat_model_test.go`）；后台模型经 `BuildIndexerAsync`/`buildAsyncGraph` 传入的 `qaModelFactory` 注入 fake model（**无 `WithQAConfig` 这样的包级函数替换**，QA 开关/并发经 `conf.QAEnabled`/`conf.QAMaxConcurrent` 传递）。
 
 ### 7.5 qa() 完整重写方案
 
@@ -700,10 +700,10 @@ return fields, nil
 
 | 文件 | 修改范围 | 变更描述 |
 |---|---|---|
-| `server/core/indexer.go` | `Index()` goroutine、`indexAsyncByDocsID()` | bgCtx 传递；准入信号量；markFailed；重试 ctx 检查 |
+| `server/core/indexer.go` | `Index()` 同步前准入、后台 goroutine、`indexAsyncByDocsID()` | 同步前预留容量+登记+所有权转移；bgCtx/syncCtx 传递；markFailed；重试 ctx 检查 |
 | `server/core/rag.go` | `Rag` struct、`New()`、新增 `Shutdown()` | bgWG/bgSem/bgRootCtx/bgRootCancel/mu/closed/shutdownOnce/done/markFailed 字段 |
 | `server/core/indexer_test.go` | 已有 8 处 asyncWait + 新增测试 | asyncWait 签名变更；止损/准入/shutdown 测试 |
-| `server/internal/cmd/cmd.go` | `s.Run()` 之后 | 追加 Shutdown 清理 |
+| `server/internal/cmd/cmd.go` | `s.Run()` 之后 | 仅 Shutdown 成功后逆序 Cleanup；超时保留依赖、返回可识别错误；不忽略 Cleanup 错误；避免 dao 重复关闭 |
 
 ### 8.2 asyncIndexer 接口传递 bgCtx
 
@@ -749,31 +749,55 @@ func (p *prodAsyncIndexer) indexAsyncByDocsID(ctx context.Context, knowledgeName
 
 **服务级后台 root context**：`Rag` 新增 `bgRootCtx context.Context` + `bgRootCancel context.CancelFunc`（在 `New()` 中创建：`context.WithCancel(context.Background())`）。每个任务的 timeout ctx 从 bgRootCtx 派生：`bgCtx, bgTaskCancel := context.WithTimeout(x.bgRootCtx, x.taskTimeout)`。Shutdown 调用 `x.bgRootCancel()` → 自动取消所有派生的 bgCtx → 所有任务感知取消。这是真实的父子 context 链。goroutine 内 `defer bgTaskCancel()` 释放资源。
 
-### 8.4 任务准入策略
+### 8.4 任务准入策略（同步索引前预留后台容量）
 
-准入检查放在**同步写入之后、后台 goroutine 启动之前**（同步写入是 Index 的核心功能，不应因后台队列满而拒绝）。使用 `sync.Mutex` 保护关闭标记设置 + `bgWG.Add` 在同一临界区：
+**固定准入契约**：准入发生在**同步索引之前**。在同一把锁下依次：检查 `closed` → 非阻塞获取后台容量 → 登记本次已准入工作（`bgWG.Add(1)`），三者原子完成；只有准入成功才执行同步索引。这样后台满载或正在 Shutdown 时，本次 `Index` **不产生任何同步索引副作用**。
 
 ```go
 x.mu.Lock()
 if x.closed {
     x.mu.Unlock()
-    g.Log().Warningf(ctx, "background task rejected: shutting down, doc %d stays Indexing", documentsID)
-    return ids, nil
+    return nil, ErrShuttingDown            // 可识别错误；不调用同步索引、不启动后台
 }
 select {
-case x.bgSem <- struct{}{}:
-    x.bgWG.Add(1)
+case x.bgSem <- struct{}{}:                 // 非阻塞获取容量成功
+    x.bgWG.Add(1)                          // 登记本次已准入工作（同步+后台共用一次计数）
     x.mu.Unlock()
-    go func() { ... }()
 default:
     x.mu.Unlock()
-    g.Log().Warningf(ctx, "background task queue full, doc %d stays Indexing", documentsID)
+    return nil, ErrBackgroundFull          // 满载：可识别错误；不启动同步索引、不启动后台
 }
+
+// 已准入：同步阶段使用从 bgRootCtx 派生的 syncCtx，使 Shutdown 取消可被同步阶段观察
+syncCtx, syncCancel := context.WithCancel(x.bgRootCtx)
+ids, err := x.syncIndexer.invoke(syncCtx, req.KnowledgeName, document.Source{URI: req.URI})
+syncCancel()
+if err != nil {
+    // 同步失败：释放容量与登记，不启动后台
+    <-x.bgSem
+    x.bgWG.Done()
+    return nil, err
+}
+
+// 同步成功：把容量与登记的唯一所有权转移给后台 goroutine（只释放一次）
+go func() {
+    defer x.bgWG.Done()
+    defer func() { <-x.bgSem }()
+    ... 后台体（8.10）...
+}()
+return ids, nil
 ```
 
-**满载行为**：同步写入已完成且成功（ids 已返回），后台任务未启动。Index 仍返回同步 ids + nil error。doc 停留在 **Indexing** 状态（SaveChunksData 内设置），不标 Active 也不标 Failed。**明确声明**：这不是“保持 Pending”，而是“停留在 Indexing”（因为同步索引已写入）。记录 WARN 日志含 docID，便于诊断。不启动 goroutine 等待。
+**所有权“只释放一次”**：容量 slot 与 `bgWG` 计数要么由**同步失败路径**释放（后台不启动），要么在同步成功后作为唯一所有权**转移给后台 goroutine** 由其 defer 释放一次；两条路径互斥，绝不重复释放。
 
-**信号量配置**：`bgSem chan struct{}`，容量 = `MaxBackgroundTasks`（默认 8，通过 Config 配置）。
+**拒绝语义（准确）**：
+- 准入只保证**本次 `Index` 不执行同步索引、不启动后台**，并返回可识别错误（`ErrShuttingDown` / `ErrBackgroundFull`），不再返回“ids + nil”。
+- 拒绝**不承诺撤销上游已创建的文档记录**：文档记录由 controller 在调用 `Index` 之前以 `StatusPending` 创建（`server/internal/controller/rag/rag_v1_indexer.go:81`），拒绝不会回滚或删除它。
+- **修正历史表述**：`Rag.Index` 同步路径**不写入文档状态**；`StatusIndexing` 由 `SaveChunksData` 在**后台异步阶段**（`indexAsyncByDocsID` 步骤5，`server/internal/logic/knowledge/chunks.go:90/130`）写入，正是准入要门控的阶段。因此被拒绝/准入失败的文档停留在 controller 预设的 **Pending**，而非“同步阶段设置的 Indexing”。删除“SaveChunksData 已在同步阶段设置 Indexing”这类无源码支持的表述。
+
+**同步阶段如何观察服务停止**：已准入的同步阶段计入 `bgWG`，`Shutdown` 的 `bgWG.Wait()` 必然等待它完成，不会漏等；同步阶段使用从 `bgRootCtx` 派生的 `syncCtx`，`bgRootCancel()` 后 in-flight 同步索引可感知取消（其对取消的实际响应取决于下游 Loader/Indexer 是否尊重 ctx，属未验证项，见 8.15）。**不引入排队 goroutine，也不引入持久化任务系统**。
+
+**信号量配置**：`bgSem chan struct{}`，容量 = `MaxBackgroundTasks`（配置化，默认 8，见 8.14）。
 
 ### 8.5 Shutdown 实施
 
@@ -800,75 +824,79 @@ type Rag struct {
 
 ```go
 func (x *Rag) Shutdown(ctx context.Context) error {
-    // sync.Once 保护“停止+取消”动作（只执行一次）
     x.shutdownOnce.Do(func() {
-        // 1. 设置关闭标记，停止接收新任务
         x.mu.Lock()
         x.closed = true
         x.mu.Unlock()
-
-        // 2. 取消所有进行中的后台任务（父子 context 链自动传播）
-        x.bgRootCancel()
-
-        // 3. 等待 bgWG，完成后 close(done)
+        x.bgRootCancel()          // 取消所有派生 ctx（同步阶段 + 后台阶段）
         go func() { x.bgWG.Wait(); close(x.done) }()
     })
-
-    // 每次调用都等待同一个完成信号（受各调用方 ctx 限制）
+    // 每个调用都等待同一个 done，或自身 ctx 超时
     select {
     case <-x.done:
-        return nil
+        return nil                 // 全部已准入工作（含仍在同步阶段的）收敛完成
     case <-ctx.Done():
-        g.Log().Warningf(ctx, "Rag.Shutdown: background tasks did not converge in time")
-        return fmt.Errorf("shutdown timeout: %w", ctx.Err())
+        return fmt.Errorf("rag shutdown: tasks not converged within deadline: %w", ctx.Err())
     }
 }
 ```
 
-> **语义修正**：首次 Shutdown 超时后，后续调用不能仅因 Once 已执行就返回 nil — 它们仍然等待 done 或自己的 ctx 超时。
+**超时策略（修正后）**：
+- `Shutdown` 只有在返回 `nil`（`<-x.done`）后才表示可安全逆序清理依赖资源。
+- **超时**（返回 error）时：未退出任务仍可能使用 `dao`/ES/Qdrant，调用方**必须保留这些依赖、不清空服务引用、不报告正常清理成功**，向 `cmd` 返回可识别错误并记录“未收敛”。
+- 进程最终退出时由**操作系统回收**连接/句柄，**不称为“优雅关闭完成”**。
+- 后续再次调用 `Shutdown` 会**继续等待同一个 `done`**（Once 只保证 stop/cancel/wait 动作执行一次，但每个调用都各自 select `done`），任务真正结束后后续调用可返回 `nil` 并完成清理。
+- **不声称已强制终止 goroutine**（Go 无法强杀 goroutine）。
 
-**不声称已强制终止 goroutine**（Go 无法强杀 goroutine）。超时后仅报告日志。
+> **语义修正**：首次 `Shutdown` 超时后，后续调用不能仅因 Once 已执行就返回 nil — 它们仍然等待 done 或自己的 ctx 超时。
 
 ### 8.6 Add/Wait 竞态防护
 
-使用 `sync.Mutex` 保护关闭标记设置 + `bgWG.Add` 在同一临界区：
+`mu` 保护的临界区从“启动后台前”前移到“**同步索引前**”：
 
-- **准入流程**：`mu.Lock() → if closed { mu.Unlock(); return reject } → bgWG.Add(1) → mu.Unlock() → go func(...)`
-- **Shutdown 流程**：`mu.Lock() → closed=true → mu.Unlock() → bgRootCancel() → bgWG.Wait()`
-- 这确保 Wait 开始后不会再 Add
-- `bgWG.Done()` 在 goroutine 退出时 defer 执行
+- **准入流程**：`mu.Lock() → 若 closed 拒绝 → 非阻塞取 bgSem → bgWG.Add(1) 登记已准入 → mu.Unlock()`，随后才执行同步索引
+- **Shutdown 流程**：`mu.Lock() → closed=true → mu.Unlock() → bgRootCancel() → go(bgWG.Wait(); close done)`
+- 这保证 `closed` 置位后不再有新的 Add，且 `bgWG.Wait()` 覆盖“已准入但仍在同步阶段”的调用（不漏等）
+- `bgWG.Done()` / `<-bgSem` 只在唯一所有者（同步失败路径 或 后台 goroutine）处执行**一次**
 
-### 8.7 cmd.go 接线
+### 8.7 cmd.go 接线（仅 Shutdown 成功后才逆序清理）
 
-**GoFrame `s.Run()` 语义已验证**：
-- `s.Run()` 阻塞直到收到 SIGTERM/SIGINT
-- GoFrame 内部 graceful 关闭 HTTP 连接后 `s.Run()` **正常 return**（不调用 os.Exit）
-- `s.Run()` 返回后的代码确实能执行
-- cmd.go 接线位置确认可行：在 `s.Run()` 和 `return nil` 之间插入清理代码
+**GoFrame v2.9.0 停止语义（源码证据）**：`Server.Run()`（锁定版本 `github.com/gogf/gf/v2 v2.9.0`，`net/ghttp/ghttp_server.go` L445-460）在 `Start()` 后 `go handleProcessSignal()`，随后 **阻塞于 `<-s.closeChan`**（L456）；被唤醒后调用 `_ = s.Shutdown()`（L459）再 **正常 return**（不 `os.Exit`）。因此 `s.Run()` 返回后的代码确实执行。closeChan 由信号/graceful 处理关闭，其 **具体信号集合与等待在途连接的超时顺序未逐一核实**（见 8.15）。
 
 ```go
-// cmd.go：s.Run() 返回后追加清理
 s.Run()
 
-// Shutdown RAG 后台任务
-shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-defer shutdownCancel()
-if ragSvr := ragicit.GetRagSvr(); ragSvr != nil {
+shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownBudget)
+defer cancel()
+var cleanupErrs []error
+if ragSvr := ragic.GetRagSvr(); ragSvr != nil {
     if err := ragSvr.Shutdown(shutdownCtx); err != nil {
-        g.Log().Errorf(ctx, "Rag.Shutdown error: %v", err)
+        // 超时未收敛：保留任务仍依赖的资源，不清空服务引用、不做逆序 Cleanup
+        g.Log().Errorf(ctx, "Rag.Shutdown incomplete, skip resource cleanup: %v", err)
+        return fmt.Errorf("rag shutdown not converged, skipping graceful cleanup: %w", err)
     }
 }
-
-// 然后执行 steps 逆序 Cleanup
+// 仅在 Shutdown 成功后执行逆序清理；Cleanup 错误不得忽略
 for i := len(steps) - 1; i >= 0; i-- {
     if steps[i].Cleanup != nil {
-        steps[i].Cleanup()
+        if cerr := steps[i].Cleanup(); cerr != nil {
+            g.Log().Errorf(ctx, "cleanup step %d failed: %v", i, cerr)
+            cleanupErrs = append(cleanupErrs, cerr)
+        }
     }
 }
-return nil
+return errors.Join(cleanupErrs...)
 ```
 
-**关闭顺序**：后台任务停止 → Rag.Shutdown → 关闭依赖资源（dao.Close 等）
+**调用边界（避免 Reset 绕过运行期收敛）**：
+- **正常退出**（HTTP 已服务过）：必须经 `Shutdown()` 收敛后才逆序 Cleanup；`Shutdown` 超时则**不清理**、返回可识别错误。
+- **初始化失败清理**：服务尚未开始、无已准入任务时，走 `Reset()`/`Close()` 级联清理（1A 既有契约），无需也不应调用 `Shutdown()`。
+- **不得用直接 `Reset()` 绕过运行期收敛**：`Reset()` 只清空服务引用、不等待 `bgWG`；运行期退出必须走 `Shutdown()`，否则与未退出任务竞争。
+- **`Cleanup` 返回的 error 不得忽略**（聚合返回）。
+- **避免 `dao` 被重复关闭**：`dao.Close()` 需幂等（已关闭再调用返回 nil），且 `Shutdown` 超时路径不得调用 `dao.Close()`；清理链中 `dao.Close()` 至多一次。
+- `shutdownBudget` 仅为调用预算（如 10s），不保证底层一定按时返回。
+
+**关闭顺序**：`s.Run()` 返回（GoFrame 已 graceful 关闭 HTTP）→ `Rag.Shutdown` 收敛后台 → （仅成功时）逆序 Cleanup → 关闭依赖资源（dao.Close 等）
 
 ### 8.8 可取消的初始延迟和重试等待
 
@@ -981,12 +1009,12 @@ go func() {
 
 | 角色 | 实体 |
 |---|---|
-| 启动者 | `Rag.Index` 同步路径（准入 + Add + go func） |
-| 取消者 | `Rag.Shutdown` 调用 bgRootCancel |
-| 等待者 | `Rag.Shutdown` 调用 bgWG.Wait |
-| slot 释放者 | goroutine 自身（defer） |
-| Done 调用者 | goroutine 自身（defer） |
-| Failed 写入者 | goroutine 自身（使用 cleanupCtx） |
+| 预留/登记 | `Rag.Index` 同步前：mu 下 closed 检查 + 非阻塞取 bgSem + `bgWG.Add(1)` |
+| 启动者 | `Rag.Index` 同步成功后才 `go func` |
+| 取消者 | `Rag.Shutdown` 调用 bgRootCancel（同步阶段+后台阶段都取消） |
+| 等待者 | `Rag.Shutdown` 调用 bgWG.Wait（覆盖已准入的同步阶段与后台） |
+| slot/Done 释放者 | **唯一所有者**：同步失败路径释放一次，或转移后由后台 goroutine defer 释放一次（互斥，不重复） |
+| Failed 写入者 | 后台 goroutine 自身（使用独立 cleanupCtx） |
 
 ### 8.11 清理顺序
 
@@ -1012,103 +1040,100 @@ defer cleanupCancel()
 x.markFailed(cleanupCtx, documentsID, localErr)
 ```
 
-- **超时时长**：5 秒（足够单次 DB 写入）
+- **超时时长**：5 秒仅为本次 markFailed 调用的**时间预算**，不保证底层 DB/驱动一定按时返回，也不等于“足以完成 DB 写入”
 - **来源**：`context.Background()` 派生，独立于 bgRootCtx 和请求 ctx
 - **错误处理**：cleanupCtx 内写入失败仅记录日志，不重试
 - **保留原始错误信息**：`markFailed` 接收的 `err` 参数包含原始错误链（panic/超时/业务错误），日志中记录完整信息
 
 ### 8.13 分批实施计划
 
-基于研究结论：所有 1D-3 字段均不存在，需全新引入；asyncIndexer 接口签名变更是确定的；cmd.go 当前无清理逻辑。分三批实施：
+所有 1D-3 字段均不存在，需全新引入；asyncIndexer 接口签名变更确定；cmd.go 当前无清理逻辑。**按“可独立验收”重划批次：准入、登记、所有权转移与 Shutdown 核心必须同批落地并可测，避免 A 批测试 B 批才实现的行为。**
 
-#### 批次 A：基础设施变更
-
-**修改文件**：
-
-| 文件 | 变更 |
-|---|---|
-| `server/core/rag.go` | Rag struct 新增 bgRootCtx/bgRootCancel/bgWG/bgSem/mu/closed/shutdownOnce/done/taskTimeout/markFailed 字段；`New()` 中创建 bgRootCtx = `context.WithCancel(context.Background())`；初始化 bgSem = `make(chan struct{}, maxBgTasks)`；done = `make(chan struct{})`；taskTimeout 默认 5min；markFailed 默认实现 |
-| `server/core/indexer.go` | asyncIndexer 接口签名变更：新增 ctx 参数；asyncWait 签名变更：`func()` → `func(ctx context.Context)` |
-| `server/core/indexer.go` | prodAsyncIndexer 修改：使用传入 ctx 替代 `gctx.New()` |
-| `server/core/rag.go` | New() 中 asyncWait 生产实现改为 `select { case <-time.After(time.Second); case <-ctx.Done() }` |
-| `server/core/indexer_test.go` | 8 处 asyncWait 注入同步修改签名 |
-
-**依赖**：无前置依赖（在 1D-1/1D-2 基础上）
-
-**验收条件**：
-- `go build ./...` exit 0
-- 已有测试全部通过（签名同步更新）
-- 新增 Shutdown 基本测试（幂等、拒绝新任务）
-- `go test -race ./core -count=1` exit 0
-
-#### 批次 B：核心逻辑实现
+#### 批次 1D-3-A：准入契约 + 所有权转移 + Shutdown 核心（同一可验证批次）
 
 **修改文件**：
 
 | 文件 | 变更 |
 |---|---|
-| `server/core/indexer.go` | Index() goroutine 改造：bgCtx 从 bgRootCtx 派生 `context.WithTimeout`；准入检查（mu 保护 closed + bgWG.Add + bgSem）；goroutine 体 defer Done/释放 sem/defer recover+markFailed；markFailed 使用 cleanupCtx |
-| `server/core/indexer.go` | 递归重试 Sleep 改为 `select { case <-ctx.Done(): return ctx.Err(); case <-time.After(time.Second) }` |
-| `server/core/indexer.go` | 满载时同步返回 ids+nil，不启动 goroutine，记录 WARN 日志 |
+| `server/core/rag.go` | Rag struct 新增 bgRootCtx/bgRootCancel/bgWG/bgSem/mu/closed/shutdownOnce/done/taskTimeout/markFailed；New() 创建 bgRootCtx、初始化 bgSem=make(cap=MaxBackgroundTasks)、done、taskTimeout、markFailed 默认；定义 `ErrShuttingDown`/`ErrBackgroundFull` |
+| `server/core/indexer.go` | Index() 改为**同步索引前**预留容量+登记（closed/sem/Add 同锁）；同步失败释放容量+登记；同步成功转移所有权给后台（只释放一次）；asyncIndexer 接口新增 ctx 参数、asyncWait 签名 `func(ctx)`；Shutdown()（closed→bgRootCancel→go(bgWG.Wait;close done)，select done/ctx） |
+| `server/core/indexer.go` | prodAsyncIndexer 使用传入 ctx 替代 gctx.New() |
+| `server/core/indexer_test.go` | 8 处 asyncWait 注入签名同步；新增 A 批测试（见 9.3 A 组） |
 
-**依赖**：批次 A（基础设施字段必须已存在）
+**真实调用链**：`Rag.Index`（同步前预留/登记 → 同步索引 → 转移所有权/`go` 后台）→ `Rag.Shutdown`（closed+取消+等待 done）。
 
-**验收条件**：
-- `go build ./...` exit 0
-- 新增测试全部通过：BackgroundFailure_MarksFailed、BackgroundPanic_MarksFailed、ContextTimeout_MarksFailed、SemaphoreFull_Rejects、RetryRespectsCtx、CleanupCtx_Independent、Success_NoMarkFailed、AsyncWaitReceivesCtx
-- `go test -race ./core -count=1` exit 0
-- `go test -race ./core -count=10 -run TestIndex_` 无 DATA RACE
+**验收条件**：build/vet exit 0；A 组测试（准入拒绝返回可识别错误且无同步副作用、放行、所有权只释放一次、Shutdown 等待同步+后台、幂等、后续等待同一 done）通过；`go test -race ./core -count=1` exit 0。
 
-#### 批次 C：收尾与集成
+**协调回滚**：A 批引入接口/签名变更，回滚需同步恢复 asyncIndexer/asyncWait 接口、Rag 字段与所有 fake；A 是 B/C 的前置。
+
+#### 批次 1D-3-B：失败 / panic / 取消 与 markFailed
 
 **修改文件**：
 
 | 文件 | 变更 |
 |---|---|
-| `server/internal/cmd/cmd.go` | s.Run() 返回后追加：创建 shutdownCtx → `ragSvr.Shutdown(shutdownCtx)` → 逆序 `steps[i].Cleanup()` |
-| `server/core/indexer_test.go` | 新增 Shutdown 集成测试（WaitsBackground、Timeout、Idempotent、RejectsNew） |
-| `server/internal/cmd/cmd_test.go`（可选） | 清理流程集成测试 |
+| `server/core/indexer.go` | 后台体：defer Done/释放 sem/defer recover+markFailed；bgCtx 超时或取消 → markFailed(cleanupCtx,...)；递归重试 Sleep 改 `select ctx.Done/time.After` |
+| `server/core/rag.go` | markFailed 默认实现 defaultMarkFailed（独立 cleanupCtx，5s 为调用预算） |
+| `server/core/indexer_test.go` | 新增 B 组测试（见 9.3 B 组） |
 
-**依赖**：批次 A+B（Shutdown 方法和字段必须已存在）
+**真实调用链**：后台 goroutine → indexAsyncByDocsID(bgCtx) → 失败/panic → markFailed(cleanupCtx)。
 
-**验收条件**：
-- `go build ./...` exit 0
-- `go vet ./...` exit 0
-- `go test -p 1 ./... -count=1` exit 0
-- `go test -race ./core -count=1` exit 0
-- `go test -race ./core -count=10 -run TestIndex_` 无 DATA RACE
-- 离线测试不触发真实连接
-- 全量验证通过
+**验收条件**：B 组测试通过；`-race ./core -count=10 -run TestIndex_` 无 DATA RACE。
 
-#### 协调回滚边界
+**协调回滚**：B 依赖 A（字段/接口）；B 可独立回滚（不影响 A 的准入/Shutdown），但回滚 A 必须同时回滚 B。
 
-- 批次 A 引入签名变更，回滚需同步恢复 asyncIndexer/asyncWait 接口及所有 fake
-- 批次 B 引入 goroutine 体改造，回滚独立于 A（但 A 回滚必须同步回滚 B）
-- 批次 C 引入 cmd.go 接线，回滚独立
-- 回滚链：C 可独立回滚 → B 回滚需同步 A → A 回滚需同步 B
+#### 批次 1D-3-C：cmd 接线与 Shutdown 收敛协调
 
-### 8.14 MaxBackgroundTasks 配置来源与已知限制
+**修改文件**：
 
-#### MaxBackgroundTasks 配置来源（待决策）
+| 文件 | 变更 |
+|---|---|
+| `server/internal/cmd/cmd.go` | s.Run() 返回后：Shutdown → 仅成功时逆序 Cleanup（Cleanup 错误聚合返回）；超时则保留依赖、返回可识别错误；避免 dao 重复关闭 |
+| `server/core/indexer_test.go` | 新增 C 组 Shutdown 超时协调测试（见 9.3 C 组） |
 
-**方案**：与 QAMaxConcurrent 同模式，从 Config 结构体读取。
+**真实调用链**：`cmd.s.Run()` 返回 → `Rag.Shutdown(shutdownCtx)` → 逆序 `steps[i].Cleanup()`/`dao.Close()`。
 
-**配置路径**：
-1. `core/config/config.go` — Config struct 新增 `MaxBackgroundTasks int`
-2. `internal/logic/rag/retriever.go` — RagConfig 新增对应字段 + `defaultRagFactory.Create` 传递
-3. `manifest/config/config_demo.yaml` + `config_qd_demo.yaml` — 示例配置
-4. `New()` 中读取，缺失默认 8
+**验收条件**：C 组测试（超时不关闭依赖、后台结束后才逆序关闭、后续等待成功、原始错误与清理错误可识别）通过；`go build ./...`、`go vet ./...`、`go test -p 1 ./... -count=1` exit 0。
 
-**待决策**：此方案需确认。若采用硬编码默认值 + 后续配置化，可减少初始变更范围。
+**协调回滚**：C 仅接线+测试，可独立回滚；回滚 C 不影响 A/B。回滚 A/B 前须先回滚依赖它们的 C。
+
+#### 协调回滚链（按实际依赖，方向明确）
+
+- **撤销前置批次前，先撤销依赖它的后续批次**：撤销 A 需先撤销 B、C；撤销 B 需先撤销 C（若 C 依赖 B 的 markFailed 行为）。
+- **撤销后续批次不要求无条件撤销前置批次**：撤销 C 可独立进行，保留 A/B；撤销 B 可独立进行，保留 A。
+- 每批独立提交，用 `git revert` 生成反向提交；revert 时检查同文件冲突并手动解决。
+
+### 8.14 配置选择（固定）与已知限制
+
+#### 固定配置：采用配置化（与 QAEnabled/QAMaxConcurrent 完全同模式）
+
+**配置项、默认值与合法范围**：
+
+| 配置键（gcfg） | 结构体字段 | 缺失默认 | 非法/越界处理 |
+|---|---|---|---|
+| `rag.maxBackgroundTasks` | `Config.MaxBackgroundTasks int` | 8 | 缺失或 `<=0` → 8；`>256` → 钳位 256 |
+| `rag.backgroundTaskTimeoutMinutes` | `Config.BackgroundTaskTimeout time.Duration` | 5 分钟 | 缺失或 `<=0` → 5min；`>60` 分钟 → 钳位 60min |
+
+**读取错误处理**：配置读取失败（如类型不可转换）与 `readQAConfig` 一致，**返回 error 向上传播**，不静默忽略；非法值（越界/非正）按上表钳位/回退默认并记录 WARN。
+
+**配置装配路径（与现有 QA 配置一一对应）**：
+1. `server/core/config/config.go` — `Config` 新增 `MaxBackgroundTasks int`、`BackgroundTaskTimeout time.Duration`；**`Config.Copy()`（config.go L35）必须同步复制这两个新字段**。
+2. `server/internal/logic/rag/retriever.go` — `RagConfig` 新增同名字段；新增 `readLifecycleConfig(ctx, configGetter)`（镜像 `readQAConfig`）读取 `rag.*` 键，缺失回退默认、读取失败返回 error；`InitWith`（retriever.go L166）调用后填入 `RagConfig`；`defaultRagFactory.Create`（retriever.go L46）将 `cfg.MaxBackgroundTasks`/`BackgroundTaskTimeout` 传入 `config.Config`。
+3. `manifest/config/config_demo.yaml` + `config_qd_demo.yaml` — 新增 `rag.maxBackgroundTasks`、`rag.backgroundTaskTimeoutMinutes` 示例（含注释）。
+4. `Rag.New()` — 读取 `conf.MaxBackgroundTasks` 初始化 `bgSem=make(cap)`；`conf.BackgroundTaskTimeout` 赋 `taskTimeout`。
+
+**对应测试**（均在**批次 1D-3-A**，因 A 引入容量/超时）：`readLifecycleConfig` 缺失/默认/越界钳位/读取错误（镜像 `TestReadQAConfig_*`）；`Config.Copy` 保留新字段；`defaultRagFactory.Create` 传递。无“待决策”项。
+
+> 清理 context 的 5 秒仅为 `markFailed` 调用的**时间预算**，不保证驱动一定按时返回，也不声称“足够完成 DB 写入”（见 8.12）。
 
 #### 已知限制
 
 1. **不新增持久化任务系统**：归属 Stage 4，本批不引入
-2. **现有固定等待处理**：重试仍为 1 秒固定延迟，但改为可取消的 select（`select { case <-ctx.Done(); case <-time.After(time.Second) }`）。不引入指数退避
+2. **重试/初始固定延迟**：仍为 1 秒固定延迟，但改为可取消 `select { case <-ctx.Done(); case <-time.After(time.Second) }`；不引入指数退避（可取消生命周期属 1D-3）
 3. **不扩大至 Stage 4**：不实现任务恢复/重跑机制
-4. **不用不可等待退出的 goroutine 包装阻塞操作**：每个 goroutine 必须通过 bgWG 追踪，确保 Shutdown 可等待完成
+4. **不用不可等待退出的 goroutine 包装阻塞操作**：每个已准入工作通过 bgWG 追踪，确保 Shutdown 可等待
 5. **Qdrant 异步 indexer 路径**：保留现状，1D-3 不涉及
-6. **满载时文档状态**：停留在 Indexing（因同步写入已成功），不标 Failed（同步路径成功），不标 Active（IndexAsync 未执行）
+6. **拒绝/满载时文档状态**：因准入在同步索引**之前**，被拒绝时 SaveChunksData 根本未执行，文档停留在 controller 预设的 **Pending**（不是 Indexing）；拒绝不撤销上游创建的文档记录
 7. **ES/Qdrant client 无显式 Close**：随进程退出释放，已知限制
 
 ### 8.15 未核实框架语义
@@ -1117,11 +1142,12 @@ x.markFailed(cleanupCtx, documentsID, localErr)
 
 | # | 未核实项 | 说明 | 影响 |
 |---|---|---|---|
-| 1 | GoFrame graceful shutdown 超时配置 | `s.Run()` 已验证正常 return，但具体超时配置和信号处理顺序未验证 | cmd.go 清理代码执行时机 |
-| 2 | DB driver 对 context 取消的响应 | `UpdateDocumentsStatus(cleanupCtx, ...)` 中 cleanupCtx 超时后 driver 是否能中断正在执行的 SQL 未验证 | markFailed 在 cleanupCtx 超时后可能失败（仅记日志） |
-| 3 | ES client 对 context 取消的响应 | indexAsyncByDocsID 中 bgCtx 取消后 ES client 行为未验证 | 后台任务可能在 bgCtx 取消后仍阻塞于 ES 调用 |
-| 4 | chat-history SaveMessage 无 context | 第三方包不支持 context timeout，保持现状 | History 保存无法施加有界 timeout |
-| 5 | Windows race 检测 | core/indexer、core/common 的 race 因 `0xc0000139` 未完成，根因待确认 | race 证据不完整 |
+| 1 | GoFrame 停止信号与 graceful 超时细节 | **已核源码证据**：`Server.Run()`（gf v2.9.0，net/ghttp/ghttp_server.go L445-460）阻塞 `<-s.closeChan`（L456）→ `s.Shutdown()`（L459）→ 正常 return。但 closeChan 由哪些信号触发、GracefulShutdownTimeout（ghttp_server_graceful.go L22 取 `config.GracefulTimeout`）等待在途连接的确切超时/顺序**未逐一核实** | cmd.go 清理代码执行时机仍按“s.Run() 返回后执行”依赖 |
+| 2 | 已准入同步阶段对 bgRootCancel 的响应 | 同步阶段 syncCtx 从 bgRootCtx 派生，但 Loader/Transformer/Indexer 是否逐层尊重 ctx 取消未验证 | Shutdown 对 in-flight 同步索引的收敛时间不确定（bgWG 仍会等待其自然结束） |
+| 3 | DB driver 对 context 取消的响应 | `UpdateDocumentsStatus(cleanupCtx, ...)` 中 cleanupCtx 超时后 driver 是否能中断正在执行的 SQL 未验证 | markFailed 在 cleanupCtx 超时后可能失败（仅记日志） |
+| 4 | ES client 对 context 取消的响应 | indexAsyncByDocsID 中 bgCtx 取消后 ES client 行为未验证 | 后台任务可能在 bgCtx 取消后仍阻塞于 ES 调用 |
+| 5 | chat-history SaveMessage 无 context | 第三方包不支持 context timeout，保持现状 | History 保存无法施加有界 timeout |
+| 6 | Windows race 检测 | core/indexer、core/common 的 race 因 `0xc0000139` 未完成（运行异常、根因待确认） | race 证据不完整 |
 
 ---
 
@@ -1175,28 +1201,42 @@ x.markFailed(cleanupCtx, documentsID, localErr)
 - 不使用固定 sleep 代替同步
 - 不以 fake 自身测试代替生产逻辑验证
 
-### 9.3 批次 1D-3 测试
+### 9.3 批次 1D-3 测试（按批次分组，不测未实现行为）
+
+**A 组（准入契约 + 所有权转移 + Shutdown 核心）**：
 
 | 测试名称 | 目标 | 注入方式 | 断言要点 | 并发 |
 |---|---|---|---|---|
-| `TestIndex_BackgroundFailure_MarksFailed` | 后台失败标记 Failed | fakeAsyncIndexer 返回 error; fake markFailed 记录调用 | markFailed 被调用，docID 正确 | 是 |
-| `TestIndex_BackgroundPanic_MarksFailed` | panic 后标记 Failed | fakeAsyncIndexer panic | markFailed 被调用; 不崩溃 | 是 |
-| `TestIndex_ContextTimeout_MarksFailed` | 后台 bgCtx 超时标记 Failed | taskTimeout=50ms; fakeAsyncIndexer 阻塞 | markFailed 被调用，err 含 DeadlineExceeded | 是 |
-| `TestIndex_SemaphoreFull_Rejects` | 信号量满载时拒绝新任务 | bgSem 容量=1; 第 1 个阻塞; 第 2 个 Index 调用 | 第 2 个 Index 返回后，后台 goroutine 未启动; log 含 queue full | 是 |
-| `TestIndex_Shutdown_WaitsBackground` | Shutdown 等待后台完成 | fakeAsyncIndexer 阻塞后释放 | Shutdown 返回 nil; 后台任务全部完成 | 是 |
-| `TestIndex_Shutdown_Timeout` | Shutdown 超时返回 error | fakeAsyncIndexer 永久阻塞 | Shutdown 返回 error 含 timeout | 是 |
-| `TestIndex_Shutdown_Idempotent` | Shutdown 幂等 | 调用两次 Shutdown | 第二次返回 nil（不 panic） | 否 |
-| `TestIndex_Shutdown_RejectsNew` | Shutdown 后拒绝新任务 | Shutdown 完成后调用 Index | 后台 goroutine 未启动（closed=true） | 否 |
-| `TestIndexAsyncByDocsID_RetryRespectsCtx` | 递归重试检查 ctx | 传入可取消 ctx; fakeDocSearcher 第一次返回不足结果 | 取消后返回 ctx.Err(); 不继续重试 | 是 |
-| `TestIndex_Success_NoMarkFailed` | 成功路径不调用 markFailed | fakeAsyncIndexer 返回 nil | markFailed 未被调用 | 是 |
-| `TestIndex_AsyncWaitReceivesCtx` | asyncWait 接收 bgCtx | asyncWait 注入记录 ctx | ctx != nil; ctx.Done() 可关闭 | 是 |
-| `TestIndex_CleanupCtx_IndependentOfBgCtx` | markFailed 使用独立 cleanupCtx | bgCtx 已取消后 markFailed 被调用 | markFailed 接收的 ctx 未取消 | 是 |
+| `TestIndex_AdmissionClosed_Rejects` | closed 时拒绝 | Shutdown 后 Index | 返回 `ErrShuttingDown`；fakeSyncIndexer 未被调用；无后台启动 | 否 |
+| `TestIndex_AdmissionFull_Rejects` | 满载时拒绝 | bgSem 容量=1，第 1 个阻塞同步 | 第 2 个 Index 返回 `ErrBackgroundFull`；fakeSyncIndexer 未被调用（无同步索引副作用） | 是 |
+| `TestIndex_SyncFail_ReleasesOnce` | 同步失败释放容量+登记 | fakeSyncIndexer 返回 sentinel | 返回该 sentinel；容量与 bgWG 只释放一次（后续 Index 仍可准入） | 是 |
+| `TestIndex_SyncSuccess_TransfersOwnershipOnce` | 所有权只释放一次 | fake asyncIndexer 阻塞后释放 | 后台结束后 slot/Done 只释放一次（无负计数/panic） | 是 |
+| `TestIndex_Shutdown_WaitsAdmittedSyncAndBG` | Shutdown 等待已准入同步+后台 | 准入后同步阶段阻塞；后台阻塞 | Shutdown 未收敛前不返回；释放后才返回 nil | 是 |
+| `TestIndex_Shutdown_Timeout_KeepsWaiting` | 超时后后续等待同一 done | fake asyncIndexer 永久阻塞；首次 Shutdown 短 ctx | 首次返回可识别 error；释放后台后二次 Shutdown 返回 nil | 是 |
+| `TestIndex_Shutdown_Idempotent` | stop/cancel 动作幂等 | 调用两次 Shutdown | Once 只执行一次 stop/cancel；两次均 select 同一 done，不 panic | 否 |
+| `TestIndex_AsyncWaitReceivesCtx` | asyncWait 接收 ctx | asyncWait 注入记录 ctx | ctx != nil 且可取消 | 是 |
 
-**并发测试规则**（同 9.2）：
-- channel 固定事件顺序
-- 超时 + t.Cleanup
-- 不以 fake 自身测试代替生产逻辑验证
-- 不连接真实模型
+**B 组（失败/panic/取消 + markFailed + 重试可取消）**：
+
+| 测试名称 | 目标 | 注入方式 | 断言要点 |
+|---|---|---|---|
+| `TestIndex_BackgroundFailure_MarksFailed` | 后台失败标 Failed | fakeAsyncIndexer 返回 error; fake markFailed 记录 | markFailed 被调用，docID 正确 |
+| `TestIndex_BackgroundPanic_MarksFailed` | panic 后标 Failed | fakeAsyncIndexer panic | markFailed 被调用；不崩溃 |
+| `TestIndex_ContextTimeout_MarksFailed` | bgCtx 超时标 Failed | taskTimeout=50ms; fake 阻塞 | markFailed 被调用，err 含 DeadlineExceeded |
+| `TestIndex_Success_NoMarkFailed` | 成功不标 Failed | fake 返回 nil | markFailed 未被调用 |
+| `TestIndex_RetryRespectsCtx` | 递归重试检查 ctx | 传入可取消 ctx; fakeDocSearcher 缺数 | 取消后返回 ctx.Err()，不继续重试 |
+| `TestIndex_CleanupCtx_IndependentOfBgCtx` | markFailed 用独立 cleanupCtx | bgCtx 已取消后 markFailed | markFailed 收到的 ctx 未取消 |
+
+**C 组（cmd 接线与 Shutdown 超时收敛协调，离线）**：
+
+| 测试名称 | 目标 | 注入/驱动 | 断言要点 |
+|---|---|---|---|
+| `TestShutdown_Timeout_KeepsDepsOpen` | Shutdown 超时时依赖未关闭 | 后台永久阻塞 + 假 dao.Close 记录 | Shutdown 返回 error 时 `dao.Close`/Cleanup **未调用** |
+| `TestShutdown_ReverseCloseOnlyAfterConverge` | 后台结束后才逆序关闭 | 释放后台→再等 done | Cleanup 仅在 Shutdown 返回 nil 后逆序执行 |
+| `TestShutdown_SubsequentWaitSucceeds` | 后续等待可成功 | 首次超时、后台结束后二次调用 | 二次返回 nil，此时才允许 Cleanup |
+| `TestShutdown_ErrorsIdentifiable` | 原始错误与清理错误可识别 | Shutdown 返回 timeout sentinel；Cleanup 返回另一 sentinel | `errors.Is` 可分别识别未收敛错误与清理错误；超时路径不报正常清理成功 |
+
+**并发测试规则**（同 9.2）：channel 固定事件顺序 + 超时 + t.Cleanup；不以 fake 自身代替生产逻辑验证；不连接真实模型/DB/ES。
 
 ---
 
@@ -1317,20 +1357,20 @@ go test -race ./core -count=10 -run TestIndex_
 | 1 | GoFrame Scan 返回 sql.ErrNoRows | 已验证 |
 | 2 | eino Lambda error 中断 Graph | 已验证 |
 | 3 | errgroup.SetLimit 可用（x/sync v0.15.0 在模块图中） | 已验证 |
-| 4 | common.qaModel 无锁缓存存在 race | 已确认 |
+| 4 | common.qaModel 无锁懒加载缓存存在 race（历史问题） | 已确认；已由实例级 `qaModelCache`（mu+ready，见 7.4）修复 |
 | 5 | asyncWait 签名 func()，8 处注入点 | 已确认 |
 | 6 | cmd.go 无 Shutdown hook | 已确认 |
-| 7 | DocumentToFields 无条件写 QA 字段 | 已确认 |
+| 7 | DocumentToFields 无条件写 QA 字段 | 已确认（1D-2 已改为非空才写，由统一 helper `documentToFields` 实现） |
 | 8 | `errgroup.Go()` 在 ctx 取消后**仍启动**新 goroutine（errgroup.go L86-92 无 ctx 检查），取消传播依赖任务函数自行检查 egCtx | 已验证（源码） |
 | 9 | `Rag.conf` 是 `*config.Config` 具体 struct 指针（非接口），`SearchDocumentsByIDs` 是其方法 | 已确认 |
-| 10 | GoFrame `s.Run()` 收到 SIGTERM/SIGINT 后 graceful 关闭 HTTP 连接，然后**正常 return**（不调用 os.Exit），`s.Run()` 返回后的清理代码确实能执行 | 已验证 |
+| 10 | GoFrame v2.9.0 `Server.Run()`（`net/ghttp/ghttp_server.go` L445-460）阻塞 `<-s.closeChan`（L456）→ `s.Shutdown()`（L459）→ 正常 return（不 os.Exit），s.Run() 返回后清理代码可执行 | Run return 已核源码；closeChan 触发的信号集合与 GracefulTimeout 等待在途连接顺序未逐一核实 |
 | 11 | QA 关闭时 ES 中 `FieldQAContentVector` 字段可能不存在或为空，`qaRtrvr` 对该字段的 kNN 检索行为**待验证** | 待验证 |
 
 ### 12.2 实施前必须解决的问题（阻塞项）
 
 | # | 问题 | 影响批次 | 解决方案 |
 |---|---|---|---|
-| B-1 | GetQAModel 并发 race | 1D-2 | 对 `common.GetQAModel` 添加 `sync.Once` 保护（已决策） |
+| B-1 | GetQAModel 并发 race | 1D-2 | 已由实例级 `qaModelCache`（mu+ready，失败不发布缓存）修复（已实现）；不再采用 sync.Once 作为现行方案 |
 | B-2 | asyncWait 签名变更需同步修改 8 处测试注入 | 1D-3 | indexer_test.go 中 `func()` → `func(ctx context.Context)` |
 | B-3 | x/sync 需 go mod tidy 提升为直接依赖 | 1D-2 | 1D-2 首次 import errgroup 后立即 tidy |
 | B-4 | SaveChunksData 公开签名不变，内部 helper 接收依赖 | 1D-1 | 公开入口委派到 `saveChunks(ctx, docID, chunks, store, statusUpdater)` |
@@ -1402,7 +1442,7 @@ go test -race ./core -count=10 -run TestIndex_
 | 1D-1 | `testRag.docSearch` fakeDocSearcher | 实现 SearchDocumentsByIDs；控制检索结果 |
 | 1D-1 | `testRag.idxerAsync` fake Runnable | 验证 IndexAsync 是否被调用 |
 | 1D-2 | `qaModelFactory` 构建参数 | BuildIndexerAsync 接收；返回 fake model |
-| 1D-2 | `coretypes.WithQAConfig(ctx, ...)` | 控制 enabled/maxConcurrent |
+| 1D-2 | `conf.QAEnabled`/`conf.QAMaxConcurrent` + `qaModelFactory` 构建参数 | QA 开关/并发经 config 传递；模型经工厂注入（**无 `WithQAConfig`**） |
 | 1D-3 | `Rag.markFailed` 字段 | 构建时注入 fake（记录调用） |
 | 1D-3 | `Rag.asyncWait` 字段 | 签名变为 `func(ctx context.Context)` |
 | 1D-3 | `Rag.taskTimeout` 字段 | 控制后台超时时长 |

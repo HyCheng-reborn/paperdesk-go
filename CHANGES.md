@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 1D-3 计划定点修订（2026-10-18，仅文档）
+
+- **类型**：计划文档修订（`design/stage1d-plan.md`）；不开始业务编码，不实施 1D-3。基线 `80bb105d3de32cf7b924285f04144d10f508cb35`。
+- **固定准入契约**：改为“同步索引前预留后台容量”——同一锁下检查 closed + 非阻塞取容量 + 登记已准入；closed/满载返回可识别错误（`ErrShuttingDown`/`ErrBackgroundFull`），不执行同步索引、不启动后台；同步失败释放容量与登记；同步成功把所有权转移给后台（slot/Done 只释放一次）。Shutdown 等待已准入的同步阶段与后台（已准入同步计入 bgWG），同步阶段用 bgRootCtx 派生 ctx 观察停止；后台仍 HTTP 返回后执行、不继承请求取消；不引入排队 goroutine/持久化任务。
+- **核实同步路径状态写入**：删除“SaveChunksData 已在同步阶段设置 Indexing”无源码支持表述；文档记录由 controller 以 `StatusPending` 创建（rag_v1_indexer.go:81），`StatusIndexing` 由 SaveChunksData 在异步阶段写（chunks.go:90/130）。拒绝仅保证本次 Index 无同步索引副作用，不承诺撤销上游已创建的文档记录。
+- **Shutdown 超时策略**：仅 Shutdown 返回成功后才逆序清理依赖；超时保留依赖、不清空服务引用、不报正常清理成功、向 cmd 返回可识别错误并记录未收敛；进程退出由 OS 回收不称优雅完成；后续调用继续等待同一 done；明确正常退出/初始化失败清理/直接 Reset 边界避免 Reset 绕过收敛；Cleanup 错误不忽略；避免 dao 重复关闭。补离线协调测试（9.3 C 组）。
+- **重划批次**：A=准入+登记+所有权转移+Shutdown 核心（同批可验证），B=失败/panic/取消+markFailed+重试可取消，C=cmd 接线+Shutdown 收敛协调；各批列修改文件/真实调用链/测试/协调回滚。
+- **固定配置**：`MaxBackgroundTasks` 默认 8、`taskTimeout` 默认 5min；键 `rag.maxBackgroundTasks`/`rag.backgroundTaskTimeoutMinutes`；缺失默认、越界钳位、读取错误传播；Config.Copy/RagConfig/readLifecycleConfig/factory/示例/批次 A 测试；移除“待决策”。清理 ctx 5s 仅为调用预算。
+- **一致性**：QA 缓存现行方案改为 `qaModelCache`（sync.Once 标历史）；删除不存在的 `WithQAConfig`；1D-1/1D-2 测试路径按实际实现标注；回滚按实际依赖方向说明；GoFrame v2.9.0 `Server.Run()`（ghttp_server.go L445-460）给出源码位置与证据，信号集合/graceful 超时细节标未验证；保留 race（0xc0000139）与 A-4 未验证。
+- **状态**：1D-2 仍为已通过源码及提交日志复核（未独立重跑测试）；1D-3 计划待复核；Stage 1 整体未完成。
+
+---
+
 ### Stage 1D-2 独立复核通过（2026-10-18）
 
 - **复核方式**：源码及提交日志复核，复核方未独立重跑测试

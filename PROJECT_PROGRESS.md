@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-18
-**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1、1D-2 均已通过复核（1D-2 基线 d7618e5）；**Stage 1D-3 已通过本地 Codex 独立复核（被验收完整 SHA 71c4c81cb6a3eae060365e1f59f6dfe79aed83ce，有明确边界可通过、未发现剩余阻塞）**。代码批次全部通过，Stage 1 整体尚未正式宣布完成（退出条件收尾清点见下）
+**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1、1D-2、1D-3 均已通过复核（1D-2 基线 d7618e5；1D-3 完整 SHA `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`，本地 Codex 干净树独立重跑、有明确边界可通过、无剩余阻塞）。**Stage 1 代码改进及既定离线验收完成，代码改进阶段关闭；运行和在线边界按后续阶段验证。不代表全项目生产可用或端到端验证完成。**
 **复核方式**：1-Pre/1A/1B/1C/1D-1/1D-2 为源码及提交日志复核，复核方未独立重跑测试；**1D-3 由本地 Codex 在干净工作树独立重跑**（普通/race/关键用例十轮/串行全量/build/vet，见 1D-3 验收记录）
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；**Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`**（本轮审查范围 `3e24a533f99aaa8578b848ae550dfd2e10292723..71c4c81`）
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
@@ -28,7 +28,7 @@
 
 ## Stage 1：初始化副作用清理 + 并发安全修复
 
-**状态**：1-Pre/1A/1B/1C/1D-1/1D-2/1D-3 代码批次均已通过复核（1D-3 经本地 Codex 干净树独立重跑，基线 71c4c81）；Stage 1 退出条件尚含启动/设施验证及后续阶段边界未闭合，未宣布整体完成
+**状态**：**Stage 1 代码改进及既定离线验收完成，代码改进阶段已关闭**（1-Pre/1A/1B/1C/1D-1/1D-2/1D-3 均通过；1D-3 经本地 Codex 干净树独立重跑，基线 `71c4c81`，其余前序批次沿用各自已有验收记录、非均由 Codex 独立重跑）；运行和在线边界按后续阶段验证。不代表全项目生产可用或端到端验证完成
 
 ### 批次计划
 
@@ -52,7 +52,7 @@
 - **r4 归属**：`verification/stage1d3-r4/` 在验收提交中未跟踪，为原工作区未跟踪；已有独立补证，不为其再开修复或重复测试轮次，不改写历史日志；`server/verification/stage1d3a` 错位历史日志本轮纳入但不当 r4 新验证。
 - **保留边界（未验证，不改写为通过）**：A-4 缺 QA 向量 kNN；`core/indexer`/`core/common`/`core/retriever`/`core/rerank` 历史 race 补证；SQL driver 中断执行中 SQL；Stage 4 持久化恢复；History context / 完整 MCP 生命周期。
 
-### Stage 1 退出条件收尾清点（本轮不宣布整体完成）
+### Stage 1 退出条件收尾清点（代码改进阶段关闭）
 
 > 要求按总方案（`design/go-rag_PaperDesk_改进方案_v1.1.2.md`）与 `design/stage1-plan.md`：Stage 1 = 修复 init 副作用、优先 nil 访问、并发安全与错误处理，形成离线可测基础；不实现持久化任务引擎/重启恢复，不在线验证。
 
@@ -73,9 +73,24 @@
 | SQL driver 中断执行中 SQL | ⬜ 未验证 | 1D-3 报告 | cleanup 仅调用预算，归后续 |
 | History SaveMessage 无 context / 完整 MCP 生命周期 | ⬜ 未验证 | 边界记录 | Stage 5 |
 | 完整持久化任务引擎/重启恢复 | ⬜ 不属 Stage 1 | stage1-plan 未验证项 | Stage 4 |
-| 文档状态一致性 | ✅ 本轮已同步 | 本提交（1D-3 通过、Stage 1 未整体完成）| 无 |
+| 文档状态一致性 | ✅ 本轮已同步 | 本提交（Stage 1 代码范围关闭、运行/在线边界保留原归属）| 无 |
 
-**建议与最小剩余动作**：Stage 1 代码批次（1-Pre/1A/1B/1C/1D-1/1D-2/1D-3）均已通过独立复核（1D-3 含干净树独立重跑），具备进入 Stage 1 整体验收评审的代码侧条件；总方案将运行/在线/持久化验证明确延后至 Stage 2/3/4/5，Stage 1 范围内“离线可测基础 + 并发/错误/生命周期修复”已全部落地并通过。最小剩余动作（不擅自扩大 Stage 1）：①正式关闭 Stage 1 前仅确认上述延后项归属不变；②将 r4/错位日志与独立复核原始证据归档到验收提交或明确标注（非正确性阻塞）；③保留 A-4/历史 race/driver 取消为“未验证”，不改写。本轮不启动 Stage 2、不宣布 Stage 1 整体完成。
+**收口结论（用户已确认）**：Stage 1 代码改进及既定离线验收完成，**代码改进阶段关闭**。依据：①所有代码批次（1-Pre/1A/1B/1C/1D-1/1D-2/1D-3）通过；②原方案明确延后的运行/在线验证继续保留原归属（Stage 2/4/5 及启动验证/0C），**不扩大 Stage 1**；③不代表全项目生产可用或端到端验证完成。延后项明细见下「Stage 1 待验证清单」。本轮不启动 Stage 2、不运行在线验证。
+
+### Stage 1 待验证清单（运行/在线/边界，按总方案归属，不并入 Stage 1）
+
+> 阶段归属以总方案（v1.1.2 附录 C / §7）为准；与进度表旧表述冲突处已标注，不自行重新设计。
+
+| 事项 | 验证阶段 | 前置环境 | 通过条件 | 证据要求 |
+|---|---|---|---|---|
+| ES 客户端/服务端版本与实际连接兼容性 | 启动/在线验证（总方案 0C/启动；Stage 0 V05 拆静态/启动）| 真实 ES（compose 8.11.3 / README 8.18.0 / 客户端 8.16.0）+ 网络 | 实际建立连接、索引/查询/mapping 与 dimension 往返兼容，无版本不兼容错误 | 连接与读写往返日志；静态风险≠运行结论。**冲突标注**：进度表 V05 运行曾写“归 Stage 1 或 0C”，按总方案应归启动验证/0C，不并入 Stage 1 代码批次 |
+| Eino 实际运行兼容性 | Stage 2（在线探针；V01 仅静态依赖图）| 真实模型 endpoint + 在线授权 | 图执行/流式/各组件在锁定 Eino 版本实际运行通过 | 在线探针日志；离线编译通过不替代 |
+| A-4：QA 关闭时缺失 QA 向量的检索行为 | Stage 2（QA 费用/降级）叠加 ES 启动验证 | 真实 ES/Qdrant，`qa_content_vector` 缺失的 mapping | 缺字段时返回空/错误且 panic-safe、行为可解释并文档化 | ES mapping + 检索往返；不以离线 fake 替代 |
+| 历史未完成 race（按包）| 工具链/环境修复后各包独立补证 | 可启动 race 二进制的环境（非 `0xc0000139`）| `core/indexer`、`core/common`、`core/retriever`、`core/rerank` 各自 `-race` 独立 EXIT 0 | **按包分别记录**；不以其他包通过或 stress 计数替代某包 race 结论；`0xc0000139` 仍记“运行异常、未完成、根因待确认” |
+| MySQL SKIP LOCKED | Stage 4（总方案 V03）| 真实 MySQL + 任务表/并发领取 | 并发领取无重复/死锁，SKIP LOCKED 语义正确 | 真实 DB 并发测试日志 |
+| SQL driver 执行中取消 | 后续（cleanup 预算边界相关）| 真实 DB driver | 取消能中断执行中查询，或明确不可中断并记录 | 带超时真实 DB 调用记录；不假设可中断 |
+| History SaveMessage context / 完整 MCP 生命周期 | Stage 5（chat-history 替换）/ MCP 后续 | 真实 DB + 生命周期 | 有界超时/取消；MCP 启停资源回收正确 | 集成测试 + 生命周期日志 |
+| 持久化任务恢复/重启重跑 | Stage 3/4 | 任务表/队列 + 重启 | 进程重启后 Failed 可恢复重跑、状态不悬挂 | 恢复演练日志 |
 
 ### Stage 1-Pre 完成记录
 
@@ -663,3 +678,19 @@
 - MySQL SKIP LOCKED（Stage 4）
 - chat-history 替换方案（Stage 5）
 - ZIP 快照逐文件对比（待获取文件）
+
+## Stage 2 准备范围（提取自总方案 §7.4，仅既定范围）
+
+> 仅提取总方案既定范围；不据 Stage 1 缺陷编号推测 Stage 2 内容；架构与详细实施方案后续由专家模式完成。本阶段不启动、不运行在线验证。
+
+- **本阶段应用行为与目标**：从“各处读配置、模型写死”变成明确的角色与能力契约，支持百炼并确保第一次真实调用即可控（成本/超时/维度可控）。
+- **涉及模块**：`core/common/chat_model.go`、`core/common/embedding.go`、`core/rerank/`、`core/config/`、indexer/retriever 的模型构造、`core/vector/{es,qdrant}.go` 与索引配置中 dimension 入口；新增 `core/providers/`（Chat/Embed/Rerank 角色接口、ProviderProfile、RequestBudget、统一 HTTP transport）。
+- **必须先核实的依赖/API/运行事实（契约）**：Chat/Rewrite/QA/Extract 的单轮/流式/结构化/usage/超时（不假设均支持 JSON Schema 或 tool calling）；Embedding 响应数量/顺序/维度/数值、query/doc 模型一致（不假设改 baseURL 即兼容）；Rerank 原生 endpoint/body 层级/results 映射/分数域（不假设 `{baseURL}/rerank` 与百炼同构）。实际 endpoint/batch/token 限制由 Stage 2 探针冻结，不写死地域 URL；Embedding 候选 `text-embedding-v4` 1024 维以实际响应为准、Rerank 候选 `gte-rerank-v2`，记录具体 model ID/版本。
+- **可离线完成 vs 需真实设施**：离线=角色接口+fake、HTTP 契约与预算不足错误、维度错误在发布/检索前阻断、ProviderProfile/RequestBudget/统一 transport 接线（对应 2A/2B/2C）；需真实设施=百炼在线探针（2D）与 endpoint/usage 验证。
+- **是否调用付费模型及隔离**：会（2D 探针）。隔离：仅离线全部通过后、经已授权且具备预算护栏时执行极小探针（最少量文本 + 一次生成，不跑全语料）；在各调用前预留 request/token 预算（重试也计）；限单任务调用数/每步 deadline/输出 token/并发/全局预算；预算耗尽提前明确错误、不默默切换计费服务；usage 缺失时记 unknown+保守估算不显 0；测试报告分开记录离线 PASS 与在线未验证项。
+- **推荐首批与验收条件**：首批 2A（角色接口 + fake）。验收：fake 覆盖所有角色/HTTP 契约/预算不足；维度错误在发布/检索前阻断；第一次真实探针极小量、不跑全语料；报告分开离线 PASS 与在线未验证。
+- **分批**（总方案）：2A 角色接口+fake → 2B 百炼请求/响应适配+错误映射 → 2C 维度/索引 fingerprint → 2D 离线通过后经已授权预算执行极小在线探针。
+
+### 独立验收证据位置（未进 Git，仅本地未跟踪）
+
+- 1D-3 及前序独立复核原始报告与日志位于本地未跟踪目录 `verification/independent-1d3-{71c4c81,3e24a53,7357869,89cc769,9e59029}/`（本轮已只读核实仍存在），以及 `verification/stage1d3-r4/`、错位的 `server/verification/stage1d3a/`。**这些证据未进入 Git**（`git status` 显示为 `??` 未跟踪）；本轮不批量添加/删除/移动原始证据、不因此重开修复轮次。被验收代码以已推送提交为准（如 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`），报告路径仅用于溯源。

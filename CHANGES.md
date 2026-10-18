@@ -1,5 +1,16 @@
 # 变更记录
 
+### Stage 1 代码范围收口 + Stage 2 准备范围提取（2026-10-18，仅文档）
+
+- **类型**：状态收口与范围提取；仅改文档，不改业务代码、不运行在线验证、不启动 Stage 2。
+- **基线**：`5408cc7819057d58da66a5e3a42e81848315c479`。
+- **Stage 1 代码范围关闭**：用户确认所有代码批次通过，代码改进阶段关闭。当前状态改为“Stage 1 代码改进及既定离线验收完成；运行和在线边界按后续阶段验证”，不代表全项目生产可用/端到端完成。验收基线如实保留：1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`（本地 Codex 干净树独立重跑）；1A/1C-2/1D-1/1D-2 沿用各自已有验收记录（均为源码及提交日志复核、未独立重跑），不写成均由 Codex 重跑。
+- **Stage 1 待验证清单**（新增于 PROJECT_PROGRESS.md，按总方案归属，不并入 Stage 1）：ES 版本与连接兼容（启动/0C，标注与旧“Stage 1 或 0C”表述冲突）、Eino 运行时（Stage 2）、A-4 缺 QA 向量 kNN（Stage 2+ES 启动）、历史 race（indexer/common/retriever/rerank 按包独立补证、不以其他包替代、`0xc0000139` 仍为未验证）、MySQL SKIP LOCKED（Stage 4）、SQL driver 执行中取消（后续）、History context/MCP 生命周期（Stage 5）、持久化恢复（Stage 3/4）。
+- **Stage 2 准备范围**（提取自总方案 §7.4，仅既定范围）：目标/涉及模块（core/providers、chat_model/embedding/rerank/config/vector dimension）/必核实契约（Chat/Embed/Rerank 不假设、endpoint 由探针冻结）/离线 vs 真实设施/付费模型与预算隔离/首批 2A 及验收条件。不据 Stage 1 缺陷编号推测 Stage 2 内容；架构与详细方案后续由专家模式完成。
+- **证据处理**：独立复核原始报告与日志仍仅在本地未跟踪目录（`verification/independent-1d3-*`、`stage1d3-r4`、`server/verification/stage1d3a`），本轮只读核实存在并在文档说明位置与“未进 Git”事实；不批量添加/删除/移动原始证据，不重开修复轮次。
+
+---
+
 ### Stage 1D-3 验收通过 + Stage 1 收尾清点（2026-10-18，仅文档）
 
 - **类型**：验收记录与 Stage 1 退出条件清点；不修改业务代码、不重跑测试、不启动 Stage 2。

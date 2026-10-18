@@ -301,7 +301,7 @@ go test -race ./core/indexer/... ./internal/logic/knowledge/... -count=1 -v
 
 推荐顺序：1-Pre 和 1A 并行 → 1B → 1C → 1D
 
-**当前进度**：1-Pre 已完成，1A 已通过复核（基线 3b8f7a0），1B 三个批次均已通过复核，1C 已通过复核（1C-1/1C-2 均已通过），1D-1/1D-2 已通过复核（基线 6446427/d7618e5），1D-3 已通过本地 Codex 独立复核（干净树独立重跑，被验收完整 SHA `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`）。代码批次全部通过；Stage 1 退出条件中的启动/设施验证与后续阶段边界（A-4/历史 race/driver 取消/持久化恢复/History/MCP）尚未闭合，本轮不宣布 Stage 1 整体完成（见 PROJECT_PROGRESS.md 退出条件收尾清点）
+**当前进度**：1-Pre 已完成，1A 已通过复核（基线 3b8f7a0），1B 三个批次均已通过复核，1C 已通过复核（1C-1/1C-2 均已通过），1D-1/1D-2 已通过复核（基线 6446427/d7618e5），1D-3 已通过本地 Codex 独立复核（干净树独立重跑，被验收完整 SHA `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`）。代码批次全部通过；**Stage 1 代码改进及既定离线验收完成，代码改进阶段关闭；运行和在线边界（启动/设施验证、A-4/历史 race/driver 取消/持久化恢复/History/MCP）按后续阶段验证**（待验证清单见 PROJECT_PROGRESS.md），不代表全项目生产可用或端到端验证完成
 
 ## 全局验证命令
 

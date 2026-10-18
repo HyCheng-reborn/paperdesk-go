@@ -68,7 +68,7 @@ func TestRegistry_ProfileIsolation(t *testing.T) {
 		Chat:        profileA,
 		Extract:     profileA, // 与 Chat 同 Profile → 应共享实例
 		QA:          profileB, // 不同 Profile → 应独立实例
-		Budget:      NewProcessBudget(0, 0, 0, 0),
+		Budget:      mustProcessBudget(t, 0, 0, 0, 0),
 		Transport:   NewTransport(),
 		Credentials: creds.resolver(),
 	})
@@ -148,7 +148,7 @@ func TestRegistry_FailedInit(t *testing.T) {
 	creds := &countingCreds{failUntil: 2}
 	reg, err := NewRegistry(RegistryConfig{
 		Chat:        profile,
-		Budget:      NewProcessBudget(0, 0, 0, 0),
+		Budget:      mustProcessBudget(t, 0, 0, 0, 0),
 		Transport:   NewTransport(),
 		Credentials: creds.resolver(),
 	})
@@ -196,7 +196,7 @@ func TestRegistry_FailedInit(t *testing.T) {
 	if _, err := NewRegistry(RegistryConfig{Chat: profile, Credentials: creds.resolver()}); !errors.Is(err, ErrNilBudget) {
 		t.Fatalf("nil budget err = %v, want ErrNilBudget", err)
 	}
-	if _, err := NewRegistry(RegistryConfig{Chat: profile, Budget: NewProcessBudget(0, 0, 0, 0)}); !errors.Is(err, ErrNilCredentialFn) {
+	if _, err := NewRegistry(RegistryConfig{Chat: profile, Budget: mustProcessBudget(t, 0, 0, 0, 0)}); !errors.Is(err, ErrNilCredentialFn) {
 		t.Fatalf("nil credentials err = %v, want ErrNilCredentialFn", err)
 	}
 }
@@ -316,5 +316,100 @@ func TestFake_AllRoles(t *testing.T) {
 	reg.Rerank = nil
 	if _, err := reg.GetReranker(ctx); !errors.Is(err, ErrRoleNotConfigured) {
 		t.Fatalf("nil rerank err = %v, want ErrRoleNotConfigured", err)
+	}
+}
+
+// TestProfile_CacheKey_NoCollision：易碰撞的 KeyOptions（未转义拼接曾编码成同一串
+// "a=1,b=2"）必须产生不同缓存键，且经 Registry 验证不复用同一缓存实例（stage2 复核 B3）。
+func TestProfile_CacheKey_NoCollision(t *testing.T) {
+	base := ProviderProfile{
+		ProviderName: ProviderOpenAI,
+		Protocol:     ProtocolOpenAICompat,
+		Endpoint:     "https://example.invalid/v1",
+		Model:        "qwen-plus",
+		Version:      "1",
+	}
+	a := base
+	a.KeyOptions = map[string]string{"a": "1,b=2"}
+	b := base
+	b.KeyOptions = map[string]string{"a": "1", "b": "2"}
+	pa, err := NewProviderProfile(a)
+	if err != nil {
+		t.Fatalf("NewProviderProfile(a): %v", err)
+	}
+	pbb, err := NewProviderProfile(b)
+	if err != nil {
+		t.Fatalf("NewProviderProfile(b): %v", err)
+	}
+	if pa.CacheKey() == pbb.CacheKey() {
+		t.Fatalf("collision-prone KeyOptions must produce distinct cache keys, both=%q", pa.CacheKey())
+	}
+	// 经 Registry 验证：不同 KeyOptions 不得复用同一缓存实例
+	reg, err := NewRegistry(RegistryConfig{
+		Chat:        pa,
+		QA:          pbb,
+		Budget:      mustProcessBudget(t, 1, 100, 100, 1),
+		Transport:   NewTransport(),
+		Credentials: func(context.Context, *ProviderProfile) (string, error) { return "offline-key", nil },
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	chat, err := reg.GetChat(context.Background())
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+	qa, err := reg.GetQA(context.Background())
+	if err != nil {
+		t.Fatalf("GetQA: %v", err)
+	}
+	if chat == qa {
+		t.Fatal("distinct KeyOptions must not reuse one cached model instance")
+	}
+}
+
+// TestRegistry_SnapshotIsolated：构造 Registry 后修改调用方持有的原 Profile，
+// 凭据解析器与适配器 Profile() 看到的仍是构造期快照（原值），证明 Registry/adapter
+// 拥有防御性副本而非可写内部引用（stage2 复核 B3）。
+func TestRegistry_SnapshotIsolated(t *testing.T) {
+	ctx := context.Background()
+	p := testChatProfile(t, "original-model")
+	var resolvedModel string
+	reg, err := NewRegistry(RegistryConfig{
+		Chat:   p,
+		Budget: mustProcessBudget(t, 1, 100, 100, 1),
+		Credentials: func(_ context.Context, prof *ProviderProfile) (string, error) {
+			resolvedModel = prof.Model
+			return "offline-key", nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	// 构造后修改调用方原 Profile：不得影响已发布身份
+	p.Model = "mutated-after-registry-construction"
+	role, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+	got := role.(interface{ Profile() ProviderProfile }).Profile()
+	if resolvedModel != "original-model" {
+		t.Fatalf("credential resolver saw mutated model: %q", resolvedModel)
+	}
+	if got.Model != "original-model" {
+		t.Fatalf("adapter Profile() saw mutated model: %q", got.Model)
+	}
+	// 进一步：修改 Profile() 返回的副本不得影响后续 GetChat 命中的缓存实例身份
+	got.Model = "caller-mutation"
+	role2, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat#2: %v", err)
+	}
+	if role2 != role {
+		t.Fatal("same profile must reuse cached instance")
+	}
+	got2 := role2.(interface{ Profile() ProviderProfile }).Profile()
+	if got2.Model != "original-model" {
+		t.Fatalf("internal identity leaked through Profile() copy: %q", got2.Model)
 	}
 }

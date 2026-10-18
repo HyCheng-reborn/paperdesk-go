@@ -60,8 +60,9 @@ var (
 	_ model.BaseChatModel = (*chatAdapter)(nil)
 )
 
-// Profile 返回构造该角色的不可变 Profile。
-func (a *chatAdapter) Profile() *ProviderProfile { return a.profile }
+// Profile 返回构造该角色的不可变 Profile 的防御性副本（值类型，KeyOptions 深拷贝），
+// 绝不暴露可写内部引用（stage2 复核 B3）。
+func (a *chatAdapter) Profile() ProviderProfile { return a.profile.snapshot() }
 
 // Capabilities 返回 Profile 声明的能力集。
 func (a *chatAdapter) Capabilities() Capabilities { return a.profile.Capabilities }
@@ -85,7 +86,7 @@ func BuildChatRole(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
 	if cm == nil {
 		return nil, fmt.Errorf("providers: build chat model: %w", ErrNilInner)
 	}
-	return &chatAdapter{BaseChatModel: cm, profile: p}, nil
+	return &chatAdapter{BaseChatModel: cm, profile: p.Clone()}, nil
 }
 
 // WrapChatModel 将任意已构造的 Eino model.BaseChatModel 包装为 ChatRole（生产共享）。
@@ -97,7 +98,7 @@ func WrapChatModel(inner model.BaseChatModel, p *ProviderProfile) (ChatRole, err
 	if p == nil {
 		return nil, ErrNilProfile
 	}
-	return &chatAdapter{BaseChatModel: inner, profile: p}, nil
+	return &chatAdapter{BaseChatModel: inner, profile: p.Clone()}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -124,8 +125,8 @@ func (a *embedAdapter) Dimensions() int { return a.profile.Dimensions }
 // ModelID 返回 Profile 声明的模型身份（model + version）。
 func (a *embedAdapter) ModelID() string { return a.profile.ModelID() }
 
-// Profile 返回构造该角色的不可变 Profile。
-func (a *embedAdapter) Profile() *ProviderProfile { return a.profile }
+// Profile 返回构造该角色的不可变 Profile 的防御性副本（值类型，KeyOptions 深拷贝）。
+func (a *embedAdapter) Profile() ProviderProfile { return a.profile.snapshot() }
 
 // BuildEmbedRole 是“现有模型 → EmbedRole”的生产共享构造入口：
 // 内部使用现有 openai.NewEmbedder，并注入共享 Transport 的 *http.Client。
@@ -151,7 +152,7 @@ func BuildEmbedRole(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
 	if eb == nil {
 		return nil, fmt.Errorf("providers: build embedder: %w", ErrNilInner)
 	}
-	return &embedAdapter{inner: eb, profile: p}, nil
+	return &embedAdapter{inner: eb, profile: p.Clone()}, nil
 }
 
 // WrapEmbedder 将任意已构造的 Eino embedding.Embedder 包装为 EmbedRole（生产共享）。
@@ -162,7 +163,7 @@ func WrapEmbedder(inner embedding.Embedder, p *ProviderProfile) (EmbedRole, erro
 	if p == nil {
 		return nil, ErrNilProfile
 	}
-	return &embedAdapter{inner: inner, profile: p}, nil
+	return &embedAdapter{inner: inner, profile: p.Clone()}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -183,8 +184,8 @@ func (a *rerankAdapter) Rerank(ctx context.Context, query string, docs []*schema
 	return a.inner.Rerank(ctx, query, docs, topK)
 }
 
-// Profile 返回构造该角色的不可变 Profile。
-func (a *rerankAdapter) Profile() *ProviderProfile { return a.profile }
+// Profile 返回构造该角色的不可变 Profile 的防御性副本（值类型，KeyOptions 深拷贝）。
+func (a *rerankAdapter) Profile() ProviderProfile { return a.profile.snapshot() }
 
 // BuildRerankRole 是“现有 rerank.Rerank → RerankRole”的生产共享构造入口：
 // 复用 core/rerank 的全部已验收校验链，并注入共享 Transport 的 *http.Client。
@@ -202,7 +203,7 @@ func BuildRerankRole(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
 	if rr == nil {
 		return nil, fmt.Errorf("providers: build rerank: %w", ErrNilInner)
 	}
-	return &rerankAdapter{inner: rr, profile: p}, nil
+	return &rerankAdapter{inner: rr, profile: p.Clone()}, nil
 }
 
 // WrapRerank 将已构造的 *rerank.Rerank 包装为 RerankRole（生产共享）。
@@ -213,5 +214,5 @@ func WrapRerank(inner *rerank.Rerank, p *ProviderProfile) (RerankRole, error) {
 	if p == nil {
 		return nil, ErrNilProfile
 	}
-	return &rerankAdapter{inner: inner, profile: p}, nil
+	return &rerankAdapter{inner: inner, profile: p.Clone()}, nil
 }

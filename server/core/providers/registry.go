@@ -118,29 +118,36 @@ func NewRegistry(cfg RegistryConfig) (ProviderRegistry, error) {
 	if tp == nil {
 		tp = NewTransport()
 	}
+	// 防御性快照（stage2 复核 B3）：Registry 拥有经校验 Profile 的独立副本，
+	// 构造后调用方修改原对象不影响已发布身份。未显式绑定的 Chat 家族角色
+	// 回退到 Chat 的同一快照（共享指针 → 复用同一缓存实例）。
+	chatProfile := cfg.Chat.Clone()
+	rewriteProfile := chatProfile
+	if cfg.Rewrite != nil {
+		rewriteProfile = cfg.Rewrite.Clone()
+	}
+	qaProfile := chatProfile
+	if cfg.QA != nil {
+		qaProfile = cfg.QA.Clone()
+	}
+	extractProfile := chatProfile
+	if cfg.Extract != nil {
+		extractProfile = cfg.Extract.Clone()
+	}
 	return &registry{
 		chatCache:      map[string]ChatRole{},
 		embedCache:     map[string]EmbedRole{},
 		rerankCache:    map[string]RerankRole{},
-		chatProfile:    cfg.Chat,
-		rewriteProfile: firstNonNil(cfg.Rewrite, cfg.Chat),
-		qaProfile:      firstNonNil(cfg.QA, cfg.Chat),
-		extractProfile: firstNonNil(cfg.Extract, cfg.Chat),
-		embedProfile:   cfg.Embed,
-		rerankProfile:  cfg.Rerank,
+		chatProfile:    chatProfile,
+		rewriteProfile: rewriteProfile,
+		qaProfile:      qaProfile,
+		extractProfile: extractProfile,
+		embedProfile:   cfg.Embed.Clone(),
+		rerankProfile:  cfg.Rerank.Clone(),
 		budget:         cfg.Budget,
 		transport:      tp,
 		creds:          cfg.Credentials,
 	}, nil
-}
-
-func firstNonNil(ps ...*ProviderProfile) *ProviderProfile {
-	for _, p := range ps {
-		if p != nil {
-			return p
-		}
-	}
-	return nil
 }
 
 // Budget 返回绑定的进程预算（供调用方派生 RequestBudget/TaskBudget）。

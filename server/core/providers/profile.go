@@ -1,9 +1,12 @@
 package providers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -24,9 +27,6 @@ const (
 	KeyOptionStructuredOutput = "structuredOutput"
 	KeyOptionToolCalling      = "toolCalling"
 )
-
-// cacheKeyFieldSep 用于拼接缓存键的不可打印分隔符，避免与字段值冲突。
-const cacheKeyFieldSep = "\x1f"
 
 // 校验错误（配置缺失/非法在构造期显式返回，不延迟到首次模型调用，见 §3.5）。
 var (
@@ -122,6 +122,22 @@ func (p *ProviderProfile) Clone() *ProviderProfile {
 	return &cp
 }
 
+// snapshot 返回值类型深拷贝（KeyOptions 独立复制），供 adapter.Profile() 暴露
+// 不可变身份而不泄漏可写内部引用（stage2 复核 B3）。nil 安全返回零值。
+func (p *ProviderProfile) snapshot() ProviderProfile {
+	if p == nil {
+		return ProviderProfile{}
+	}
+	cp := *p
+	if p.KeyOptions != nil {
+		cp.KeyOptions = make(map[string]string, len(p.KeyOptions))
+		for k, v := range p.KeyOptions {
+			cp.KeyOptions[k] = v
+		}
+	}
+	return cp
+}
+
 // KeyOption 安全读取单个 KeyOptions 值（不暴露内部 map 引用）。
 func (p *ProviderProfile) KeyOption(key string) (string, bool) {
 	if p == nil || p.KeyOptions == nil {
@@ -143,48 +159,63 @@ func (p *ProviderProfile) ModelID() string {
 	return p.Model + "@" + p.Version
 }
 
-// CacheKey 返回稳定归一化的缓存键：字段以不可打印分隔符拼接，
-// KeyOptions 按键排序后拼接，从而保证：
+// CacheKey 返回稳定归一化、无歧义的缓存键（stage2 复核 B3）。
+//
+// 编码方式：每个字段以「长度前缀 | 名称 = 长度前缀 | 值 ;」写入，避免未转义拼接造成的
+// 确定碰撞（如 KeyOptions {"a":"1,b=2"} 与 {"a":"1","b":"2"} 曾拼出同一串）；
+// KeyOptions 按键排序后逐个长度前缀编码，保证插入顺序无关。最终对无歧义序列取 SHA-256。
+//
+// 保证：
 //   - 仅大小写（ProviderName/Protocol）或首尾空白不同的 Profile 得到相同键；
 //   - KeyOptions 插入顺序不同但内容相同的 Profile 得到相同键；
-//   - Model/Version/Dimensions/Endpoint/CredentialIdentity 不同则键不同。
+//   - Model/Version/Dimensions/Endpoint/Region/CredentialIdentity/Capabilities/KeyOptions
+//     任一不同则键不同（无确定碰撞）。
 func (p *ProviderProfile) CacheKey() string {
 	if p == nil {
 		return ""
 	}
 	var b strings.Builder
-	writeField := func(s string) {
-		b.WriteString(s)
-		b.WriteString(cacheKeyFieldSep)
-	}
-	writeField(p.ProviderName) // 已在构造期小写归一
-	writeField(p.Protocol)     // 已在构造期小写归一
-	writeField(p.Endpoint)
-	writeField(p.Region)
-	writeField(p.Model)
-	writeField(p.Version)
-	writeField(fmt.Sprintf("dim=%d", p.Dimensions))
-	writeField(p.CredentialIdentity)
+	writeCacheField(&b, "provider", p.ProviderName) // 已在构造期小写归一
+	writeCacheField(&b, "protocol", p.Protocol)     // 已在构造期小写归一
+	writeCacheField(&b, "endpoint", p.Endpoint)
+	writeCacheField(&b, "region", p.Region)
+	writeCacheField(&b, "model", p.Model)
+	writeCacheField(&b, "version", p.Version)
+	writeCacheField(&b, "dims", strconv.Itoa(p.Dimensions))
+	writeCacheField(&b, "cred", p.CredentialIdentity)
 	// Capabilities 参与身份：能力不同的 Profile 不可共享缓存实例
-	writeField(fmt.Sprintf("cap=%t,%t,%t,%t",
+	writeCacheField(&b, "cap", fmt.Sprintf("%t,%t,%t,%t",
 		p.Capabilities.Stream, p.Capabilities.StructuredOutput,
 		p.Capabilities.ToolCalling, p.Capabilities.Usage))
-	// KeyOptions 排序后拼接，保证顺序无关
+	// KeyOptions 排序后逐个长度前缀编码，保证顺序无关且无歧义
 	if len(p.KeyOptions) > 0 {
 		keys := make([]string, 0, len(p.KeyOptions))
 		for k := range p.KeyOptions {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
-		b.WriteString("opts=")
-		for i, k := range keys {
-			if i > 0 {
-				b.WriteString(",")
-			}
-			b.WriteString(k)
-			b.WriteString("=")
-			b.WriteString(p.KeyOptions[k])
+		for _, k := range keys {
+			writeCacheField(&b, "opt:"+k, p.KeyOptions[k])
 		}
 	}
-	return b.String()
+	return sha256Hex(b.String())
+}
+
+// writeCacheField 以「len(name)|name=len(value)|value;」无歧义写入一个字段。
+// 长度前缀使任何内嵌分隔符/等号的值都不会与另一组字段拼出相同串。
+func writeCacheField(b *strings.Builder, name, value string) {
+	b.WriteString(strconv.Itoa(len(name)))
+	b.WriteByte('|')
+	b.WriteString(name)
+	b.WriteByte('=')
+	b.WriteString(strconv.Itoa(len(value)))
+	b.WriteByte('|')
+	b.WriteString(value)
+	b.WriteByte(';')
+}
+
+// sha256Hex 返回输入的 SHA-256 十六进制摘要（基于无歧义序列，避免超长键）。
+func sha256Hex(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
 }

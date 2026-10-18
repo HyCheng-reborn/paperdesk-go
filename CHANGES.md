@@ -1,5 +1,20 @@
 # 变更记录
 
+### Stage 2A 独立复核阻塞修复（2026-10-19）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：5bf62f0069a527b4940b8336f3cb953ccb551813
+- **修复内容**：
+  1. **B1 预算账本 fail-closed**：引入 `addChecked` 受检加法防溢出；严格化 `usageKnown`（分项非负 + Total 一致性）；`finalize` 溢出时置 `exhausted=true` 保守保留预留；`NewProcessBudget` 对负上限返回 `ErrBudgetInvalidOption`；slot 释放与结算解耦
+  2. **B2 owner 取消与绝对 deadline**：`RequestBudget/TaskBudget` 保存 `ownerCtx` + `ownerDeadline`；`Reserve/ReserveCtx` 先检查 owner 取消/过期；`ContextWithDeadline` 取更早者绝不刷新；`TransferToBackground` 保留固定边界
+  3. **B3 Profile 身份封闭**：`CacheKey` 改用长度前缀编码 + SHA-256 消除碰撞；`NewRegistry` 存 Clone；adapter `Profile()` 返回值类型 snapshot
+  4. **E1 race**：Windows 下仍 `0xc0000139`（MinGW-w64 8.1.0），如实记录“运行异常、race 未完成、根因待确认”
+- **新增测试**：`TestBudget_NegativeUsageConservative` / `TestBudget_TotalOnlyUsage` / `TestBudget_SettlementOverflow` / `TestBudget_NegativeProcessLimit` / `TestBudget_OverflowSlotRelease` / `TestBudget_OwnerCancelPropagates` / `TestBudget_DeadlineNotRefreshedByRetry` / `TestBudget_TransferKeepsAbsoluteDeadline` / `TestProfile_CacheKey_NoCollision` / `TestRegistry_SnapshotIsolated`
+- **验证**：gofmt/build/vet exit 0；44 providers 测试 PASS；关键用例压测 -count=10 PASS（140 次顶层执行）；全项目 go test -p 1 ./... 通过（14 包）；race 因环境限制未完成
+- **状态**：2A 阻塞修复完成待再次复核；race 证据缺口未闭合
+
+---
+
 ### Stage 2A 实施完成（2026-10-19）
 
 - **类型**：新增实施（基于已通过方案 212ccd8）

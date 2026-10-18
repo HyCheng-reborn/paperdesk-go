@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"errors"
+	"math"
 	"sync"
 	"time"
 
@@ -43,21 +44,32 @@ type budgetCounters struct {
 	outputReserved int64 // 输出 token 预留账本
 	inputUsed      int64 // 输入 token 实际结算账本（单调）
 	outputUsed     int64 // 输出 token 实际结算账本（单调）
+
+	// exhausted 是 fail-closed 标志：结算溢出等账本异常后置位，
+	// 该作用域永久不可再准入（canReserve 直接拒绝），绝不回绕重新获得额度。
+	exhausted bool
 }
 
 // canReserve 在不修改状态的前提下判断能否再预留一次（1 尝试 + 1 slot + est token）。
 // 使用 exceeds 辅助避免 int64 溢出。
 func (c *budgetCounters) canReserve(e *TokenEstimate) bool {
+	// fail-closed：账本异常（如结算溢出）后该作用域永久不可再准入
+	if c.exhausted {
+		return false
+	}
 	if exceeds(c.attemptsUsed, 1, c.maxRequests) {
 		return false
 	}
 	if exceeds(c.inFlight, 1, c.maxConcurrency) {
 		return false
 	}
-	if exceeds(c.inputUsed+c.inputReserved, e.InputTokens, c.maxInputTokens) {
+	// 受检加法：used+reserved 溢出即拒绝，避免回绕重新获得额度
+	inSum, ok := addChecked(c.inputUsed, c.inputReserved)
+	if !ok || exceeds(inSum, e.InputTokens, c.maxInputTokens) {
 		return false
 	}
-	if exceeds(c.outputUsed+c.outputReserved, e.MaxOutput, c.maxOutputTokens) {
+	outSum, ok := addChecked(c.outputUsed, c.outputReserved)
+	if !ok || exceeds(outSum, e.MaxOutput, c.maxOutputTokens) {
 		return false
 	}
 	return true
@@ -82,6 +94,18 @@ func exceeds(current, add, limit int64) bool {
 	return add > limit-current // limit-current>0，安全
 }
 
+// addChecked 执行受检加法：a+b 溢出 int64 时返回 (0, false)，绝不回绕。
+// 用于账本累计与 used+reserved 求和，保证畸形/极端用量不会把额度绕回可用区间。
+func addChecked(a, b int64) (int64, bool) {
+	if b > 0 && a > math.MaxInt64-b {
+		return 0, false
+	}
+	if b < 0 && a < math.MinInt64-b {
+		return 0, false
+	}
+	return a + b, true
+}
+
 // ProcessBudget 是进程级预算 owner（stage2-plan §4.3）。
 // 由进程 owner 在启动时创建，Registry 构造时绑定；不可通过新建 Registry 重置。
 //
@@ -94,22 +118,20 @@ type ProcessBudget struct {
 }
 
 // NewProcessBudget 创建进程级预算。任一上限 <=0 表示该维度不限。
-func NewProcessBudget(maxRequests, maxInputTokens, maxOutputTokens int64, maxConcurrency int) *ProcessBudget {
+// 负上限是配置错误：显式返回 ErrBudgetInvalidOption，绝不 sanitize 成 0（不限）
+// 而静默关闭全部预算保护（与请求/任务级 BudgetOption 的负值拒绝语义一致）。
+func NewProcessBudget(maxRequests, maxInputTokens, maxOutputTokens int64, maxConcurrency int) (*ProcessBudget, error) {
+	if maxRequests < 0 || maxInputTokens < 0 || maxOutputTokens < 0 || maxConcurrency < 0 {
+		return nil, ErrBudgetInvalidOption
+	}
 	return &ProcessBudget{
 		c: budgetCounters{
-			maxRequests:     sanitize64(maxRequests),
-			maxInputTokens:  sanitize64(maxInputTokens),
-			maxOutputTokens: sanitize64(maxOutputTokens),
-			maxConcurrency:  sanitize64(int64(maxConcurrency)),
+			maxRequests:     maxRequests,
+			maxInputTokens:  maxInputTokens,
+			maxOutputTokens: maxOutputTokens,
+			maxConcurrency:  int64(maxConcurrency),
 		},
-	}
-}
-
-func sanitize64(v int64) int64 {
-	if v < 0 {
-		return 0
-	}
-	return v
+	}, nil
 }
 
 // BudgetSnapshot 是作用域计数的只读快照，供测试与观测使用。
@@ -207,19 +229,31 @@ func normalizeEstimate(est *TokenEstimate) (*TokenEstimate, error) {
 
 // RequestBudget 是请求级累计 owner（覆盖整个 Retrieve/Index/ChatStream 调用）。
 // 绑定 ProcessBudget，独立累计，同时向进程级原子预扣。
+//
+// owner 约束（stage2 复核 B2）：构造期 ctx 与固定绝对 deadline 被保留，
+// Reserve/ReserveCtx 不得绕过 owner 的取消/过期状态；重试与派生 context 不刷新总期限。
 type RequestBudget struct {
-	s        *scope
-	deadline time.Duration
+	s             *scope
+	deadline      time.Duration   // 配置值（供 Deadline() 返回）
+	ownerCtx      context.Context // 构造期 ctx：取消传播，Reserve 不得绕过
+	ownerDeadline time.Time       // 固定绝对 deadline（零值表示未设置）；重试/派生不刷新
 }
 
 // NewRequestBudget 创建请求级预算；opts 设定子作用域上限（<=0 表示继承为不限）。
-// 负数上限返回 ErrBudgetInvalidOption。
+// 负数上限返回 ErrBudgetInvalidOption。构造期 ctx 与固定 deadline 被保留用于取消传播。
 func (pb *ProcessBudget) NewRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error) {
 	cfg, err := newBudgetConfig(opts)
 	if err != nil {
 		return nil, err
 	}
-	_ = ctx // ctx 保留用于取消传播/追踪；构造本身不发起网络请求
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// 固定绝对 deadline：构造期一次性确定，后续重试/派生 context 不得刷新
+	var ownerDeadline time.Time
+	if cfg.deadline > 0 {
+		ownerDeadline = time.Now().Add(cfg.deadline)
+	}
 	return &RequestBudget{
 		s: &scope{
 			pb: pb,
@@ -230,26 +264,38 @@ func (pb *ProcessBudget) NewRequestBudget(ctx context.Context, opts ...BudgetOpt
 				maxConcurrency:  cfg.maxConcurrency,
 			},
 		},
-		deadline: cfg.deadline,
+		deadline:      cfg.deadline,
+		ownerCtx:      ctx,
+		ownerDeadline: ownerDeadline,
 	}, nil
 }
 
 // Reserve 在发送前原子预留一次尝试（slot + token + 尝试计数），返回短期句柄 AttemptLease。
+// 先检查 owner 取消/固定 deadline 过期，绝不绕过构造期 ctx 的取消状态。
 func (rb *RequestBudget) Reserve(estimate *TokenEstimate) (*AttemptLease, error) {
-	return rb.s.reserve(context.Background(), estimate)
+	return rb.reserveCtx(rb.ownerCtx, estimate)
 }
 
-// ReserveCtx 与 Reserve 相同，但使用调用方 ctx 支持取消传播。
+// ReserveCtx 与 Reserve 相同，但额外使用调用方 ctx 支持取消传播。
+// owner 取消/过期优先于调用方 ctx 检查。
 func (rb *RequestBudget) ReserveCtx(ctx context.Context, estimate *TokenEstimate) (*AttemptLease, error) {
+	return rb.reserveCtx(ctx, estimate)
+}
+
+func (rb *RequestBudget) reserveCtx(ctx context.Context, estimate *TokenEstimate) (*AttemptLease, error) {
+	if err := ownerErr(rb.ownerCtx, rb.ownerDeadline); err != nil {
+		return nil, err
+	}
 	return rb.s.reserve(ctx, estimate)
 }
 
 // Deadline 返回请求级 deadline（可能为 0，表示未设置）。
 func (rb *RequestBudget) Deadline() time.Duration { return rb.deadline }
 
-// ContextWithDeadline 在设置了 deadline 时返回带超时的派生 ctx，否则返回原 ctx。
+// ContextWithDeadline 返回受固定 owner deadline 约束的派生 ctx：
+// 取调用方 ctx 的 deadline 与 owner 固定 deadline 的更早者，绝不刷新总期限。
 func (rb *RequestBudget) ContextWithDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
-	return withDeadline(ctx, rb.deadline)
+	return contextWithFixedDeadline(ctx, rb.ownerDeadline)
 }
 
 // Snapshot 返回请求级作用域的只读快照。
@@ -260,20 +306,29 @@ func (rb *RequestBudget) Snapshot() BudgetSnapshot { return rb.s.snapshot() }
 // ---------------------------------------------------------------------------
 
 // TaskBudget 是任务级累计 owner，供 Index 同步 + 后台共享（stage2-plan §4.9）。
-// 通过 TransferToBackground 显式移交，而非 ctx 继承；移交后共享同一累计额度（不刷新）。
+// 通过 TransferToBackground 显式移交，而非 ctx 继承；移交后共享同一累计额度（不刷新）
+// 与同一【固定】deadline（不重新计时）。
 type TaskBudget struct {
-	s           *scope
-	deadline    time.Duration
-	transferred bool // 由 s.pb.mu 保护
+	s             *scope
+	deadline      time.Duration
+	ownerCtx      context.Context // 构造期 ctx：取消传播，Reserve 不得绕过
+	ownerDeadline time.Time       // 固定绝对 deadline（零值表示未设置）；移交不刷新
+	transferred   bool            // 由 s.pb.mu 保护
 }
 
-// NewTaskBudget 创建任务级预算。
+// NewTaskBudget 创建任务级预算。构造期 ctx 与固定 deadline 被保留用于取消传播。
 func (pb *ProcessBudget) NewTaskBudget(ctx context.Context, opts ...BudgetOption) (*TaskBudget, error) {
 	cfg, err := newBudgetConfig(opts)
 	if err != nil {
 		return nil, err
 	}
-	_ = ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var ownerDeadline time.Time
+	if cfg.deadline > 0 {
+		ownerDeadline = time.Now().Add(cfg.deadline)
+	}
 	return &TaskBudget{
 		s: &scope{
 			pb: pb,
@@ -284,21 +339,27 @@ func (pb *ProcessBudget) NewTaskBudget(ctx context.Context, opts ...BudgetOption
 				maxConcurrency:  cfg.maxConcurrency,
 			},
 		},
-		deadline: cfg.deadline,
+		deadline:      cfg.deadline,
+		ownerCtx:      ctx,
+		ownerDeadline: ownerDeadline,
 	}, nil
 }
 
-// Reserve 在发送前原子预留一次尝试。
+// Reserve 在发送前原子预留一次尝试。先检查 owner 取消/固定 deadline 过期。
 func (tb *TaskBudget) Reserve(estimate *TokenEstimate) (*AttemptLease, error) {
-	return tb.reserveCtx(context.Background(), estimate)
+	return tb.reserveCtx(tb.ownerCtx, estimate)
 }
 
-// ReserveCtx 与 Reserve 相同，但使用调用方 ctx 支持取消传播。
+// ReserveCtx 与 Reserve 相同，但额外使用调用方 ctx 支持取消传播。
 func (tb *TaskBudget) ReserveCtx(ctx context.Context, estimate *TokenEstimate) (*AttemptLease, error) {
 	return tb.reserveCtx(ctx, estimate)
 }
 
 func (tb *TaskBudget) reserveCtx(ctx context.Context, estimate *TokenEstimate) (*AttemptLease, error) {
+	// owner 取消/固定 deadline 过期优先检查，绝不绕过构造期 ctx
+	if err := ownerErr(tb.ownerCtx, tb.ownerDeadline); err != nil {
+		return nil, err
+	}
 	// 移交后同步侧句柄失效；共享 scope 的累计额度由后台句柄继续使用。
 	tb.s.pb.mu.Lock()
 	transferred := tb.transferred
@@ -309,7 +370,9 @@ func (tb *TaskBudget) reserveCtx(ctx context.Context, estimate *TokenEstimate) (
 	return tb.s.reserve(ctx, estimate)
 }
 
-// TransferToBackground 显式移交：返回共享同一累计 scope 的新句柄，后台持有它继续操作。
+// TransferToBackground 显式移交：返回共享同一累计 scope 与【固定】deadline 的新句柄，
+// 后台持有它继续操作。移交不重新计时（ownerDeadline 原样保留）；后台执行 context
+// 仍按 Stage 1 服务 root/task timeout 派生，不把 HTTP 请求取消错误迁移到后台。
 // 移交后原句柄的 Reserve 返回 ErrBudgetTransferred（同步侧不再持有活跃引用）。
 // 进程级 ProcessBudget 仍约束后台任务的累计消耗。
 func (tb *TaskBudget) TransferToBackground() (*TaskBudget, error) {
@@ -320,27 +383,48 @@ func (tb *TaskBudget) TransferToBackground() (*TaskBudget, error) {
 	}
 	tb.transferred = true
 	return &TaskBudget{
-		s:        tb.s, // 共享 scope → 累计额度不刷新
-		deadline: tb.deadline,
+		s:             tb.s, // 共享 scope → 累计额度不刷新
+		deadline:      tb.deadline,
+		ownerCtx:      tb.ownerCtx,
+		ownerDeadline: tb.ownerDeadline, // 固定边界，绝不重新计时
 	}, nil
 }
 
 // Deadline 返回任务级 deadline。
 func (tb *TaskBudget) Deadline() time.Duration { return tb.deadline }
 
-// ContextWithDeadline 在设置了 deadline 时返回带超时的派生 ctx。
+// ContextWithDeadline 返回受固定 owner deadline 约束的派生 ctx（取更早者，绝不刷新）。
 func (tb *TaskBudget) ContextWithDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
-	return withDeadline(ctx, tb.deadline)
+	return contextWithFixedDeadline(ctx, tb.ownerDeadline)
 }
 
 // Snapshot 返回任务级作用域的只读快照。
 func (tb *TaskBudget) Snapshot() BudgetSnapshot { return tb.s.snapshot() }
 
-func withDeadline(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
-	if d <= 0 {
-		return ctx, func() {}
+// ownerErr 检查 owner 取消与固定 deadline 过期，返回相应错误（nil 表示可继续）。
+// ownerCtx 取消→返回其 Err（Canceled/DeadlineExceeded）；固定 deadline 已过→DeadlineExceeded。
+func ownerErr(ownerCtx context.Context, ownerDeadline time.Time) error {
+	if ownerCtx != nil {
+		if err := ownerCtx.Err(); err != nil {
+			return err
+		}
 	}
-	return context.WithTimeout(ctx, d)
+	if !ownerDeadline.IsZero() && !time.Now().Before(ownerDeadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
+// contextWithFixedDeadline 以固定绝对 deadline 约束 ctx：取 ctx 自身 deadline 与
+// ownerDeadline 的更早者；ownerDeadline 为零时仅返回可取消的 ctx（不施加预算期限）。
+func contextWithFixedDeadline(ctx context.Context, ownerDeadline time.Time) (context.Context, context.CancelFunc) {
+	if ownerDeadline.IsZero() {
+		return context.WithCancel(ctx)
+	}
+	if dl, ok := ctx.Deadline(); ok && dl.Before(ownerDeadline) {
+		return context.WithDeadline(ctx, dl)
+	}
+	return context.WithDeadline(ctx, ownerDeadline)
 }
 
 // ---------------------------------------------------------------------------
@@ -455,7 +539,7 @@ func (al *AttemptLease) finalize(usage *model.TokenUsage, aborted bool, abortErr
 		al.abortErr = abortErr
 	}
 
-	// usage 缺失/全零视为 unknown（不把 unknown 当 0）
+	// usage 缺失/全零/非法（负分项或 total 不一致）视为 unknown（不把 unknown 当 0）
 	known := !aborted && usageKnown(usage)
 
 	for _, c := range []*budgetCounters{&al.pb.c, al.child} {
@@ -466,24 +550,48 @@ func (al *AttemptLease) finalize(usage *model.TokenUsage, aborted bool, abortErr
 			c.outputReserved -= al.out
 		} else {
 			// 已 commit：尝试计数单调消耗（不退）；token 结算
-			c.inputReserved -= al.in
-			c.outputReserved -= al.out
+			// 结算量：known 用真实 usage，否则保守用预留量（网络失败/取消/unknown）
+			settleIn, settleOut := al.in, al.out
 			if known {
-				c.inputUsed += int64(usage.PromptTokens)
-				c.outputUsed += int64(usage.CompletionTokens)
+				settleIn, settleOut = int64(usage.PromptTokens), int64(usage.CompletionTokens)
+			}
+			// 受检加法结算：溢出则 fail-closed，绝不回绕重新获得额度
+			newIn, okIn := addChecked(c.inputUsed, settleIn)
+			newOut, okOut := addChecked(c.outputUsed, settleOut)
+			if okIn && okOut {
+				c.inputUsed = newIn
+				c.outputUsed = newOut
+				c.inputReserved -= al.in
+				c.outputReserved -= al.out
 			} else {
-				// 保守保留：把预留量记为实际消耗（网络失败/取消/unknown usage）
-				c.inputUsed += al.in
-				c.outputUsed += al.out
+				// 结算溢出：fail-closed —— 标记作用域不可再准入，保守保留预留（不释放），
+				// 不更新 used（保持非负）。slot 仍在下方释放（与结算解耦）。
+				c.exhausted = true
 			}
 		}
-		// slot 释放：与 token 结算解耦，任何终结路径都释放且仅一次
+		// slot 释放：与 token 结算解耦，任何终结路径（含 fail-closed）都释放且仅一次
 		c.inFlight--
 	}
 }
 
+// usageKnown 严格判定 usage 是否可信结算（stage2 复核 B1）：
+//   - 任一分项为负 → 不可信（保守保留预留，绝不写入负数）；
+//   - TotalTokens>0 但与 Prompt+Completion 不一致（含求和溢出）→ 不可信；
+//   - 全零 → unknown（不把 unknown 当 0）。
 func usageKnown(u *model.TokenUsage) bool {
-	return u != nil && (u.PromptTokens > 0 || u.CompletionTokens > 0 || u.TotalTokens > 0)
+	if u == nil {
+		return false
+	}
+	if u.PromptTokens < 0 || u.CompletionTokens < 0 || u.TotalTokens < 0 {
+		return false
+	}
+	if u.TotalTokens > 0 {
+		sum, ok := addChecked(int64(u.PromptTokens), int64(u.CompletionTokens))
+		if !ok || int64(u.TotalTokens) != sum {
+			return false
+		}
+	}
+	return u.PromptTokens > 0 || u.CompletionTokens > 0 || u.TotalTokens > 0
 }
 
 // Committed 报告 lease 是否已承诺。

@@ -153,17 +153,25 @@ func TestAdapter_ChatRole(t *testing.T) {
 		t.Fatalf("injected transport RoundTrip count = %d, want >= 2", n)
 	}
 
-	// 适配器暴露 Profile/Capabilities。
+	// 适配器暴露 Profile/Capabilities。Profile() 返回值类型防御性副本（不泄漏内部引用）。
 	type profiled interface {
-		Profile() *ProviderProfile
+		Profile() ProviderProfile
 		Capabilities() Capabilities
 	}
 	pf, ok := role.(profiled)
 	if !ok {
 		t.Fatal("chatAdapter must expose Profile()/Capabilities()")
 	}
-	if pf.Profile() != profile {
-		t.Fatal("Profile() must return the construction profile")
+	gotProfile := pf.Profile()
+	if gotProfile.ProviderName != profile.ProviderName || gotProfile.Model != profile.Model ||
+		gotProfile.Endpoint != profile.Endpoint || gotProfile.Version != profile.Version {
+		t.Fatalf("Profile() must return construction profile content, got %+v", gotProfile)
+	}
+	// 返回的是隔离副本：修改它不得影响适配器内部身份（stage2 复核 B3）。
+	gotProfile.Model = "mutated-by-caller"
+	gotProfile.KeyOptions = map[string]string{"injected": "x"}
+	if again := pf.Profile(); again.Model != profile.Model || len(again.KeyOptions) != 0 {
+		t.Fatalf("Profile() must return an isolated copy, internal identity leaked: %+v", again)
 	}
 	if !pf.Capabilities().Stream || !pf.Capabilities().Usage {
 		t.Fatalf("Capabilities() = %+v", pf.Capabilities())

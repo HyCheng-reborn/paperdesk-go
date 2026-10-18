@@ -35,8 +35,8 @@ type RagConfig struct {
 	QAMaxConcurrent int   // 0 或负数 = 默认 4
 
 	// 后台任务生命周期配置
-	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>32 钳位
-	BackgroundTaskTimeout time.Duration // 默认 5min
+	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>256 钳位到 256
+	BackgroundTaskTimeout time.Duration // 默认 5min，>60min 钳位到 60min
 }
 
 // RagFactory 创建 *core.Rag 的工厂接口
@@ -144,6 +144,7 @@ func readQAConfig(ctx context.Context, getter configGetter) (qaEnabled *bool, qa
 }
 
 // readLifecycleConfig 从 reader 读取后台任务生命周期配置。缺失字段使用默认值；读取失败返回 error。
+// 类型校验：必须为整数，非整数类型返回错误。
 func readLifecycleConfig(ctx context.Context, getter configGetter) (maxBG int, timeout time.Duration, err error) {
 	// rag.maxBackgroundTasks: 缺失默认 0（由 New() 钳位到 8）
 	v, err := getter.Get(ctx, "rag.maxBackgroundTasks")
@@ -151,6 +152,10 @@ func readLifecycleConfig(ctx context.Context, getter configGetter) (maxBG int, t
 		return 0, 0, fmt.Errorf("read rag.maxBackgroundTasks: %w", err)
 	}
 	if !v.IsNil() {
+		// 类型校验：必须是整数
+		if !v.IsInt() {
+			return 0, 0, fmt.Errorf("rag.maxBackgroundTasks must be int, got %T", v.Val())
+		}
 		maxBG = v.Int()
 	}
 
@@ -160,7 +165,19 @@ func readLifecycleConfig(ctx context.Context, getter configGetter) (maxBG int, t
 		return 0, 0, fmt.Errorf("read rag.backgroundTaskTimeoutMinutes: %w", err)
 	}
 	if !v.IsNil() {
-		timeout = time.Duration(v.Int()) * time.Minute
+		// 类型校验：必须是整数
+		if !v.IsInt() {
+			return 0, 0, fmt.Errorf("rag.backgroundTaskTimeoutMinutes must be int, got %T", v.Val())
+		}
+		minutes := v.Int()
+		// 先校验/限制分钟数，再转换为 time.Duration，避免乘法溢出
+		if minutes > 60 {
+			minutes = 60
+		}
+		if minutes <= 0 {
+			minutes = 5 // 非正默认 5
+		}
+		timeout = time.Duration(minutes) * time.Minute
 	}
 
 	return maxBG, timeout, nil

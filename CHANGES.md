@@ -1,5 +1,21 @@
 # 变更记录
 
+### Stage 1D-3-A 定点修正（2026-10-18）
+
+- **类型**：定点修正
+- **基线**：a845d210f188685114c4d8369a3b97c92c098047
+- **修正内容**：
+  - 同步阶段两路取消：从请求 ctx 派生 syncCtx，context.AfterFunc 桥接 bgRootCtx 取消；同步退出后检查 syncCtx.Err()，避免下游忽略取消误走成功路径
+  - 一次登记所有权转移：移除后台额外 Add(1) 和双重 Done()，准入 Add(1) + 后台 Done() 一次
+  - 配置上限：maxBackgroundTasks 32→256；backgroundTaskTimeoutMinutes 新增上限 60 分钟
+  - readLifecycleConfig 类型校验：IsInt() 校验，非整数返回错误
+  - 测试重写：TransfersOwnershipOnce（等待后台完成后验证容量释放）；IndexAndShutdownRace（信号确保 Shutdown 在同步阶段启动）
+  - 新增 6 个行为测试：SyncBlocksOnShutdown / SyncReceivesRequestValueDeadline / SyncPanic_ReleasesCapacityAndRegistration / SyncIgnoresCancel_ReturnsSuccess / BackgroundContinuesAfterRequestCancel / ShutdownTimeout_ThenWaitSuccess
+- **验证**：25 Index 测试 + 5 配置测试通过；core+rag race 通过；关键协调测试压测 -race -count=10 通过（150 PASS）；全项目 go test -p 1 ./... 通过
+- **状态**：1D-3-A 定点修正完成，待独立复核；B/C 待实施
+
+---
+
 ### Stage 1D-3-A 实施完成（2026-10-18）
 
 - **类型**：业务代码实施

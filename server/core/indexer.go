@@ -75,7 +75,7 @@ func (p *prodAsyncIndexer) indexAsyncByDocsID(ctx context.Context, knowledgeName
 // Index
 // 这里处理文档的读取、分割、合并和存储
 // 真正的embedding 和 QA 异步执行
-// Stage 1D-3-A: 同步前准入 + 所有权转移 + Shutdown 协调
+// Stage 1D-3-A: 同步前准入 + 所有权转移 + Shutdown 协调 + 两路取消
 func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error) {
 	// === 同步前准入 ===
 	x.mu.Lock()
@@ -95,7 +95,7 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 	x.bgWG.Add(1)
 	x.mu.Unlock()
 
-	// defer 兗底：如果同步失败或 panic，释放容量和登记
+	// defer 兜底：如果同步失败或 panic，释放容量和登记
 	released := false
 	defer func() {
 		if !released {
@@ -104,8 +104,31 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 		}
 	}()
 
+	// === 同步阶段两路取消 ===
+	// 从请求 ctx 派生 syncCtx，保留 value/deadline/取消
+	syncCtx, syncCancel := context.WithCancel(ctx)
+	defer syncCancel() // 同步退出后释放
+
+	// 检查 bgRootCtx 是否已取消（Shutdown 已在同步前调用）
+	if x.bgRootCtx.Err() != nil {
+		return nil, x.bgRootCtx.Err()
+	}
+
+	// 桥接服务级取消到 syncCtx：bgRootCtx 取消后自动调用 syncCancel
+	// AfterFunc 注册的回调在 bgRootCtx 取消时自动执行，无需手动释放
+	context.AfterFunc(x.bgRootCtx, syncCancel)
+
 	// === 同步索引 ===
-	ids, err = x.syncIndexer.invoke(ctx, req.KnowledgeName, document.Source{URI: req.URI})
+	ids, err = x.syncIndexer.invoke(syncCtx, req.KnowledgeName, document.Source{URI: req.URI})
+
+	// 同步调用退出后检查取消结果
+	// 避免下游忽略取消、返回 nil 后继续按正常成功启动后台
+	if syncCtx.Err() != nil {
+		// syncCtx 被取消（请求取消或服务停止）
+		// 即使 err == nil，也不走正常成功路径
+		return nil, syncCtx.Err()
+	}
+
 	if err != nil {
 		g.Log().Errorf(ctx, "Index idxer.Invoke failed, err=%v", err)
 		return nil, err // defer 释放容量和登记
@@ -128,13 +151,12 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 	// 后台从服务级 bgRootCtx 派生任务 timeout
 	bgCtx, bgCancel := context.WithTimeout(x.bgRootCtx, x.taskTimeout)
 
-	x.bgWG.Add(1) // 后台 goroutine 自身也登记
+	// 后台负责唯一一次释放（容量 + 登记）
 	go func() {
 		defer func() {
 			<-x.bgSem     // 释放容量
+			x.bgWG.Done() // 释放准入登记
 			bgCancel()    // 释放任务 timeout
-			x.bgWG.Done() // 释放后台 goroutine 登记
-			x.bgWG.Done() // 释放准入登记（所有权转移）
 		}()
 
 		// recover 覆盖整个后台

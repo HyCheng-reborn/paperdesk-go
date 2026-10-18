@@ -23,8 +23,8 @@ type Config struct {
 	QAMaxConcurrent int   // 0 或负数 = 默认 4；>32 钳位到 32
 
 	// 后台任务生命周期配置
-	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>32 钳位
-	BackgroundTaskTimeout time.Duration // 默认 5min
+	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>256 钳位到 256
+	BackgroundTaskTimeout time.Duration // 默认 5min，>60min 钳位到 60min
 }
 
 func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {

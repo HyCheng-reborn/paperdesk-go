@@ -133,12 +133,15 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 	if maxBG <= 0 {
 		maxBG = 8
 	}
-	if maxBG > 32 {
-		maxBG = 32
+	if maxBG > 256 {
+		maxBG = 256
 	}
 	timeout := conf.BackgroundTaskTimeout
 	if timeout <= 0 {
 		timeout = 5 * time.Minute
+	}
+	if timeout > 60*time.Minute {
+		timeout = 60 * time.Minute
 	}
 
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())

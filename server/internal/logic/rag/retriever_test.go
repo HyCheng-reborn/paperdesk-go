@@ -645,11 +645,12 @@ func TestReadLifecycleConfig_Boundary(t *testing.T) {
 		wantMaxBG   int
 		wantTimeout time.Duration
 	}{
-		{"negative", -1, -1, -1, -1 * time.Minute},
-		{"zero", 0, 0, 0, 0},
+		{"negative", -1, -1, -1, 5 * time.Minute}, // 非正分钟数默认 5min
+		{"zero", 0, 0, 0, 5 * time.Minute},        // 零值分钟数默认 5min
 		{"normal", 8, 5, 8, 5 * time.Minute},
-		{"max", 32, 60, 32, 60 * time.Minute},
-		{"over_max", 64, 120, 64, 120 * time.Minute},
+		{"max", 256, 60, 256, 60 * time.Minute},
+		{"over_max_bg", 300, 10, 300, 10 * time.Minute},   // maxBG 不在 readLifecycleConfig 钳位，由 New() 处理
+		{"over_max_timeout", 8, 120, 8, 60 * time.Minute}, // 超过 60 分钟钳位到 60
 	}
 
 	for _, tt := range tests {
@@ -686,5 +687,34 @@ func TestReadLifecycleConfig_ReadError(t *testing.T) {
 	}
 	if !errors.Is(err, sentinel) {
 		t.Errorf("expected sentinel error, got: %v", err)
+	}
+}
+
+// TestReadLifecycleConfig_TypeError 非整数类型返回错误
+func TestReadLifecycleConfig_TypeError(t *testing.T) {
+	ctx := context.Background()
+
+	// maxBackgroundTasks 非整数
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{
+		"rag.maxBackgroundTasks": gvar.New("not-an-int"),
+	}}
+	_, _, err := readLifecycleConfig(ctx, getter)
+	if err == nil {
+		t.Fatal("expected error for non-int maxBackgroundTasks")
+	}
+	if !strings.Contains(err.Error(), "must be int") {
+		t.Fatalf("expected 'must be int' error, got: %v", err)
+	}
+
+	// backgroundTaskTimeoutMinutes 非整数
+	getter2 := &fakeConfigGetter{data: map[string]*gvar.Var{
+		"rag.backgroundTaskTimeoutMinutes": gvar.New(3.14),
+	}}
+	_, _, err = readLifecycleConfig(ctx, getter2)
+	if err == nil {
+		t.Fatal("expected error for non-int backgroundTaskTimeoutMinutes")
+	}
+	if !strings.Contains(err.Error(), "must be int") {
+		t.Fatalf("expected 'must be int' error, got: %v", err)
 	}
 }

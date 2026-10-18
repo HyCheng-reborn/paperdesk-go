@@ -771,6 +771,133 @@ func TestBudget_OverflowSlotRelease(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// R1：预留阶段溢出保护（canReserve 受检预计算）
+// ---------------------------------------------------------------------------
+
+// TestBudget_ReservationOverflow_Input：不限额度下两次 MaxInt64 输入预留，
+// 第二次必须因受检可表示性失败而 ErrBudgetExhausted，且两个作用域快照完全不变（零残留、不回绕）。
+func TestBudget_ReservationOverflow_Input(t *testing.T) {
+	ctx := context.Background()
+	pb := mustProcessBudget(t, 0, 0, 0, 0) // 全部不限：凸显“limit<=0 也必须拦截回绕”
+	rb, err := pb.NewRequestBudget(ctx)
+	if err != nil {
+		t.Fatalf("NewRequestBudget: %v", err)
+	}
+
+	// 第一次预留 MaxInt64 输入：可表示，应成功（保持持有，不终结）。
+	l1, err := rb.Reserve(est(math.MaxInt64, 0))
+	if err != nil {
+		t.Fatalf("first MaxInt64 input reserve must succeed: %v", err)
+	}
+	defer l1.Close()
+	before := rb.Snapshot()
+	pbBefore := pb.Snapshot()
+	if before.InputReserved != math.MaxInt64 || before.AttemptsUsed != 1 || before.InFlight != 1 {
+		t.Fatalf("unexpected state after first reserve: %+v", before)
+	}
+
+	// 第二次预留 MaxInt64 输入：MaxInt64+MaxInt64 回绕 → 必须拒绝。
+	l2, err := rb.Reserve(est(math.MaxInt64, 0))
+	if l2 != nil {
+		l2.Close()
+		t.Fatal("second overflowing reserve must not return a lease")
+	}
+	if !errors.Is(err, ErrBudgetExhausted) {
+		t.Fatalf("second overflowing input reserve must be ErrBudgetExhausted, got %v", err)
+	}
+
+	// 快照完全不变（先校验后施加 → 零变更），且账本未回绕为负。
+	after := rb.Snapshot()
+	if after != before {
+		t.Fatalf("request scope must be unchanged after rejected overflow: before=%+v after=%+v", before, after)
+	}
+	pbAfter := pb.Snapshot()
+	if pbAfter != pbBefore {
+		t.Fatalf("process scope must be unchanged after rejected overflow: before=%+v after=%+v", pbBefore, pbAfter)
+	}
+	if after.InputReserved < 0 {
+		t.Fatalf("input reservation must never wrap negative: %+v", after)
+	}
+}
+
+// TestBudget_ReservationOverflow_Output：不限额度下两次 MaxInt64 输出预留，
+// 第二次必须 ErrBudgetExhausted 且快照不变。
+func TestBudget_ReservationOverflow_Output(t *testing.T) {
+	ctx := context.Background()
+	pb := mustProcessBudget(t, 0, 0, 0, 0)
+	rb, err := pb.NewRequestBudget(ctx)
+	if err != nil {
+		t.Fatalf("NewRequestBudget: %v", err)
+	}
+
+	l1, err := rb.Reserve(est(0, math.MaxInt64))
+	if err != nil {
+		t.Fatalf("first MaxInt64 output reserve must succeed: %v", err)
+	}
+	defer l1.Close()
+	before := rb.Snapshot()
+	pbBefore := pb.Snapshot()
+	if before.OutputReserved != math.MaxInt64 {
+		t.Fatalf("unexpected output reservation after first reserve: %+v", before)
+	}
+
+	l2, err := rb.Reserve(est(0, math.MaxInt64))
+	if l2 != nil {
+		l2.Close()
+		t.Fatal("second overflowing reserve must not return a lease")
+	}
+	if !errors.Is(err, ErrBudgetExhausted) {
+		t.Fatalf("second overflowing output reserve must be ErrBudgetExhausted, got %v", err)
+	}
+	if after := rb.Snapshot(); after != before {
+		t.Fatalf("request scope must be unchanged: before=%+v after=%+v", before, after)
+	}
+	if pbAfter := pb.Snapshot(); pbAfter != pbBefore {
+		t.Fatalf("process scope must be unchanged: before=%+v after=%+v", pbBefore, pbAfter)
+	}
+	if before.OutputReserved < 0 {
+		t.Fatalf("output reservation must never wrap negative: %+v", before)
+	}
+}
+
+// TestBudget_ReservationOverflow_CrossScope：一个作用域可容纳而另一个不能时，
+// 拒绝必须完整回退（零残留）：进程级不限可容纳大额输入，但请求级有限上限不可容纳，
+// 此时两个作用域都不得残留任何计数/预留，且后续一个“两作用域都满足”的小预留仍能成功。
+func TestBudget_ReservationOverflow_CrossScope(t *testing.T) {
+	ctx := context.Background()
+	pb := mustProcessBudget(t, 0, 0, 0, 0) // 进程级完全不限：可容纳任意大额
+	rb, err := pb.NewRequestBudget(ctx, WithMaxInputTokens(10))
+	if err != nil {
+		t.Fatalf("NewRequestBudget: %v", err)
+	}
+
+	// 请求级 maxInputTokens=10 无法容纳大额输入，而进程级可容纳 → 跨作用域不一致。
+	big, err := rb.Reserve(est(1000, 0))
+	if big != nil {
+		big.Close()
+		t.Fatal("reserve exceeding request-scope limit must not return a lease")
+	}
+	if !errors.Is(err, ErrBudgetExhausted) {
+		t.Fatalf("cross-scope insufficient reserve must be ErrBudgetExhausted, got %v", err)
+	}
+
+	// 完整回退：两个作用域零残留。
+	if s := pb.Snapshot(); s.AttemptsUsed != 0 || s.InFlight != 0 || s.InputReserved != 0 || s.OutputReserved != 0 {
+		t.Fatalf("process scope residue after cross-scope rejection: %+v", s)
+	}
+	if s := rb.Snapshot(); s.AttemptsUsed != 0 || s.InFlight != 0 || s.InputReserved != 0 || s.OutputReserved != 0 {
+		t.Fatalf("request scope residue after cross-scope rejection: %+v", s)
+	}
+
+	// 失败未污染额度：随后一个两作用域都满足的小预留仍能成功。
+	fit, err := rb.Reserve(est(10, 0))
+	if err != nil {
+		t.Fatalf("fitting reserve after cross-scope rollback must succeed: %v", err)
+	}
+	fit.Close()
+}
+
+// ---------------------------------------------------------------------------
 // B2：owner 取消与固定绝对 deadline
 // ---------------------------------------------------------------------------
 

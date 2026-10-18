@@ -286,8 +286,13 @@ func (r *registry) GetReranker(ctx context.Context) (RerankRole, error) {
 }
 
 // resolve 经凭据解析器获取 API Key；解析失败向上传播，不静默回退（§4.10）。
+//
+// 安全边界（stage2 复核 R2）：向回调传入 Profile 的深拷贝（Clone），而非 Registry
+// 内部身份指针。回调对 Profile 字段或 KeyOptions map 的任何改写只作用于其私有副本，
+// 绝不影响 Registry 内部已发布身份，也不会造成“key 先算、模型后建”下错误身份被
+// 发布在旧 key 下的问题。单点修复 resolve 即覆盖 chat/embed/rerank 三条构建路径。
 func (r *registry) resolve(ctx context.Context, p *ProviderProfile) (string, error) {
-	apiKey, err := r.creds(ctx, p)
+	apiKey, err := r.creds(ctx, p.Clone())
 	if err != nil {
 		return "", fmt.Errorf("providers: resolve credential for %s: %w", p.ModelID(), err)
 	}

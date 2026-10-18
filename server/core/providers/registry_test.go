@@ -413,3 +413,143 @@ func TestRegistry_SnapshotIsolated(t *testing.T) {
 		t.Fatalf("internal identity leaked through Profile() copy: %q", got2.Model)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// R2：resolver 出口不得泄漏内部 Profile（传入深拷贝）
+// ---------------------------------------------------------------------------
+
+// TestRegistry_ResolverCannotMutateProfile：凭据解析器修改传入 Profile 的字段，
+// GetChat 返回的适配器 Profile() 仍为原值，证明 resolver 得到的是深拷贝而非内部身份指针。
+func TestRegistry_ResolverCannotMutateProfile(t *testing.T) {
+	ctx := context.Background()
+	p := testChatProfile(t, "original-model")
+	reg, err := NewRegistry(RegistryConfig{
+		Chat:   p,
+		Budget: mustProcessBudget(t, 0, 0, 0, 0),
+		Credentials: func(_ context.Context, prof *ProviderProfile) (string, error) {
+			// 恶意/意外改写：试图篡改 Registry 内部已发布身份
+			prof.Model = "resolver-modified-model"
+			prof.Version = "hacked"
+			prof.Endpoint = "https://evil.invalid/v1"
+			return "offline-key", nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	role, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+	got := role.(interface{ Profile() ProviderProfile }).Profile()
+	if got.Model != "original-model" {
+		t.Fatalf("resolver mutated internal Profile.Model: %q", got.Model)
+	}
+	if got.Version != "1" {
+		t.Fatalf("resolver mutated internal Profile.Version: %q", got.Version)
+	}
+	if got.Endpoint != "https://example.invalid/v1" {
+		t.Fatalf("resolver mutated internal Profile.Endpoint: %q", got.Endpoint)
+	}
+}
+
+// TestRegistry_ResolverCannotMutateKeyOptions：凭据解析器修改传入 Profile 的 KeyOptions map，
+// 内部缓存键不得漂移：适配器 Profile().KeyOptions 仍为原值，且第二次 GetChat 命中缓存（不重建）。
+func TestRegistry_ResolverCannotMutateKeyOptions(t *testing.T) {
+	ctx := context.Background()
+	p, err := NewProviderProfile(ProviderProfile{
+		ProviderName: ProviderOpenAI,
+		Protocol:     ProtocolOpenAICompat,
+		Endpoint:     "https://example.invalid/v1",
+		Model:        "qwen-plus",
+		Version:      "1",
+		KeyOptions:   map[string]string{KeyOptionStream: "true"},
+	})
+	if err != nil {
+		t.Fatalf("NewProviderProfile: %v", err)
+	}
+	var calls int
+	reg, err := NewRegistry(RegistryConfig{
+		Chat:   p,
+		Budget: mustProcessBudget(t, 0, 0, 0, 0),
+		Credentials: func(_ context.Context, prof *ProviderProfile) (string, error) {
+			calls++
+			// 试图改写 KeyOptions map：篡改现有键并注入新键
+			prof.KeyOptions[KeyOptionStream] = "false"
+			prof.KeyOptions["injected"] = "x"
+			return "offline-key", nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	role, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+	got := role.(interface{ Profile() ProviderProfile }).Profile()
+	if got.KeyOptions[KeyOptionStream] != "true" {
+		t.Fatalf("resolver mutated internal KeyOptions[stream]: %q", got.KeyOptions[KeyOptionStream])
+	}
+	if _, ok := got.KeyOptions["injected"]; ok {
+		t.Fatal("resolver-injected key leaked into internal KeyOptions")
+	}
+	// 内部缓存键未因回调改写而漂移：第二次 GetChat 必须命中缓存（不再解析凭据）。
+	role2, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat#2: %v", err)
+	}
+	if role2 != role {
+		t.Fatal("cache key must be stable; second GetChat should hit the cached instance")
+	}
+	if calls != 1 {
+		t.Fatalf("internal cache key drifted (rebuilt): creds calls = %d, want 1", calls)
+	}
+}
+
+// TestRegistry_ResolverHoldsCopy：resolver 保留传入副本引用，在构建完成后于 Registry 之外改写，
+// 不得影响 Registry 内部身份（证明传入的确实是一份独立副本）。
+func TestRegistry_ResolverHoldsCopy(t *testing.T) {
+	ctx := context.Background()
+	p := testChatProfile(t, "original-model")
+	var held *ProviderProfile
+	reg, err := NewRegistry(RegistryConfig{
+		Chat:   p,
+		Budget: mustProcessBudget(t, 0, 0, 0, 0),
+		Credentials: func(_ context.Context, prof *ProviderProfile) (string, error) {
+			held = prof // 保留副本引用，稍后在 Registry 之外改写
+			return "offline-key", nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	role, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+	if held == nil {
+		t.Fatal("resolver did not capture a profile copy")
+	}
+	// 在 Registry 之外、构建完成之后改写保留的副本：不得影响 Registry 内部身份。
+	held.Model = "late-mutation"
+	if held.KeyOptions == nil {
+		held.KeyOptions = map[string]string{}
+	}
+	held.KeyOptions["late"] = "mutation"
+
+	role2, err := reg.GetChat(ctx)
+	if err != nil {
+		t.Fatalf("GetChat#2: %v", err)
+	}
+	if role2 != role {
+		t.Fatal("same profile must reuse the cached instance")
+	}
+	got := role2.(interface{ Profile() ProviderProfile }).Profile()
+	if got.Model != "original-model" {
+		t.Fatalf("held-copy mutation leaked into Registry identity: %q", got.Model)
+	}
+	if _, ok := got.KeyOptions["late"]; ok {
+		t.Fatal("held-copy KeyOptions mutation leaked into Registry identity")
+	}
+}

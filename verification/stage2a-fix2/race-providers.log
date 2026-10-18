@@ -1,0 +1,8 @@
+﻿# CMD: go test -race ./core/providers/... -count=1 -timeout=180s
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 1
+# DATE: 2026-10-19 04:10:39
+# NOTE: 运行异常、race 未完成、根因：MinGW-w64 8.1.0 缺少 Go race 运行时所需 DLL 入口点 (0xc0000139)
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.066s
+FAIL

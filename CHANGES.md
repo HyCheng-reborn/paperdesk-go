@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 2A 剩余阻塞修复（2026-10-19）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：2780e398f2a3091f60c0d6c34ce7661e1716244d
+- **修复内容**：
+  1. **R1 预留阶段溢出**：`canReserve` 对 `applyReserve` 实际累加的四个量（attemptsUsed/inFlight/inputReserved/outputReserved）分别做 `addChecked` 可表示性预检，独立于 limit 分支；任一不可表示即整体拒绝零变更
+  2. **R2 resolver 泄漏内部 Profile**：`resolve` 向回调传入 `p.Clone()` 深拷贝，回调修改只作用于私有副本，不影响 Registry 内部身份和缓存键
+- **新增测试**：`TestBudget_ReservationOverflow_Input` / `_Output` / `_CrossScope` / `TestRegistry_ResolverCannotMutateProfile` / `_CannotMutateKeyOptions` / `_HoldsCopy`
+- **验证**：gofmt/build/vet exit 0；50 providers 测试 PASS；关键用例压测 -count=10 PASS（290 次）；全项目 go test -p 1 ./... 通过（13 包）；race 因环境限制未完成
+- **状态**：2A 剩余阻塞修复完成待再次复核；race 证据缺口未闭合
+
+---
+
 ### Stage 2A 独立复核阻塞修复（2026-10-19）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

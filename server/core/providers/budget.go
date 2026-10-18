@@ -51,19 +51,44 @@ type budgetCounters struct {
 }
 
 // canReserve 在不修改状态的前提下判断能否再预留一次（1 尝试 + 1 slot + est token）。
-// 使用 exceeds 辅助避免 int64 溢出。
+//
+// 关键契约（stage2 复核 R1）：applyReserve 会对 attemptsUsed/inFlight/inputReserved/
+// outputReserved 做未受检累加；因此这四个量的“+本次增量”可表示性必须在此独立于
+// limit 分支预先拦截——即使 limit<=0（不限），也绝不因“不限”而放行 int64 回绕，
+// 否则未受检累加会把账本绕回可用区间（重新获得额度）。
+// 任一中间量不可表示即整体拒绝；由于 reserve 先整体校验后整体施加，拒绝即零变更。
+//
+// 注：used+newReserved 的可表示性不在此预判——结算溢出由 finalize 的受检加法 fail-closed
+// 负责；在此拒绝会误伤“inputUsed 已达 MaxInt64、但本次预留仍可表示”的合法场景。
 func (c *budgetCounters) canReserve(e *TokenEstimate) bool {
 	// fail-closed：账本异常（如结算溢出）后该作用域永久不可再准入
 	if c.exhausted {
 		return false
 	}
+	// 1. attemptsUsed + 1 可表示性（独立于 limit）
+	if _, ok := addChecked(c.attemptsUsed, 1); !ok {
+		return false
+	}
+	// 2. inFlight + 1 可表示性（独立于 limit）
+	if _, ok := addChecked(c.inFlight, 1); !ok {
+		return false
+	}
+	// 3. inputReserved + e.InputTokens 可表示性（独立于 limit）：applyReserve 直接累加此账本
+	if _, ok := addChecked(c.inputReserved, e.InputTokens); !ok {
+		return false
+	}
+	// 4. outputReserved + e.MaxOutput 可表示性（独立于 limit）
+	if _, ok := addChecked(c.outputReserved, e.MaxOutput); !ok {
+		return false
+	}
+	// 5. 有限上限检查（仅在 limit>0 时生效；沿用既有边界语义：total==limit 允许，>limit 拒绝）
 	if exceeds(c.attemptsUsed, 1, c.maxRequests) {
 		return false
 	}
 	if exceeds(c.inFlight, 1, c.maxConcurrency) {
 		return false
 	}
-	// 受检加法：used+reserved 溢出即拒绝，避免回绕重新获得额度
+	// used+reserved 求和同样受检：溢出即拒绝，避免以回绕后的负值参与上限判定。
 	inSum, ok := addChecked(c.inputUsed, c.inputReserved)
 	if !ok || exceeds(inSum, e.InputTokens, c.maxInputTokens) {
 		return false
@@ -76,6 +101,7 @@ func (c *budgetCounters) canReserve(e *TokenEstimate) bool {
 }
 
 // applyReserve 施加一次预留（调用方必须已确认 canReserve 为真且持锁）。
+// canReserve 已保证下列四项累加均可表示（不回绕），故此处直接施加是安全的。
 func (c *budgetCounters) applyReserve(e *TokenEstimate) {
 	c.attemptsUsed++
 	c.inFlight++

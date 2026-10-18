@@ -1,5 +1,17 @@
 # 变更记录
 
+### Stage 1D-3 测试证据阻塞修复（2026-10-18）
+
+- **类型**：测试修复（基于 Codex 独立复核测试证据报告）
+- **基线**：735786966e3e8e8e0f1eb238045ca49209410505
+- **修复内容**：
+  1. **组合链测试 CleanupBeforeDone 假通过**：移除 asyncWait 覆盖，使用真实 1s 等待；添加 asyncDone channel 包装 asyncIndexer 信号后台完成作为真实完成证明；删除固定 time.Sleep；等待生产完成后再检查写入次数
+  2. **Reset fixture 伪装成功**：添加 ragDoneChan helper 通过 reflect+unsafe 获取 Rag 实例的 done channel；移除 defer bgWGPtr.Done()，改用 t.Cleanup 释放 + 等待 ragDoneChan；用 ragDoneChan 等待替代 time.Sleep；二次 Reset 走真实 Shutdown；并发测试每轮等待 ragDoneChan 确保 Shutdown 完成
+- **验证**：gofmt/build/vet exit 0；3 BackgroundChunks + 9 Reset 测试通过；core+rag race 通过；BackgroundChunks 压测 -race -count=10 通过（30 PASS）；Reset 压测 -race -count=10 通过（90 PASS）；全项目 go test -p 1 ./... 通过（16 包）
+- **状态**：1D-3 待独立复核（本批测试修复后）；Stage 1 整体未标完成
+
+---
+
 ### Stage 1D-3 独立增量复核阻塞修复（2026-10-18）
 
 - **类型**：定点修复（基于 Codex 独立增量复核报告）

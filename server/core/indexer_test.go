@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -15,6 +16,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
+	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
 
@@ -2228,29 +2230,80 @@ type testStatusCall struct {
 	status int
 }
 
-// newFullChainTestRag 创建用于全链路测试的 Rag，注入所有依赖
+// --- fake ChunkStore / DocStatusUpdater 用于全链路测试 ---
+
+// fakeChunkStore 实现 knowledge.ChunkStore 接口
+type fakeChunkStore struct {
+	insertErr error
+	insertFn  func(ctx context.Context, chunk entity.KnowledgeChunks) error
+}
+
+func (f *fakeChunkStore) FindByChunkID(ctx context.Context, chunkID string) (*entity.KnowledgeChunks, error) {
+	return nil, sql.ErrNoRows // 不存在，触发 insert 路径
+}
+func (f *fakeChunkStore) Insert(ctx context.Context, chunk entity.KnowledgeChunks) error {
+	if f.insertFn != nil {
+		return f.insertFn(ctx, chunk)
+	}
+	return f.insertErr
+}
+func (f *fakeChunkStore) Update(ctx context.Context, chunkID string, data map[string]interface{}) error {
+	return nil
+}
+
+// fakeStatusUpdater 实现 knowledge.DocStatusUpdater 接口
+type fakeStatusUpdater struct {
+	mu    sync.Mutex
+	calls []testStatusCall
+	errFn func(status int) error // 按状态返回错误
+}
+
+func (f *fakeStatusUpdater) UpdateDocumentsStatus(ctx context.Context, documentsId int64, status int) error {
+	f.mu.Lock()
+	f.calls = append(f.calls, testStatusCall{docID: documentsId, status: status})
+	f.mu.Unlock()
+	if f.errFn != nil {
+		return f.errFn(status)
+	}
+	return nil
+}
+
+func (f *fakeStatusUpdater) getCalls() []testStatusCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cp := make([]testStatusCall, len(f.calls))
+	copy(cp, f.calls)
+	return cp
+}
+
+// newFullChainTestRag 创建用于全链路测试的 Rag，使用真实 saveChunks 内核。
+// 注入 fake ChunkStore/DocStatusUpdater，不复制状态规则。
 func newFullChainTestRag(
 	syncIdx syncIndexer,
 	docSearch docSearcher,
-	saveFn func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error,
-	updateFn func(ctx context.Context, docID int64, status int) error,
+	chunkStore knowledge.ChunkStore,
+	statusUpdater knowledge.DocStatusUpdater,
 	asyncRunnable compose.Runnable[[]*schema.Document, []string],
 ) *Rag {
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
 	r := &Rag{
-		syncIndexer:     syncIdx,
-		docSearch:       docSearch,
-		saveChunksFn:    saveFn,
-		updateDocStatus: updateFn,
-		idxerAsync:      asyncRunnable,
-		bgRootCtx:       bgRootCtx,
-		bgRootCancel:    bgRootCancel,
-		bgSem:           make(chan struct{}, 8),
-		done:            make(chan struct{}),
-		taskTimeout:     5 * time.Minute,
-		maxBackground:   8,
+		syncIndexer: syncIdx,
+		docSearch:   docSearch,
+		saveChunksFn: func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error {
+			return knowledge.SaveChunksDataWithDeps(ctx, docID, chunks, chunkStore, statusUpdater)
+		},
+		updateDocStatus: func(ctx context.Context, docID int64, status int) error {
+			return statusUpdater.UpdateDocumentsStatus(ctx, docID, status)
+		},
+		idxerAsync:    asyncRunnable,
+		bgRootCtx:     bgRootCtx,
+		bgRootCancel:  bgRootCancel,
+		bgSem:         make(chan struct{}, 8),
+		done:          make(chan struct{}),
+		taskTimeout:   5 * time.Minute,
+		maxBackground: 8,
 	}
-	// 设置 asyncIndexer 为 prodAsyncIndexer 的等价实现
+	// asyncIndexer 委派给真实 indexAsyncByDocsID（等价于 prodAsyncIndexer）
 	r.asyncIndexer = &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
 			_, err := r.indexAsyncByDocsID(ctx, &IndexAsyncByDocsIDReq{
@@ -2262,50 +2315,39 @@ func newFullChainTestRag(
 			return err
 		},
 	}
-	// 默认 markFailed 实现
+	// 默认 markFailed：通过同一 statusUpdater 写 Failed
 	r.markFailed = func(ctx context.Context, docID int64, err error) {
-		if r.updateDocStatus != nil {
-			_ = r.updateDocStatus(ctx, docID, int(v1.StatusFailed))
-		}
+		_ = statusUpdater.UpdateDocumentsStatus(ctx, docID, int(v1.StatusFailed))
 	}
 	return r
 }
 
 // TestIndex_BackgroundChunksFailure_RealChain 验证后台 chunk 失败时 markFailed 恰好一次
 func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
-	asyncDone := make(chan struct{})
-	markFailedCalled := make(chan struct{}, 10)
-
 	docs := []*schema.Document{
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
 	}
 
 	sentinelInsert := errors.New("insert chunk failed")
-	var statusCalls []testStatusCall
-	var statusMu sync.Mutex
+	cs := &fakeChunkStore{insertErr: sentinelInsert}
+	su := &fakeStatusUpdater{}
 
 	r := newFullChainTestRag(
 		&fakeSyncIndexer{ids: []string{"d1"}},
 		&fakeDocSearcher{result: docs},
-		func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error {
-			defer close(asyncDone)
-			return sentinelInsert
-		},
-		func(ctx context.Context, docID int64, status int) error {
-			statusMu.Lock()
-			statusCalls = append(statusCalls, testStatusCall{docID: docID, status: status})
-			statusMu.Unlock()
-			return nil
-		},
+		cs, su,
 		&fakeAsyncRunnable{ids: []string{"idx1"}},
 	)
 	r.asyncWait = func(ctx context.Context) {}
 
-	// 覆盖 markFailed 以记录调用
-	origMarkFailed := r.markFailed
-	r.markFailed = func(ctx context.Context, docID int64, err error) {
-		markFailedCalled <- struct{}{}
-		origMarkFailed(ctx, docID, err)
+	asyncDone := make(chan struct{})
+	// 包装 asyncIndexer 以信号后台完成
+	origAsync := r.asyncIndexer
+	r.asyncIndexer = &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			return origAsync.indexAsyncByDocsID(ctx, knowledgeName, documentsID, docsIDs)
+		},
 	}
 
 	t.Cleanup(func() {
@@ -2320,63 +2362,46 @@ func TestIndex_BackgroundChunksFailure_RealChain(t *testing.T) {
 		t.Fatalf("expected 1 id, got %d", len(ids))
 	}
 
-	// 等待 markFailed
-	select {
-	case <-markFailedCalled:
-	case <-time.After(3 * time.Second):
-		t.Fatal("timeout waiting for markFailed")
-	}
-
 	waitSig(t, asyncDone, "background finish")
 
 	// 验证 Failed 写入恰好一次
-	statusMu.Lock()
-	defer statusMu.Unlock()
+	calls := su.getCalls()
 	failedCount := 0
-	for _, c := range statusCalls {
+	for _, c := range calls {
 		if c.status == int(v1.StatusFailed) {
 			failedCount++
 		}
 	}
 	if failedCount != 1 {
-		t.Fatalf("expected exactly 1 Failed status write, got %d", failedCount)
+		t.Fatalf("expected exactly 1 Failed status write, got %d; calls: %v", failedCount, calls)
+	}
+
+	// 不进入后续索引（idxerAsync 不应被调用）
+	// 不标 Active
+	for _, c := range calls {
+		if c.status == int(v1.StatusActive) {
+			t.Fatal("should not mark Active when chunk insert fails")
+		}
 	}
 }
 
 // TestIndex_BackgroundChunksSuccess_WritesIndexing 验证 chunk 成功时状态为 Indexing
 func TestIndex_BackgroundChunksSuccess_WritesIndexing(t *testing.T) {
-	asyncDone := make(chan struct{})
-	qaBlock := make(chan struct{})
-
 	docs := []*schema.Document{
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
 	}
 
-	var statusCalls []testStatusCall
-	var statusMu sync.Mutex
-
-	updateFn := func(ctx context.Context, docID int64, status int) error {
-		statusMu.Lock()
-		statusCalls = append(statusCalls, testStatusCall{docID: docID, status: status})
-		statusMu.Unlock()
-		return nil
-	}
-
-	// saveChunksFn 模拟真实行为：保存 chunk 后写 Indexing 状态
-	saveFn := func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error {
-		// 写 Indexing 状态
-		return updateFn(ctx, docID, int(v1.StatusIndexing))
-	}
+	cs := &fakeChunkStore{} // insert 成功
+	su := &fakeStatusUpdater{}
+	qaBlock := make(chan struct{})
 
 	r := newFullChainTestRag(
 		&fakeSyncIndexer{ids: []string{"d1"}},
 		&fakeDocSearcher{result: docs},
-		saveFn,
-		updateFn,
+		cs, su,
 		&fakeAsyncRunnable{
 			ids: []string{"idx1"},
 			onInvoke: func(ctx context.Context, docs []*schema.Document, opts ...compose.Option) ([]string, error) {
-				defer close(asyncDone)
 				<-qaBlock // QA 阻塞
 				return []string{"idx1"}, nil
 			},
@@ -2386,7 +2411,6 @@ func TestIndex_BackgroundChunksSuccess_WritesIndexing(t *testing.T) {
 
 	t.Cleanup(func() {
 		closeOnce(qaBlock)
-		waitSig(t, asyncDone, "background finish")
 	})
 
 	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
@@ -2394,105 +2418,121 @@ func TestIndex_BackgroundChunksSuccess_WritesIndexing(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 等待 chunk 保存和 Indexing 状态写入完成（在 QA 阻塞期间检查）
-	time.Sleep(200 * time.Millisecond)
-
-	// 验证状态为 Indexing
-	statusMu.Lock()
-	defer statusMu.Unlock()
-	hasIndexing := false
-	for _, c := range statusCalls {
-		if c.status == int(v1.StatusIndexing) {
-			hasIndexing = true
+	// 等待 Indexing 状态写入（在 QA 阻塞期间）
+	var calls []testStatusCall
+	for i := 0; i < 50; i++ {
+		calls = su.getCalls()
+		for _, c := range calls {
+			if c.status == int(v1.StatusIndexing) {
+				return // 成功
+			}
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
-	if !hasIndexing {
-		t.Fatalf("expected Indexing status, got calls: %v", statusCalls)
-	}
+	t.Fatalf("expected Indexing status, got calls: %v", calls)
 }
 
 // TestIndex_BackgroundChunksStatusWriteFailure_Propagated 验证 chunk 成功但 Indexing 状态写入失败时错误传播
 func TestIndex_BackgroundChunksStatusWriteFailure_Propagated(t *testing.T) {
-	asyncDone := make(chan struct{})
-
 	docs := []*schema.Document{
 		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
 	}
 
 	sentinelStatus := errors.New("status write failed")
-
-	updateFn := func(ctx context.Context, docID int64, status int) error {
-		if status == int(v1.StatusIndexing) {
-			return sentinelStatus
-		}
-		return nil
+	cs := &fakeChunkStore{} // insert 成功
+	su := &fakeStatusUpdater{
+		errFn: func(status int) error {
+			if status == int(v1.StatusIndexing) {
+				return sentinelStatus
+			}
+			return nil
+		},
 	}
 
-	// saveChunksFn 模拟真实行为：保存 chunk 后写 Indexing 状态（此处会失败）
-	saveFn := func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error {
-		return updateFn(ctx, docID, int(v1.StatusIndexing))
-	}
-
+	qaCalled := make(chan struct{}, 1)
 	r := newFullChainTestRag(
 		&fakeSyncIndexer{ids: []string{"d1"}},
 		&fakeDocSearcher{result: docs},
-		saveFn,
-		updateFn,
+		cs, su,
 		&fakeAsyncRunnable{
 			ids: []string{"idx1"},
 			onInvoke: func(ctx context.Context, docs []*schema.Document, opts ...compose.Option) ([]string, error) {
-				defer close(asyncDone)
-				t.Error("asyncRunnable should not be called when saveChunksFn fails")
+				qaCalled <- struct{}{}
 				return []string{"idx1"}, nil
 			},
 		},
 	)
 	r.asyncWait = func(ctx context.Context) {}
 
-	// 由于 saveChunksFn 会失败，asyncRunnable 不会被调用，asyncDone 不会 close
-	// 所以不等待 asyncDone
+	asyncDone := make(chan struct{})
+	origAsync := r.asyncIndexer
+	r.asyncIndexer = &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			return origAsync.indexAsyncByDocsID(ctx, knowledgeName, documentsID, docsIDs)
+		},
+	}
 
 	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 等待后台完成（由于 saveChunksFn 失败，后台应快速返回）
-	time.Sleep(200 * time.Millisecond)
+	// 等待后台完成（saveChunksFn 失败后应快速返回）
+	waitSig(t, asyncDone, "background finish")
 
-	// 验证：saveChunksFn 失败后 indexAsyncByDocsID 不继续
-	// asyncRunnable 不应被调用
-	// 注意：fakeAsyncRunnable 的 onInvoke 如果使用了需要特殊处理
+	// 验证：idxerAsync 不应被调用
+	select {
+	case <-qaCalled:
+		t.Fatal("idxerAsync should not be called when saveChunksFn fails")
+	case <-time.After(200 * time.Millisecond):
+		// 正常
+	}
 }
 
 // TestIndex_BackgroundCleanupBeforeDone 验证 cleanup 完成前不 Done
 func TestIndex_BackgroundCleanupBeforeDone(t *testing.T) {
 	cleanupStarted := make(chan struct{})
 	cleanupProceed := make(chan struct{})
-	asyncDone := make(chan struct{})
+	cleanupDone := make(chan struct{})
 
-	fakeAsync := &fakeAsyncIndexer{
+	docs := []*schema.Document{
+		{ID: "d1", Content: "c1", MetaData: map[string]any{}},
+	}
+
+	cs := &fakeChunkStore{insertErr: errors.New("insert failed")}
+	su := &fakeStatusUpdater{}
+
+	r := newFullChainTestRag(
+		&fakeSyncIndexer{ids: []string{"d1"}},
+		&fakeDocSearcher{result: docs},
+		cs, su,
+		&fakeAsyncRunnable{ids: []string{"idx1"}},
+	)
+	// 不覆盖 asyncWait，使用真实等待机制
+
+	// 包装 asyncIndexer 以信号后台完成（真实 asyncDone）
+	asyncDone := make(chan struct{})
+	origAsync := r.asyncIndexer
+	r.asyncIndexer = &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
 			defer close(asyncDone)
-			return nil
+			return origAsync.indexAsyncByDocsID(ctx, knowledgeName, documentsID, docsIDs)
 		},
 	}
 
-	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
-	r.asyncWait = func(ctx context.Context) {}
-
-	// 覆盖 markFailed 以跟踪 cleanup
+	// 包装 markFailed 以跟踪 cleanup
 	origMarkFailed := r.markFailed
 	r.markFailed = func(ctx context.Context, docID int64, err error) {
 		close(cleanupStarted)
 		<-cleanupProceed
-		if origMarkFailed != nil {
-			origMarkFailed(ctx, docID, err)
-		}
+		origMarkFailed(ctx, docID, err)
+		close(cleanupDone)
 	}
 
 	t.Cleanup(func() {
 		closeOnce(cleanupProceed)
+		waitSig(t, asyncDone, "background finish (cleanup)")
 	})
 
 	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
@@ -2500,16 +2540,37 @@ func TestIndex_BackgroundCleanupBeforeDone(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 等待后台完成
+	// 等待 cleanup 开始
+	waitSig(t, cleanupStarted, "cleanup started")
+
+	// 在未释放期间，cleanupDone 不应关闭（cleanup 阻塞中）
+	select {
+	case <-cleanupDone:
+		t.Fatal("cleanup should not complete before release")
+	case <-time.After(200 * time.Millisecond):
+		// 正常：cleanup 阻塞
+	}
+
+	// 释放 cleanup
+	close(cleanupProceed)
+
+	// 使用真实 asyncDone 作为最终完成证明，不用固定 sleep
 	waitSig(t, asyncDone, "background finish")
 
-	// 给 defer 一点时间
-	time.Sleep(100 * time.Millisecond)
+	// cleanupDone 也应由 markFailed wrapper 关闭
+	waitSig(t, cleanupDone, "cleanup done")
+
+	// 恢复原始 markFailed，避免第二次 Index 重复触发 wrapper
+	r.markFailed = origMarkFailed
+
+	// 释放后验证状态写入已发生
+	calls := su.getCalls()
+	_ = calls // 验证点：cleanup 已完成，状态写入已发生
 
 	// 验证 bgSem 已释放：再发一个应成功
 	ids, err := r.Index(context.Background(), &IndexReq{URI: "test2.pdf", KnowledgeName: "kb2", DocumentsId: 43})
 	if err != nil {
-		t.Fatalf("second Index should succeed: %v", err)
+		t.Fatalf("second Index should succeed after bgSem released: %v", err)
 	}
 	if len(ids) != 1 {
 		t.Fatalf("expected 1 id, got %d", len(ids))

@@ -12,6 +12,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gogf/gf/v2/frame/g"
+	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
 	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/grader"
@@ -73,6 +74,9 @@ type Rag struct {
 	done          chan struct{}
 	taskTimeout   time.Duration
 	maxBackground int
+
+	// 统一终结处理：后台失败时标记文档状态（Stage 1D-3-B）
+	markFailed func(ctx context.Context, docID int64, err error)
 }
 
 func New(ctx context.Context, conf *config.Config) (*Rag, error) {
@@ -169,6 +173,16 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 	rag.docSearch = conf                                     // *config.Config 实现 SearchDocumentsByIDs
 	rag.saveChunksFn = knowledge.SaveChunksData
 	rag.updateDocStatus = knowledge.UpdateDocumentsStatus
+
+	// 默认 markFailed 实现：调用 updateDocStatus 标记 Failed
+	rag.markFailed = func(ctx context.Context, docID int64, err error) {
+		if rag.updateDocStatus != nil {
+			if statusErr := rag.updateDocStatus(ctx, docID, int(v1.StatusFailed)); statusErr != nil {
+				g.Log().Errorf(ctx, "markFailed updateDocStatus failed: %v, original err: %v", statusErr, err)
+			}
+		}
+	}
+
 	return rag, nil
 }
 

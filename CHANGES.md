@@ -1,5 +1,26 @@
 # 变更记录
 
+### Stage 1D-3-A 剩余修正 + B 实施完成（2026-10-18）
+
+- **类型**：定点修正 + 业务代码实施
+- **基线**：fcd99d3160fd380191f52e591a2b17468657b664
+- **A 剩余修正**：
+  - 保存 `context.AfterFunc` 返回的 stop 函数，同步完成后调用 `stop()` 注销回调
+  - 修复 `IndexAndShutdownRace`（轮询替代固定 sleep）
+  - 修复 `TransfersOwnershipOnce`（等待后台完成后通过 Shutdown 确认归零）
+  - 新增 `SyncOnlyShutdown` 和 `BackgroundOnlyShutdown` 拆分测试
+- **B 实施**：
+  - `rag.go`：新增 `markFailed func(ctx, docID, err)` 字段，`New()` 中初始化默认实现调用 `updateDocStatus` 标记 `StatusFailed`
+  - `indexer.go`：统一终结处理路径——goroutine 内新增 `bgErr` 变量、recover 捕获 panic 转为 error、defer 中失败时调用 `markFailed`（使用独立 `cleanupCtx` 5s 超时）
+  - `indexer.go`：`indexAsyncByDocsID` 重试等待改为 `select { case <-ctx.Done(): return nil, ctx.Err(); case <-time.After(time.Second): }`
+  - 新增 6 个 B 组测试：`BackgroundFailure_MarksFailed`、`BackgroundPanic_MarksFailed`、`BackgroundTimeout_MarksFailed`、`BackgroundSuccess_NoMarkFailed`、`RetryRespectsContext`、`CleanupCtxIndependent`
+- **验证**：gofmt/build/vet exit 0；30+ Index 测试通过；core+rag race 通过；关键协调测试压测 -race -count=10 通过；全项目 go test -p 1 ./... 通过
+- **范围**：A 剩余修正 + B（统一终结处理），不实施 C（cmd 接线）
+- **已知边界**：保留历史 race、A-4 及驱动取消未验证边界；C 待实施
+- **状态**：A+B 实施完成，待独立复核；C 待实施
+
+---
+
 ### Stage 1D-3-A 定点修正（2026-10-18）
 
 - **类型**：定点修正

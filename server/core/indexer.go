@@ -115,11 +115,16 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 	}
 
 	// 桥接服务级取消到 syncCtx：bgRootCtx 取消后自动调用 syncCancel
-	// AfterFunc 注册的回调在 bgRootCtx 取消时自动执行，无需手动释放
-	context.AfterFunc(x.bgRootCtx, syncCancel)
+	// AfterFunc 注册的回调在 bgRootCtx 取消时自动执行
+	stopAfterFunc := context.AfterFunc(x.bgRootCtx, syncCancel)
 
 	// === 同步索引 ===
 	ids, err = x.syncIndexer.invoke(syncCtx, req.KnowledgeName, document.Source{URI: req.URI})
+
+	// 同步完成后注销 AfterFunc 回调（stop 返回 bool：true=成功注销，false=已执行或 ctx 已取消）
+	if stopAfterFunc != nil {
+		stopAfterFunc()
+	}
 
 	// 同步调用退出后检查取消结果
 	// 避免下游忽略取消、返回 nil 后继续按正常成功启动后台
@@ -159,10 +164,18 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 			bgCancel()    // 释放任务 timeout
 		}()
 
-		// recover 覆盖整个后台
+		// 统一终结处理：recover + markFailed
+		var bgErr error
 		defer func() {
 			if r := recover(); r != nil {
+				bgErr = fmt.Errorf("panic: %v", r)
 				g.Log().Errorf(bgCtx, "Index background panic: %v", r)
+			}
+			// 失败时调用 markFailed（使用独立 cleanupCtx，不继承 bgCtx）
+			if bgErr != nil && x.markFailed != nil {
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cleanupCancel()
+				x.markFailed(cleanupCtx, documentsID, bgErr)
 			}
 		}()
 
@@ -174,12 +187,14 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 			select {
 			case <-time.After(time.Second):
 			case <-bgCtx.Done():
+				bgErr = bgCtx.Err()
+				return
 			}
 		}
 
-		// 后台局部变量，不写外层 err
+		// 后台执行（indexAsyncByDocsID 内部会检查 bgCtx 取消）
 		if asyncErr := asyncIdx.indexAsyncByDocsID(bgCtx, knowledgeName, documentsID, docsIDs); asyncErr != nil {
-			// 后台失败仅通过日志报告，不影响同步返回
+			bgErr = asyncErr
 			g.Log().Errorf(bgCtx, "indexAsyncByDocsID failed, err=%v", asyncErr)
 		}
 	}()
@@ -244,7 +259,11 @@ func (x *Rag) indexAsyncByDocsID(ctx context.Context, req *IndexAsyncByDocsIDReq
 	if len(missing) > 0 && req.try > 0 {
 		g.Log().Warningf(ctx, "indexAsyncByDocsID missing %d docs, missing=%v, remaining tries=%d", len(missing), missing, req.try)
 		req.try--
-		time.Sleep(time.Second) // es 数据同步有延迟；1D-3 改为可取消等待
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Second):
+		}
 		return x.indexAsyncByDocsID(ctx, req)
 	}
 	if len(missing) > 0 {

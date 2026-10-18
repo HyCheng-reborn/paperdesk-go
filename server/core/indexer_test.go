@@ -621,7 +621,10 @@ func TestIndex_SyncSuccess_TransfersOwnershipOnce(t *testing.T) {
 	// 等待后台完成（后台负责释放容量+登记）
 	waitSig(t, asyncDone, "background finish")
 
-	// 后台完成后容量应已释放：再发 8 个应全部成功（填满整个 bgSem）
+	// 给 defer 一点时间完成释放
+	time.Sleep(50 * time.Millisecond)
+
+	// 容量已释放：再发 8 个应全部成功（填满整个 bgSem）
 	for i := 0; i < 8; i++ {
 		_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: int64(i + 10)})
 		if err != nil {
@@ -869,7 +872,7 @@ func TestIndex_IndexAndShutdownRace(t *testing.T) {
 	syncProceed := make(chan struct{})
 
 	syncIdx := &fakeSyncIndexer{onInvoke: func(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
-		close(syncStarted) // 信号：同步阶段已开始
+		closeOnce(syncStarted) // 信号：同步阶段已开始（安全多次关闭）
 		select {
 		case <-syncProceed:
 		case <-ctx.Done():
@@ -911,11 +914,15 @@ func TestIndex_IndexAndShutdownRace(t *testing.T) {
 		shutdownErr = r.Shutdown(ctx)
 	}()
 
-	// 给 Shutdown 一点时间设置 closed=true
-	time.Sleep(50 * time.Millisecond)
-
-	// 后续 Index 调用应被拒绝
-	_, err := r.Index(context.Background(), &IndexReq{URI: "test2.pdf", KnowledgeName: "kb2", DocumentsId: 2})
+	// 给 Shutdown 一点时间设置 closed=true，然后轮询等待 Index 返回 ErrShuttingDown
+	var err error
+	for i := 0; i < 100; i++ {
+		_, err = r.Index(context.Background(), &IndexReq{URI: "test2.pdf", KnowledgeName: "kb2", DocumentsId: 2})
+		if errors.Is(err, ErrShuttingDown) {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
 	if !errors.Is(err, ErrShuttingDown) {
 		t.Fatalf("expected ErrShuttingDown, got %v", err)
 	}
@@ -1651,4 +1658,354 @@ func TestIndexAsyncByDocsID_NilDoc(t *testing.T) {
 		t.Fatalf("error should indicate nil document, got: %v", err)
 	}
 	assertNoDownstreamStages(t, saveCalled, updateCalled, asyncRunnable.called)
+}
+
+// --- A3.3: 拆分“等待同步”和“等待后台”场景 ---
+
+func TestIndex_SyncOnlyShutdown(t *testing.T) {
+	// 同步阶段阻塞，Shutdown 使同步退出，不要求后台启动
+	syncCtxReceived := make(chan context.Context, 1)
+	syncDone := make(chan struct{})
+
+	syncIdx := &fakeSyncIndexer{onInvoke: func(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
+		syncCtxReceived <- ctx
+		<-ctx.Done()
+		close(syncDone)
+		return nil, ctx.Err()
+	}}
+
+	r := newIndexerTestRag(syncIdx, &fakeAsyncIndexer{})
+	r.asyncWait = func(ctx context.Context) {}
+
+	// 启动 Index
+	indexDone := make(chan struct{})
+	var indexErr error
+	go func() {
+		defer close(indexDone)
+		_, indexErr = r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	}()
+
+	// 等待同步阶段收到 ctx
+	var sCtx context.Context
+	select {
+	case sCtx = <-syncCtxReceived:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for sync ctx")
+	}
+
+	// Shutdown 应取消 bgRootCtx，传播到 syncCtx
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("Shutdown failed: %v", err)
+	}
+
+	// 同步阶段应退出
+	waitSig(t, syncDone, "sync exit after shutdown")
+
+	<-indexDone
+	if indexErr == nil {
+		t.Fatal("expected Index error after shutdown cancel")
+	}
+	_ = sCtx
+}
+
+func TestIndex_BackgroundOnlyShutdown(t *testing.T) {
+	// 同步成功，确认后台进入，再启动 Shutdown
+	asyncStarted := make(chan struct{})
+	asyncProceed := make(chan struct{})
+	asyncDone := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			close(asyncStarted)
+			<-asyncProceed
+			return nil
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {}
+
+	t.Cleanup(func() {
+		closeOnce(asyncProceed)
+		waitSig(t, asyncDone, "background finish")
+	})
+
+	// Index 成功，后台启动
+	ids, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 id, got %d", len(ids))
+	}
+
+	// 确认后台已进入
+	waitSig(t, asyncStarted, "async start")
+
+	// 启动 Shutdown
+	shutdownDone := make(chan struct{})
+	var shutdownErr error
+	go func() {
+		defer close(shutdownDone)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		shutdownErr = r.Shutdown(ctx)
+	}()
+
+	// 释放后台
+	close(asyncProceed)
+	waitSig(t, asyncDone, "background finish")
+
+	// Shutdown 应完成
+	waitSig(t, shutdownDone, "shutdown done")
+	if shutdownErr != nil {
+		t.Fatalf("Shutdown should succeed: %v", shutdownErr)
+	}
+}
+
+// --- B4: B 组测试 ---
+
+func TestIndex_BackgroundFailure_MarksFailed(t *testing.T) {
+	// 后台失败调用 markFailed
+	markFailedCalled := make(chan struct{}, 1)
+	asyncDone := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			return errors.New("async error")
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {}
+	r.markFailed = func(ctx context.Context, docID int64, err error) {
+		markFailedCalled <- struct{}{}
+	}
+
+	t.Cleanup(func() {
+		waitSig(t, asyncDone, "background finish")
+	})
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 等待 markFailed 被调用
+	select {
+	case <-markFailedCalled:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for markFailed")
+	}
+
+	waitSig(t, asyncDone, "background finish")
+}
+
+func TestIndex_BackgroundPanic_MarksFailed(t *testing.T) {
+	// 后台 panic 调用 markFailed
+	markFailedCalled := make(chan struct{}, 1)
+	waitEntered := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			t.Error("onIndex should not run when wait panics")
+			return nil
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {
+		defer close(waitEntered)
+		panic("boom in wait")
+	}
+	r.markFailed = func(ctx context.Context, docID int64, err error) {
+		markFailedCalled <- struct{}{}
+	}
+
+	ids, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
+	if err != nil {
+		t.Fatalf("Index should not fail due to background panic: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 id, got %d", len(ids))
+	}
+
+	// asyncWait 的 defer 在 panic 展开时触发，随后被 goroutine 顶部的 recover 捕获
+	waitSig(t, waitEntered, "wait panic unwound to recover")
+
+	// markFailed 应被调用
+	select {
+	case <-markFailedCalled:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for markFailed after panic")
+	}
+}
+
+func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
+	// 后台超时调用 markFailed
+	markFailedCalled := make(chan struct{}, 1)
+	asyncDone := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			// 等待 context 超时
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	r := &Rag{
+		syncIndexer:   &fakeSyncIndexer{ids: []string{"id1"}},
+		asyncIndexer:  fakeAsync,
+		bgRootCtx:     bgRootCtx,
+		bgRootCancel:  bgRootCancel,
+		bgSem:         make(chan struct{}, 8),
+		done:          make(chan struct{}),
+		taskTimeout:   100 * time.Millisecond, // 短超时触发超时
+		maxBackground: 8,
+	}
+	r.asyncWait = func(ctx context.Context) {}
+	r.markFailed = func(ctx context.Context, docID int64, err error) {
+		markFailedCalled <- struct{}{}
+	}
+
+	t.Cleanup(func() {
+		waitSig(t, asyncDone, "background finish")
+	})
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 等待 markFailed 被调用
+	select {
+	case <-markFailedCalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for markFailed after timeout")
+	}
+
+	waitSig(t, asyncDone, "background finish")
+}
+
+func TestIndex_BackgroundSuccess_NoMarkFailed(t *testing.T) {
+	// 成功不调用 markFailed
+	markFailedCalled := make(chan struct{}, 1)
+	asyncDone := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			return nil
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {}
+	r.markFailed = func(ctx context.Context, docID int64, err error) {
+		markFailedCalled <- struct{}{}
+	}
+
+	t.Cleanup(func() {
+		waitSig(t, asyncDone, "background finish")
+	})
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 等待后台完成
+	waitSig(t, asyncDone, "background finish")
+
+	// markFailed 不应被调用
+	select {
+	case <-markFailedCalled:
+		t.Fatal("markFailed should not be called on success")
+	case <-time.After(200 * time.Millisecond):
+		// 正常：markFailed 未被调用
+	}
+}
+
+func TestIndexAsyncByDocsID_RetryRespectsContext(t *testing.T) {
+	// 重试等待响应 context 取消
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { return nil },
+		func(_ context.Context, _ int64, _ int) error { return nil },
+		&fakeAsyncRunnable{},
+	)
+
+	// 创建已取消的 ctx
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // 立即取消
+
+	_, err := r.indexAsyncByDocsID(ctx, &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a", "b"}, KnowledgeName: "kb", DocumentsId: 1, try: 1,
+	})
+	// 应返回 context.Canceled
+	if err == nil {
+		t.Fatal("expected error from cancelled context")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+}
+
+func TestIndex_CleanupCtxIndependent(t *testing.T) {
+	// cleanupCtx 独立于 bgCtx：bgCtx 取消后 markFailed 仍能执行
+	asyncDone := make(chan struct{})
+	markFailedStarted := make(chan struct{})
+	markFailedProceed := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			// 等待 bgCtx 被取消
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {}
+	r.markFailed = func(ctx context.Context, docID int64, err error) {
+		close(markFailedStarted)
+		<-markFailedProceed
+		// 验证 ctx 不是 bgCtx（应该是独立的 cleanupCtx）
+		if ctx.Err() != nil {
+			t.Errorf("cleanupCtx should not be cancelled when bgCtx is cancelled")
+		}
+	}
+
+	t.Cleanup(func() {
+		closeOnce(markFailedProceed)
+		waitSig(t, asyncDone, "background finish")
+	})
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 取消 bgRootCtx 触发 bgCtx 取消，使后台返回错误
+	r.bgRootCancel()
+
+	// 等待 markFailed 开始
+	waitSig(t, markFailedStarted, "markFailed started")
+
+	// 释放 markFailed
+	close(markFailedProceed)
+
+	waitSig(t, asyncDone, "background finish")
 }

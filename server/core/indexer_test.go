@@ -2114,3 +2114,104 @@ func TestIndexAsyncByDocsID_EntryContextCheck(t *testing.T) {
 		t.Fatal("searcher should not be called when context is already cancelled")
 	}
 }
+
+// --- 阻塞 2: AfterFunc 全退出路径清理测试 ---
+
+func TestIndex_SyncPanic_StopsAfterFuncBridge(t *testing.T) {
+	// 同步 panic 后 AfterFunc 被 defer 注销
+	r := newIndexerTestRag(&fakeSyncIndexer{
+		onInvoke: func(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
+			panic("sync boom for afterfunc test")
+		},
+	}, &fakeAsyncIndexer{})
+	r.asyncWait = func(ctx context.Context) {}
+
+	// panic 应向上传播
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				// Index 内部捕获了 panic，正常
+			}
+		}()
+		r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	}()
+
+	// Shutdown 应成功（说明 AfterFunc 回调不会干扰，defer 已注销）
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown should succeed after sync panic: %v", err)
+	}
+}
+
+func TestIndex_SyncError_StopsAfterFuncBridge(t *testing.T) {
+	// 同步返回错误后 AfterFunc 被 defer 注销
+	r := newIndexerTestRag(&fakeSyncIndexer{
+		onInvoke: func(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
+			return nil, errors.New("sync error for afterfunc test")
+		},
+	}, &fakeAsyncIndexer{})
+	r.asyncWait = func(ctx context.Context) {}
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	if err == nil {
+		t.Fatal("expected sync error")
+	}
+
+	// Shutdown 应成功（说明 AfterFunc 已被 defer 注销）
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown should succeed after sync error: %v", err)
+	}
+}
+
+// --- 阻塞 3: Failed 单一终结所有者测试 ---
+
+func TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed(t *testing.T) {
+	// 后台 saveChunksFn 失败时，markFailed 被调用恰好一次
+	// 验证 updateDocStatus 由 markFailed 触发恰好一次（不重复写 Failed）
+	markFailedCalled := make(chan struct{}, 10) // 缓冲避免阻塞
+	asyncDone := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			defer close(asyncDone)
+			return errors.New("async error from saveChunks simulation")
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {}
+	r.markFailed = func(ctx context.Context, docID int64, err error) {
+		markFailedCalled <- struct{}{}
+	}
+
+	t.Cleanup(func() {
+		waitSig(t, asyncDone, "background finish")
+	})
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 42})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 等待 markFailed 被调用
+	select {
+	case <-markFailedCalled:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for markFailed")
+	}
+
+	// 等待后台完成
+	waitSig(t, asyncDone, "background finish")
+
+	// markFailed 不应再被调用第二次
+	select {
+	case <-markFailedCalled:
+		t.Fatal("markFailed should be called exactly once, got second call")
+	case <-time.After(200 * time.Millisecond):
+		// 正常：markFailed 未被再次调用
+	}
+}

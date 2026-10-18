@@ -117,14 +117,15 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 	// 桥接服务级取消到 syncCtx：bgRootCtx 取消后自动调用 syncCancel
 	// AfterFunc 注册的回调在 bgRootCtx 取消时自动执行
 	stopAfterFunc := context.AfterFunc(x.bgRootCtx, syncCancel)
+	// 保证全部退出路径注销 AfterFunc（正常返回、panic、runtime.Goexit）
+	defer func() {
+		if stopAfterFunc != nil {
+			stopAfterFunc()
+		}
+	}()
 
 	// === 同步索引 ===
 	ids, err = x.syncIndexer.invoke(syncCtx, req.KnowledgeName, document.Source{URI: req.URI})
-
-	// 同步完成后注销 AfterFunc 回调（stop 返回 bool：true=成功注销，false=已执行或 ctx 已取消）
-	if stopAfterFunc != nil {
-		stopAfterFunc()
-	}
 
 	// 同步调用退出后直接检查双路取消（不依赖 AfterFunc 调度）
 	// 若同时存在业务错误和取消，用 errors.Join 保留可识别错误链

@@ -62,6 +62,12 @@ func SaveChunksData(ctx context.Context, documentsId int64, chunks []entity.Know
 	return saveChunks(ctx, documentsId, chunks, &daoChunkStore{}, &daoDocStatusUpdater{})
 }
 
+// SaveChunksDataWithoutStatus 与 SaveChunksData 相同但不写文档状态，
+// 供后台编排使用，由后台统一终结所有者标 Failed。
+func SaveChunksDataWithoutStatus(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks) error {
+	return saveChunks(ctx, documentsId, chunks, &daoChunkStore{}, nil /* no statusUpdater */)
+}
+
 // saveChunks 内部 helper，依赖通过接口注入，便于同包测试直接验证错误传播。
 //
 // 契约：
@@ -127,8 +133,11 @@ func saveChunks(
 	}
 
 	// 状态写入：失败同样聚合到返回值，不吞掉
-	if statusErr := statusUpdater.UpdateDocumentsStatus(ctx, documentsId, status); statusErr != nil {
-		errs = append(errs, fmt.Errorf("update doc %d status: %w", documentsId, statusErr))
+	// statusUpdater 为 nil 时跳过状态写入（供后台编排使用，由 markFailed 统一终结）
+	if statusUpdater != nil {
+		if statusErr := statusUpdater.UpdateDocumentsStatus(ctx, documentsId, status); statusErr != nil {
+			errs = append(errs, fmt.Errorf("update doc %d status: %w", documentsId, statusErr))
+		}
 	}
 
 	return errors.Join(errs...)

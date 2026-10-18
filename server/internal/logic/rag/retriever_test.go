@@ -3,10 +3,12 @@ package rag
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
@@ -595,6 +597,122 @@ func TestReadQAConfig_ReadError(t *testing.T) {
 	if !errors.Is(err, sentinel) {
 		t.Errorf("expected sentinel error, got: %v", err)
 	}
+}
+
+// --- 阻塞 1: Reset 收敛测试 ---
+
+// TestReset_ShutdownTimeout_PreservesDependencies 验证 Shutdown 超时时保留依赖和引用。
+// 注意：此测试需要等待 Reset 内部的 5s Shutdown 超时。
+func TestReset_ShutdownTimeout_PreservesDependencies(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+
+	// 创建一个 Rag，其 Shutdown 会阻塞直到超时：
+	// bgRootCancel 为有效函数（避免 nil panic）
+	// done 为永不 close 的 channel（导致 <-done 阻塞）
+	// bgWG 有一个永不释放的条目
+	blockedRag := &core.Rag{}
+
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	defer bgRootCancel()
+
+	var bgWG sync.WaitGroup
+	bgWG.Add(1) // 永不 Done
+
+	// 使用 unsafe.Pointer 直接设置未导出字段，避免 WaitGroup 复制
+	ragVal := reflect.ValueOf(blockedRag).Elem()
+	setUnsafe := func(name string, newVal reflect.Value) {
+		f := ragVal.FieldByName(name)
+		reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().Set(newVal)
+	}
+	setUnsafe("bgRootCtx", reflect.ValueOf(bgRootCtx))
+	setUnsafe("bgRootCancel", reflect.ValueOf(bgRootCancel))
+	setUnsafe("bgWG", reflect.ValueOf(&bgWG).Elem())
+	setUnsafe("bgSem", reflect.ValueOf(make(chan struct{}, 8)))
+	setUnsafe("done", reflect.ValueOf(make(chan struct{}))) // 永不 close
+
+	ragMu.Lock()
+	ragSvr = blockedRag
+	vectorStore = fakeVS
+	ragInit = true
+	ragMu.Unlock()
+
+	// 调用 Reset，内部 Shutdown 会超时（5s）
+	resetDone := make(chan struct{})
+	var resetErr error
+	go func() {
+		defer close(resetDone)
+		resetErr = Reset()
+	}()
+
+	// 等待 Reset 返回（内部 5s 超时）
+	select {
+	case <-resetDone:
+		// Reset 已返回
+	case <-time.After(7 * time.Second):
+		t.Fatal("Reset() did not return within expected time")
+	}
+
+	// 应返回 Shutdown 超时错误
+	if resetErr == nil {
+		t.Fatal("expected error from Reset() when Shutdown times out")
+	}
+	if !strings.Contains(resetErr.Error(), "shutdown failed") {
+		t.Fatalf("expected shutdown failed error, got: %v", resetErr)
+	}
+
+	// 依赖应被保留：vectorStore 未 Close
+	if fakeVS.closeCount != 0 {
+		t.Fatalf("vectorStore should NOT be closed when Shutdown fails, got %d closes", fakeVS.closeCount)
+	}
+
+	// ragSvr 和 ragInit 应被保留
+	ragMu.RLock()
+	if ragSvr == nil {
+		t.Fatal("ragSvr should NOT be nil when Shutdown fails")
+	}
+	if ragInit != true {
+		t.Fatal("ragInit should still be true when Shutdown fails")
+	}
+	ragMu.RUnlock()
+}
+
+// TestReset_ShutdownSuccess_CleansUp 验证 Shutdown 成功时正确清理所有引用。
+func TestReset_ShutdownSuccess_CleansUp(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+
+	// 设置全局状态（无 ragSvr，只有 vectorStore）
+	// 无 ragSvr 时 Reset 不调用 Shutdown，直接清理
+	ragMu.Lock()
+	ragSvr = nil
+	vectorStore = fakeVS
+	ragInit = true
+	ragMu.Unlock()
+
+	err := Reset()
+	if err != nil {
+		t.Fatalf("Reset() unexpected error: %v", err)
+	}
+
+	// vectorStore 应被关闭
+	if fakeVS.closeCount != 1 {
+		t.Fatalf("expected vectorStore to be closed, got %d closes", fakeVS.closeCount)
+	}
+	// 所有引用应被置空
+	ragMu.RLock()
+	if ragSvr != nil {
+		t.Fatal("ragSvr should be nil after Reset")
+	}
+	if vectorStore != nil {
+		t.Fatal("vectorStore should be nil after Reset")
+	}
+	if ragInit != false {
+		t.Fatal("ragInit should be false after Reset")
+	}
+	ragMu.RUnlock()
 }
 
 // --- 1D-3 readLifecycleConfig 测试 ---

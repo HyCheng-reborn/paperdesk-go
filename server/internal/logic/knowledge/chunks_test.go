@@ -263,6 +263,38 @@ func TestSaveChunks_ScanDBError_NotTreatedAsInsert(t *testing.T) {
 	assertLastStatus(t, su, 7, int(v1.StatusFailed))
 }
 
+// TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite 验证 saveChunks 在 statusUpdater == nil 时
+// 不写状态但仍聚合错误。
+func TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite(t *testing.T) {
+	sentinelInsert := errors.New("insert rejected")
+
+	store := &fakeChunkStore{
+		insert: func(_ context.Context, chunk entity.KnowledgeChunks) error {
+			if chunk.ChunkId == "c1" {
+				return sentinelInsert
+			}
+			return nil
+		},
+	}
+
+	// statusUpdater 为 nil
+	err := saveChunks(context.Background(), 42, newChunks("c1", "c2"), store, nil)
+	if err == nil {
+		t.Fatal("expected error from insert failure")
+	}
+	if !errors.Is(err, sentinelInsert) {
+		t.Fatalf("error should wrap insert failure, got: %v", err)
+	}
+
+	// c2 应仍被处理（失败不中断循环）
+	inserts := store.getInsertCalls()
+	if len(inserts) != 2 {
+		t.Fatalf("expected 2 insert calls, got %d", len(inserts))
+	}
+
+	// 无 panic，无状态写入（因为没有 statusUpdater）
+}
+
 // TestSaveChunks_UpdatePath_NoStatusOverwrite 已存在记录走 update 路径，
 // 写入的 data map 不含 "status" 键（不覆盖 chunk 自身状态），且不调用 Insert。
 func TestSaveChunks_UpdatePath_NoStatusOverwrite(t *testing.T) {

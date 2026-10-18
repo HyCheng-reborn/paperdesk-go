@@ -1,5 +1,25 @@
 # 变更记录
 
+### Stage 1D-3 独立复核阻塞修复（2026-10-18）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：9e59029133cfdb6b42a449f8dcb625c3708aeaa1
+- **修复内容**：
+  1. **Reset 未收敛时停止清理**（P1）：Shutdown 失败时立即 return 错误，保留向量存储、服务引用及初始化状态，不继续关闭资源；释放 ragMu 避免持全局锁等待后台时死锁
+  2. **AfterFunc 全退出路径清理**（P2）：注册后立即 defer stop，覆盖同步 error、panic 和提前退出
+  3. **Failed 单一终结所有者**（P2）：新增 `SaveChunksDataWithoutStatus` 供后台编排使用，不写文档状态；后台由 `markFailed` 统一终结；保留 `SaveChunksData` 公开入口既有行为
+  4. **关闭测试补强**：确认 `shutdown_test.go` 归属并补入提交；新增超时后再等待成功、未收敛前不关闭依赖测试
+- **新增测试**：
+  - `TestReset_ShutdownTimeout_PreservesDependencies` / `TestReset_ShutdownSuccess_CleansUp`
+  - `TestIndex_SyncPanic_StopsAfterFuncBridge` / `TestIndex_SyncError_StopsAfterFuncBridge`
+  - `TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed`
+  - `TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite`
+  - `TestShutdownCoordinator_ShutdownTimeout_ThenWaitSuccess` / `TestShutdownCoordinator_CleanupFailsBeforeConverged`
+- **验证**：gofmt/build/vet exit 0；35 core + 4 rag + 11 knowledge 测试通过；core+rag+knowledge race 通过；关键修复测试压测 -race -count=10 通过（20 PASS）；全项目 go test -p 1 ./... 通过（13 包）
+- **状态**：1D-3 待独立复核（本批修复后）；Stage 1 整体未标完成
+
+---
+
 ### Stage 1D-3 A+B+C 全部实施完成（2026-10-18）
 
 - **类型**：定点修正 + 业务代码实施

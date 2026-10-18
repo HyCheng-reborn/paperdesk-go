@@ -390,18 +390,23 @@ func IsInitialized() bool {
 // Reset 重置 RAG 服务状态，释放资源。用于初始化失败时的级联清理。
 // 实际关闭 VectorStore 连接（如果实现了 Close 接口）。
 // 如果 Rag 实例存在，先调用 Shutdown 等待后台任务收敛，防止绕过收敛。
+// Shutdown 失败时保留依赖和引用，返回可识别错误，不继续 Close/置空。
 func Reset() error {
 	ragMu.Lock()
-	defer ragMu.Unlock()
 
 	// 先调用 Rag.Shutdown 等待后台任务收敛（如果实例存在）
 	if ragSvr != nil {
+		// 先释放锁，避免持有全局锁长时间等待
+		ragMu.Unlock()
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if err := ragSvr.Shutdown(shutdownCtx); err != nil {
-			// Shutdown 失败仍继续清理 vectorStore，但记录错误
-			g.Log().Warningf(context.Background(), "Rag Shutdown failed during Reset: %v", err)
-		}
+		err := ragSvr.Shutdown(shutdownCtx)
 		shutdownCancel()
+		if err != nil {
+			// Shutdown 未成功：保留依赖和引用，返回可识别错误
+			return fmt.Errorf("rag shutdown failed (dependencies preserved): %w", err)
+		}
+		// 收敛成功，重新加锁清理
+		ragMu.Lock()
 	}
 
 	var err error
@@ -411,5 +416,6 @@ func Reset() error {
 	}
 	ragSvr = nil
 	ragInit = false
+	ragMu.Unlock()
 	return err
 }

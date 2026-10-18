@@ -1,0 +1,10 @@
+﻿# CMD: go test -race ./core/providers/... -count=1
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 1
+# DATE: 2026-10-19 02:47:46
+----
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.071s
+FAIL
+
+# NOTE: 运行异常、race 未完成、根因：MinGW-w64 8.1.0 缺少 Go race 运行时所需入口点 (0xc0000139)

@@ -1,5 +1,20 @@
 # 变更记录
 
+### Stage 2A 实施完成（2026-10-19）
+
+- **类型**：新增实施（基于已通过方案 212ccd8）
+- **基线**：212ccd8cc4c5743e6e34dfe5cb73e02b7a794b84
+- **实施范围**：
+  1. **不可变 ProviderProfile/角色和最小 capabilities**：使用锁定 Eino v0.6.0 可编译的 Stream/Embedding 适配；Profile 构造防御性复制 KeyOptions；缓存键稳定归一化
+  2. **共享预算执行核心**：ProcessBudget / RequestBudget / TaskBudget / AttemptLease 三层 owner；双作用域整体原子预留；reserved → committed 状态机；幂等 finalize；slot 与 token 结算解耦；Index 后台移交
+  3. **明确构造入口及生产共享链**：ProviderRegistry 接口；ChatRole/EmbedRole/RerankRole 适配器；统一 HTTP transport；模型缓存 per Profile 隔离
+  4. **全角色 fake 实现**：离线测试用，通过 ProviderRegistry 接口注入
+- **新增文件**：`server/core/providers/`（profile.go、roles.go、budget.go、adapter.go、registry.go、transport.go、fake.go + 4 个测试文件）
+- **验证**：gofmt/build/vet exit 0；20 个定点测试 PASS（51 条含子测试）；预算并发压测 -count=10 PASS（80/80）；全项目 go test -p 1 ./... 通过（14 包）；race 因环境限制（MinGW-w64 8.1.0）未完成
+- **状态**：2A 实施完成待独立复核；默认全业务接线由 2B 承接；新 Embedding profile 生产启用须等 2C guard 就绪
+
+---
+
 ### Stage 2 方案修订（R1/R2 预算规则）（2026-10-19，仅文档）
 
 - **类型**：方案修订；不改业务代码、不启动服务、不调用模型 API、不操作 Codex 审查 worktree。

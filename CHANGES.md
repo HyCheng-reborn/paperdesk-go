@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 2 细化实施方案编写（2026-10-19，仅文档）
+
+- **类型**：方案编写；不改业务代码、不启动服务、不调用模型 API、不操作 Codex 独立审查 worktree。
+- **基线**：`69984c4`（`review/stage1a` 分支）。
+- **新增文件**：`design/stage2-plan.md`，含 10 个章节：概述、模型角色与职责、源码映射与修改文件、成本与请求预算、Embedding 与向量维度、Provider 与 HTTP 契约、分批计划与真实测试、在线探针方案、验收表、事实确认状态。
+- **百炼 API 核实**（2026-10-19，官方文档）：Chat/Embedding 均 OpenAI 兼容（`/compatible-mode/v1/`）；Rerank qwen3-rerank 走 OpenAI 兼容（`/compatible-api/v1/reranks`），gte-rerank-v2 走 DashScope 原生（`/api/v1/services/rerank/text-rerank/text-rerank`，2026-05-30 下线）；`text-embedding-v4` 默认 1024 维，支持 64-2048，单次最多 10 条文本。
+- **关键设计决定**：角色接口在 Eino 类型之上增加 Provider 能力声明；RequestBudget 是自动重试唯一所有者；不将 token 估算声称为精确费用上限；统一 transport 不等于同一协议；维度 fingerprint 进入索引配置；保留 Rerank 已验收校验链。
+- **事实确认状态**：每个关键结论区分已确认（源码/官方文档）/设计决定/待探针确认；候选模型及维度不视为已验证事实。
+- **分批**：2A 角色接口+fake → 2B 百炼适配+错误映射+预算 → 2C 维度/索引 fingerprint → 2D 在线探针（仅制定不执行）。
+- **PROJECT_PROGRESS.md 更新**：Stage 2 状态改为“方案待复核”。
+
+---
+
 ### Stage 1 代码范围收口 + Stage 2 准备范围提取（2026-10-18，仅文档）
 
 - **类型**：状态收口与范围提取；仅改文档，不改业务代码、不运行在线验证、不启动 Stage 2。

@@ -68,6 +68,26 @@ func SaveChunksDataWithoutStatus(ctx context.Context, documentsId int64, chunks 
 	return saveChunks(ctx, documentsId, chunks, &daoChunkStore{}, nil /* no statusUpdater */)
 }
 
+// indexingOnlyUpdater 只写 Indexing 状态，不写 Failed。
+// 供后台编排使用，Failed 由后台统一终结所有者标记。
+type indexingOnlyUpdater struct {
+	inner docStatusUpdater
+}
+
+func (u *indexingOnlyUpdater) UpdateDocumentsStatus(ctx context.Context, documentsId int64, status int) error {
+	// 只写 Indexing，跳过 Failed
+	if status == int(v1.StatusFailed) {
+		return nil // 不写 Failed，由后台 markFailed 负责
+	}
+	return u.inner.UpdateDocumentsStatus(ctx, documentsId, status)
+}
+
+// SaveChunksDataIndexingOnly 与 SaveChunksData 共享内核，
+// 但只写 Indexing 状态，不写 Failed（由后台统一终结）。
+func SaveChunksDataIndexingOnly(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks) error {
+	return saveChunks(ctx, documentsId, chunks, &daoChunkStore{}, &indexingOnlyUpdater{inner: &daoDocStatusUpdater{}})
+}
+
 // saveChunks 内部 helper，依赖通过接口注入，便于同包测试直接验证错误传播。
 //
 // 契约：

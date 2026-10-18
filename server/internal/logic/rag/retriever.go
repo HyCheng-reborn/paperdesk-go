@@ -394,28 +394,54 @@ func IsInitialized() bool {
 func Reset() error {
 	ragMu.Lock()
 
-	// 先调用 Rag.Shutdown 等待后台任务收敛（如果实例存在）
-	if ragSvr != nil {
-		// 先释放锁，避免持有全局锁长时间等待
-		ragMu.Unlock()
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err := ragSvr.Shutdown(shutdownCtx)
-		shutdownCancel()
-		if err != nil {
-			// Shutdown 未成功：保留依赖和引用，返回可识别错误
-			return fmt.Errorf("rag shutdown failed (dependencies preserved): %w", err)
+	// 锁内捕获实例及代次，解锁后不读全局
+	target := ragSvr
+	targetVS := vectorStore
+	targetGen := ragInit
+
+	if target == nil {
+		// 无实例，直接清理 vectorStore
+		var err error
+		if targetVS != nil {
+			err = targetVS.Close()
+			vectorStore = nil
 		}
-		// 收敛成功，重新加锁清理
-		ragMu.Lock()
+		ragSvr = nil
+		ragInit = false
+		ragMu.Unlock()
+		return err
 	}
 
-	var err error
-	if vectorStore != nil {
-		err = vectorStore.Close()
-		vectorStore = nil
-	}
-	ragSvr = nil
-	ragInit = false
+	// 解锁等待捕获实例的 Shutdown
 	ragMu.Unlock()
-	return err
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err := target.Shutdown(shutdownCtx)
+	shutdownCancel()
+
+	if err != nil {
+		// Shutdown 失败：保留依赖和状态，返回可识别错误
+		return fmt.Errorf("rag shutdown failed (dependencies preserved): %w", err)
+	}
+
+	// 成功：重新加锁核实身份
+	ragMu.Lock()
+
+	// 核实仍为同一代
+	if ragSvr == target && ragInit == targetGen {
+		// 同一代，安全关闭
+		var closeErr error
+		if targetVS != nil {
+			closeErr = targetVS.Close()
+		}
+		ragSvr = nil
+		vectorStore = nil
+		ragInit = false
+		ragMu.Unlock()
+		return closeErr
+	}
+
+	// 换代：另一调用已完成 Reset+Init，不触碰新对象
+	ragMu.Unlock()
+	return nil
 }

@@ -171,7 +171,7 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}           // 发布前设置注入字段，运行期间只读
 	rag.docRet = &prodDocRetriever{rag: rag}                 // 发布前设置注入字段，运行期间只读
 	rag.docSearch = conf                                     // *config.Config 实现 SearchDocumentsByIDs
-	rag.saveChunksFn = knowledge.SaveChunksDataWithoutStatus
+	rag.saveChunksFn = knowledge.SaveChunksDataIndexingOnly
 	rag.updateDocStatus = knowledge.UpdateDocumentsStatus
 
 	// 默认 markFailed 实现：调用 updateDocStatus 标记 Failed

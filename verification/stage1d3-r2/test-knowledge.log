@@ -1,0 +1,33 @@
+﻿# CMD: go test ./internal/logic/knowledge/... -count=1 -v -run "TestSaveChunks_"
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 16:44:12
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite
+--- PASS: TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_ChunkAndStatusErrorsBothJoined
+--- PASS: TestSaveChunks_ChunkAndStatusErrorsBothJoined (0.00s)
+=== RUN   TestSaveChunks_UpdateFailure_Propagated
+--- PASS: TestSaveChunks_UpdateFailure_Propagated (0.00s)
+=== RUN   TestSaveChunks_IndexingOnlyUpdater_SkipsFailed
+--- PASS: TestSaveChunks_IndexingOnlyUpdater_SkipsFailed (0.00s)
+=== RUN   TestSaveChunks_PublicEntry_Compatibility
+--- PASS: TestSaveChunks_PublicEntry_Compatibility (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.142s
+

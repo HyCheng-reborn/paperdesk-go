@@ -836,3 +836,299 @@ func TestReadLifecycleConfig_TypeError(t *testing.T) {
 		t.Fatalf("expected 'must be int' error, got: %v", err)
 	}
 }
+
+// --- 阻塞 1: Reset 并发与实例身份测试 ---
+
+// setRagField 使用 reflect+unsafe 设置 Rag 未导出字段
+func setRagField(rag *core.Rag, name string, val interface{}) {
+	ragVal := reflect.ValueOf(rag).Elem()
+	f := ragVal.FieldByName(name)
+	reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().Set(reflect.ValueOf(val))
+}
+
+// setRagFieldReflect 使用 reflect.Value 设置 Rag 未导出字段（用于 WaitGroup 等不可直接传递的类型）
+func setRagFieldReflect(rag *core.Rag, name string, val reflect.Value) {
+	ragVal := reflect.ValueOf(rag).Elem()
+	f := ragVal.FieldByName(name)
+	reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().Set(val)
+}
+
+// newTestRagWithShutdown 创建一个可控制 Shutdown 行为的 Rag 用于测试
+// 返回 Rag 和用于释放 Shutdown 等待的函数
+func newTestRagWithShutdown() (*core.Rag, chan struct{}) {
+	blockedRag := &core.Rag{}
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	release := make(chan struct{})
+
+	var bgWG sync.WaitGroup
+	bgWG.Add(1)
+
+	setRagField(blockedRag, "bgRootCtx", bgRootCtx)
+	setRagField(blockedRag, "bgRootCancel", bgRootCancel)
+	setRagFieldReflect(blockedRag, "bgWG", reflect.ValueOf(&bgWG).Elem())
+	setRagField(blockedRag, "bgSem", make(chan struct{}, 8))
+	setRagField(blockedRag, "done", done)
+
+	// 后台 goroutine 等待 release 后 Done
+	go func() {
+		<-release
+		bgWG.Done()
+		close(done)
+	}()
+
+	return blockedRag, release
+}
+
+// TestReset_Concurrent_NoRaceOrPanic 验证 32 轮 x 64 goroutine 并发 Reset 无 race/panic
+func TestReset_Concurrent_NoRaceOrPanic(t *testing.T) {
+	defer resetState()
+
+	for round := 0; round < 32; round++ {
+		// 每轮设置一个新实例
+		fakeVS := &fakeVectorStore{}
+		blockedRag, release := newTestRagWithShutdown()
+
+		ragMu.Lock()
+		ragSvr = blockedRag
+		vectorStore = fakeVS
+		ragInit = true
+		ragMu.Unlock()
+
+		const n = 64
+		var wg sync.WaitGroup
+		errCh := make(chan error, n)
+		for i := 0; i < n; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := Reset(); err != nil {
+					errCh <- err
+				}
+			}()
+		}
+
+		// 释放 Shutdown 等待
+		close(release)
+		wg.Wait()
+		close(errCh)
+
+		// 收集错误（允许部分返回 shutdown failed，因为并发竞争）
+		for err := range errCh {
+			if !strings.Contains(err.Error(), "shutdown failed") {
+				t.Fatalf("round %d: unexpected error: %v", round, err)
+			}
+		}
+
+		// 清理
+		resetState()
+	}
+}
+
+// TestReset_DuringWait_GetRagSvrCallable 验证等待期间 GetRagSvr 仍可调用
+func TestReset_DuringWait_GetRagSvrCallable(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+	blockedRag, release := newTestRagWithShutdown()
+
+	ragMu.Lock()
+	ragSvr = blockedRag
+	vectorStore = fakeVS
+	ragInit = true
+	ragMu.Unlock()
+
+	// 启动 Reset（会阻塞在 Shutdown）
+	resetDone := make(chan struct{})
+	go func() {
+		defer close(resetDone)
+		_ = Reset()
+	}()
+
+	// 等待 Reset 进入 Shutdown 等待
+	time.Sleep(100 * time.Millisecond)
+
+	// GetRagSvr 应仍可调用（不阻塞）
+	getDone := make(chan struct{})
+	go func() {
+		defer close(getDone)
+		svr := GetRagSvr()
+		// 可能返回 blockedRag（尚未清理）或 nil（已清理）
+		_ = svr
+	}()
+
+	select {
+	case <-getDone:
+		// GetRagSvr 返回，未阻塞
+	case <-time.After(2 * time.Second):
+		t.Fatal("GetRagSvr blocked during Reset wait")
+	}
+
+	// 释放并等待 Reset 完成
+	close(release)
+	select {
+	case <-resetDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Reset did not return after release")
+	}
+}
+
+// TestReset_ShutdownTimeout_PreservesExactObjects 验证超时保留准确对象、状态、资源
+func TestReset_ShutdownTimeout_PreservesExactObjects(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+
+	// 创建一个永不完成的 Shutdown
+	blockedRag := &core.Rag{}
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	defer bgRootCancel()
+
+	var bgWG sync.WaitGroup
+	bgWG.Add(1) // 永不 Done
+
+	setRagField(blockedRag, "bgRootCtx", bgRootCtx)
+	setRagField(blockedRag, "bgRootCancel", bgRootCancel)
+	setRagFieldReflect(blockedRag, "bgWG", reflect.ValueOf(&bgWG).Elem())
+	setRagField(blockedRag, "bgSem", make(chan struct{}, 8))
+	setRagField(blockedRag, "done", make(chan struct{})) // 永不 close
+
+	ragMu.Lock()
+	ragSvr = blockedRag
+	vectorStore = fakeVS
+	ragInit = true
+	ragMu.Unlock()
+
+	// Reset 应超时返回错误
+	err := Reset()
+	if err == nil {
+		t.Fatal("expected error from Reset when Shutdown times out")
+	}
+	if !strings.Contains(err.Error(), "shutdown failed") {
+		t.Fatalf("expected 'shutdown failed' error, got: %v", err)
+	}
+
+	// 验证对象保留
+	if fakeVS.closeCount != 0 {
+		t.Fatalf("vectorStore should NOT be closed, got %d closes", fakeVS.closeCount)
+	}
+
+	ragMu.RLock()
+	if ragSvr != blockedRag {
+		t.Fatal("ragSvr should be preserved")
+	}
+	if vectorStore != fakeVS {
+		t.Fatal("vectorStore should be preserved")
+	}
+	if ragInit != true {
+		t.Fatal("ragInit should be preserved")
+	}
+	ragMu.RUnlock()
+}
+
+// TestReset_AfterTaskCompletion_SecondResetSucceeds 验证任务结束后二次 Reset 成功
+func TestReset_AfterTaskCompletion_SecondResetSucceeds(t *testing.T) {
+	defer resetState()
+
+	fakeVS := &fakeVectorStore{}
+	blockedRag, release := newTestRagWithShutdown()
+
+	ragMu.Lock()
+	ragSvr = blockedRag
+	vectorStore = fakeVS
+	ragInit = true
+	ragMu.Unlock()
+
+	// 第一次 Reset
+	close(release) // 先释放，让 Shutdown 成功
+	err := Reset()
+	if err != nil {
+		t.Fatalf("first Reset should succeed: %v", err)
+	}
+
+	// 验证已清理
+	if IsInitialized() {
+		t.Fatal("should not be initialized after first Reset")
+	}
+
+	// 第二次 Reset（无实例）应成功
+	err = Reset()
+	if err != nil {
+		t.Fatalf("second Reset should succeed: %v", err)
+	}
+}
+
+// TestReset_ConcurrentInitDoesNotCloseNewInstance 验证等待期间另一调用完成 Reset+Init 后旧调用不关闭新对象
+func TestReset_ConcurrentInitDoesNotCloseNewInstance(t *testing.T) {
+	defer resetState()
+
+	// 创建旧实例
+	oldVS := &fakeVectorStore{}
+	oldRag, oldRelease := newTestRagWithShutdown()
+
+	ragMu.Lock()
+	ragSvr = oldRag
+	vectorStore = oldVS
+	ragInit = true
+	ragMu.Unlock()
+
+	// 启动第一个 Reset（会阻塞在 Shutdown）
+	reset1Done := make(chan struct{})
+	var reset1Err error
+	go func() {
+		defer close(reset1Done)
+		reset1Err = Reset()
+	}()
+
+	// 等待 Reset1 进入 Shutdown 等待
+	time.Sleep(100 * time.Millisecond)
+
+	// 模拟另一调用完成 Reset+Init：直接修改全局状态
+	// 注意：这里模拟的是在 Reset1 等待期间，另一调用获得了锁并完成了 Reset+Init
+	// 由于 Reset1 已解锁等待，我们无法真正模拟并发场景，但可以通过直接修改全局状态来验证身份检查
+	newVS := &fakeVectorStore{}
+	newRag, newRelease := newTestRagWithShutdown()
+
+	ragMu.Lock()
+	ragSvr = newRag
+	vectorStore = newVS
+	ragInit = true
+	ragMu.Unlock()
+
+	// 释放旧实例的 Shutdown
+	close(oldRelease)
+
+	// 等待第一个 Reset 完成
+	select {
+	case <-reset1Done:
+	case <-time.After(7 * time.Second):
+		t.Fatal("first Reset did not return")
+	}
+
+	// 第一个 Reset 应返回 nil（旧实例已 Shutdown，但发现换代，不触碰新对象）
+	if reset1Err != nil {
+		t.Fatalf("first Reset should return nil on generation change, got: %v", reset1Err)
+	}
+
+	// 新实例应完好
+	ragMu.RLock()
+	if ragSvr != newRag {
+		t.Fatal("new ragSvr should be preserved")
+	}
+	if vectorStore != newVS {
+		t.Fatal("new vectorStore should be preserved")
+	}
+	if ragInit != true {
+		t.Fatal("ragInit should be true for new instance")
+	}
+	ragMu.RUnlock()
+
+	// 新实例的 VectorStore 不应被关闭
+	if newVS.closeCount != 0 {
+		t.Fatalf("new vectorStore should NOT be closed, got %d closes", newVS.closeCount)
+	}
+
+	// 清理新实例
+	close(newRelease)
+	resetState()
+}

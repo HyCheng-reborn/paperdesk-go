@@ -1,5 +1,21 @@
 # 变更记录
 
+### Stage 1D-3 独立增量复核阻塞修复（2026-10-18）
+
+- **类型**：定点修复（基于 Codex 独立增量复核报告）
+- **基线**：89cc769440b6b405c2ef16eb78a035f486f03fab
+- **修复内容**：
+  1. **Reset 并发与实例身份**（P1）：锁内捕获 `target := ragSvr`、`targetVS := vectorStore`、`targetGen := ragInit`；解锁后调用 `target.Shutdown()`，不读全局；成功重新加锁后核实 `ragSvr == target && ragInit == targetGen` 才清空；换代时不触碰新对象；失败返回 `errors.Is` 可识别错误并保留依赖和状态
+  2. **Failed 所有权修复过度移除 Indexing**（P2）：新增 `indexingOnlyUpdater` 只写 Indexing、跳过 Failed；新增 `SaveChunksDataIndexingOnly` 公开入口；`rag.saveChunksFn` 改绑定为 `knowledge.SaveChunksDataIndexingOnly`；成功 chunks 后写 Indexing，Failed 由后台 `markFailed` 统一终结；保留 `SaveChunksData` 公开入口兼容性
+- **新增测试**：
+  - `TestReset_Concurrent_NoRaceOrPanic` / `TestReset_DuringWait_GetRagSvrCallable` / `TestReset_ShutdownTimeout_PreservesExactObjects` / `TestReset_AfterTaskCompletion_SecondResetSucceeds` / `TestReset_ConcurrentInitDoesNotCloseNewInstance`
+  - `TestIndex_BackgroundChunksFailure_RealChain` / `TestIndex_BackgroundChunksSuccess_WritesIndexing` / `TestIndex_BackgroundChunksStatusWriteFailure_Propagated` / `TestIndex_BackgroundCleanupBeforeDone`
+  - `TestSaveChunks_IndexingOnlyUpdater_SkipsFailed` / `TestSaveChunks_PublicEntry_Compatibility`
+- **验证**：gofmt/build/vet exit 0；39 core + 9 rag + 13 knowledge 测试通过；core+rag+knowledge race 通过；关键修复测试压测 -race -count=10 通过（30 PASS）；全项目 go test -p 1 ./... 通过（16 包）
+- **状态**：1D-3 待独立复核（本批修复后）；Stage 1 整体未标完成
+
+---
+
 ### Stage 1D-3 独立复核阻塞修复（2026-10-18）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

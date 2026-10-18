@@ -538,3 +538,80 @@ func TestSaveChunks_UpdateFailure_Propagated(t *testing.T) {
 	}
 	assertLastStatus(t, su, 7, int(v1.StatusFailed))
 }
+
+// TestSaveChunks_IndexingOnlyUpdater_SkipsFailed 验证 indexingOnlyUpdater 写 Indexing 但跳过 Failed
+func TestSaveChunks_IndexingOnlyUpdater_SkipsFailed(t *testing.T) {
+	sentinelInsert := errors.New("insert failed")
+
+	store := &fakeChunkStore{
+		insert: func(_ context.Context, chunk entity.KnowledgeChunks) error {
+			if chunk.ChunkId == "c1" {
+				return sentinelInsert
+			}
+			return nil
+		},
+	}
+	inner := &fakeDocStatusUpdater{}
+	updater := &indexingOnlyUpdater{inner: inner}
+
+	// chunk 失败时，status 应为 Failed，但 indexingOnlyUpdater 应跳过
+	err := saveChunks(context.Background(), 42, newChunks("c1", "c2"), store, updater)
+	if err == nil {
+		t.Fatal("expected error from insert failure")
+	}
+	if !errors.Is(err, sentinelInsert) {
+		t.Fatalf("error should wrap insert failure, got: %v", err)
+	}
+
+	// 验证状态写入：应跳过 Failed，不写任何状态
+	calls := inner.getCalls()
+	for _, c := range calls {
+		if c.status == int(v1.StatusFailed) {
+			t.Fatal("indexingOnlyUpdater should skip Failed status write")
+		}
+	}
+
+	// 成功场景：应写 Indexing
+	store2 := &fakeChunkStore{}
+	inner2 := &fakeDocStatusUpdater{}
+	updater2 := &indexingOnlyUpdater{inner: inner2}
+
+	err = saveChunks(context.Background(), 42, newChunks("c1", "c2"), store2, updater2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 应写 Indexing
+	calls2 := inner2.getCalls()
+	if len(calls2) != 1 {
+		t.Fatalf("expected 1 status call, got %d", len(calls2))
+	}
+	if calls2[0].status != int(v1.StatusIndexing) {
+		t.Fatalf("expected Indexing status, got %d", calls2[0].status)
+	}
+}
+
+// TestSaveChunks_PublicEntry_Compatibility 验证公开入口行为兼容性
+func TestSaveChunks_PublicEntry_Compatibility(t *testing.T) {
+	// 验证 indexingOnlyUpdater 与 saveChunks 内核的集成
+	store := &fakeChunkStore{}
+	inner := &fakeDocStatusUpdater{}
+	updater := &indexingOnlyUpdater{inner: inner}
+
+	// 全部成功 → Indexing
+	err := saveChunks(context.Background(), 42, newChunks("c1"), store, updater)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	calls := inner.getCalls()
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 status call, got %d", len(calls))
+	}
+	if calls[0].status != int(v1.StatusIndexing) {
+		t.Fatalf("expected Indexing, got %d", calls[0].status)
+	}
+	if calls[0].docID != 42 {
+		t.Fatalf("expected docID 42, got %d", calls[0].docID)
+	}
+}

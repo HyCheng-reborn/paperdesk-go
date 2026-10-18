@@ -389,9 +389,20 @@ func IsInitialized() bool {
 
 // Reset 重置 RAG 服务状态，释放资源。用于初始化失败时的级联清理。
 // 实际关闭 VectorStore 连接（如果实现了 Close 接口）。
+// 如果 Rag 实例存在，先调用 Shutdown 等待后台任务收敛，防止绕过收敛。
 func Reset() error {
 	ragMu.Lock()
 	defer ragMu.Unlock()
+
+	// 先调用 Rag.Shutdown 等待后台任务收敛（如果实例存在）
+	if ragSvr != nil {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := ragSvr.Shutdown(shutdownCtx); err != nil {
+			// Shutdown 失败仍继续清理 vectorStore，但记录错误
+			g.Log().Warningf(context.Background(), "Rag Shutdown failed during Reset: %v", err)
+		}
+		shutdownCancel()
+	}
 
 	var err error
 	if vectorStore != nil {

@@ -635,14 +635,17 @@ func TestIndex_SyncSuccess_TransfersOwnershipOnce(t *testing.T) {
 
 func TestIndex_Shutdown_WaitsAdmittedSyncAndBG(t *testing.T) {
 	// Shutdown 等待已准入的同步阶段和后台任务
+	// 注意：必须确保同步在 Shutdown 前完成，否则新逻辑会因 bgRootCtx 已取消而拒绝启动后台
 	syncStarted := make(chan struct{})
 	syncProceed := make(chan struct{})
+	syncDone := make(chan struct{})
 	asyncDone := make(chan struct{})
 
 	fakeSync := &fakeSyncIndexer{
 		onInvoke: func(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
 			close(syncStarted)
 			<-syncProceed
+			defer close(syncDone)
 			return []string{"id1"}, nil
 		},
 	}
@@ -672,7 +675,14 @@ func TestIndex_Shutdown_WaitsAdmittedSyncAndBG(t *testing.T) {
 	// 等待同步开始
 	waitSig(t, syncStarted, "sync started")
 
-	// 启动 Shutdown
+	// 释放同步并等待其完成
+	close(syncProceed)
+	waitSig(t, syncDone, "sync done")
+
+	// 等待后台启动
+	time.Sleep(100 * time.Millisecond)
+
+	// 启动 Shutdown（此时后台任务已在运行）
 	shutdownDone := make(chan struct{})
 	var shutdownErr error
 	go func() {
@@ -681,9 +691,6 @@ func TestIndex_Shutdown_WaitsAdmittedSyncAndBG(t *testing.T) {
 		defer cancel()
 		shutdownErr = r.Shutdown(shutdownCtx)
 	}()
-
-	// 释放同步
-	close(syncProceed)
 
 	// 等待后台完成
 	waitSig(t, asyncDone, "background finish")
@@ -697,11 +704,13 @@ func TestIndex_Shutdown_WaitsAdmittedSyncAndBG(t *testing.T) {
 
 func TestIndex_Shutdown_Timeout_KeepsWaiting(t *testing.T) {
 	// Shutdown 超时后返回 ctx.Err()，但后台仍继续等待，done 最终 close
+	asyncStarted := make(chan struct{})
 	asyncProceed := make(chan struct{})
 	asyncDone := make(chan struct{})
 
 	fakeAsync := &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			close(asyncStarted)
 			defer close(asyncDone)
 			<-asyncProceed
 			return nil
@@ -721,6 +730,9 @@ func TestIndex_Shutdown_Timeout_KeepsWaiting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
+	// 等待后台确实进入 asyncIndexer
+	waitSig(t, asyncStarted, "async started")
 
 	// Shutdown 超时
 	shortCtx, shortCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -1181,11 +1193,13 @@ func TestIndex_BackgroundContinuesAfterRequestCancel(t *testing.T) {
 
 func TestIndex_ShutdownTimeout_ThenWaitSuccess(t *testing.T) {
 	// Shutdown 超时后再次等待成功
+	asyncStarted := make(chan struct{})
 	asyncProceed := make(chan struct{})
 	asyncDone := make(chan struct{})
 
 	fakeAsync := &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			close(asyncStarted)
 			defer close(asyncDone)
 			<-asyncProceed
 			return nil
@@ -1205,6 +1219,9 @@ func TestIndex_ShutdownTimeout_ThenWaitSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
+	// 等待后台确实进入 asyncIndexer
+	waitSig(t, asyncStarted, "async started")
 
 	// Shutdown 超时
 	shortCtx, shortCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -1964,12 +1981,14 @@ func TestIndexAsyncByDocsID_RetryRespectsContext(t *testing.T) {
 
 func TestIndex_CleanupCtxIndependent(t *testing.T) {
 	// cleanupCtx 独立于 bgCtx：bgCtx 取消后 markFailed 仍能执行
+	asyncStarted := make(chan struct{})
 	asyncDone := make(chan struct{})
 	markFailedStarted := make(chan struct{})
 	markFailedProceed := make(chan struct{})
 
 	fakeAsync := &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			close(asyncStarted)
 			defer close(asyncDone)
 			// 等待 bgCtx 被取消
 			<-ctx.Done()
@@ -1998,6 +2017,9 @@ func TestIndex_CleanupCtxIndependent(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	// 等待后台确实进入 asyncIndexer
+	waitSig(t, asyncStarted, "async started")
+
 	// 取消 bgRootCtx 触发 bgCtx 取消，使后台返回错误
 	r.bgRootCancel()
 
@@ -2008,4 +2030,87 @@ func TestIndex_CleanupCtxIndependent(t *testing.T) {
 	close(markFailedProceed)
 
 	waitSig(t, asyncDone, "background finish")
+}
+
+// --- A+B+C 新增测试 ---
+
+func TestBackgroundCancelAfterWait_NoAsyncIndexer(t *testing.T) {
+	// 等待期间取消后不进入 asyncIndexer
+	waitEntered := make(chan struct{})
+	waitProceed := make(chan struct{})
+
+	fakeAsync := &fakeAsyncIndexer{
+		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+			t.Error("asyncIndexer should not be called when cancelled during wait")
+			return nil
+		},
+	}
+
+	r := newIndexerTestRag(&fakeSyncIndexer{ids: []string{"id1"}}, fakeAsync)
+	r.asyncWait = func(ctx context.Context) {
+		close(waitEntered)
+		<-waitProceed
+	}
+
+	t.Cleanup(func() {
+		closeOnce(waitProceed)
+	})
+
+	// Index 成功，后台进入等待
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 等待后台进入 wait
+	waitSig(t, waitEntered, "wait entered")
+
+	// 取消 bgRootCtx
+	r.bgRootCancel()
+
+	// 释放 wait
+	close(waitProceed)
+
+	// 给后台一点时间检查 context
+	time.Sleep(100 * time.Millisecond)
+
+	// asyncIndexer 不应被调用
+	if fakeAsync.getCallCount() != 0 {
+		t.Fatalf("asyncIndexer should not be called, got %d calls", fakeAsync.getCallCount())
+	}
+}
+
+func TestIndexAsyncByDocsID_EntryContextCheck(t *testing.T) {
+	// 入口 context 检查：已取消的 ctx 不应继续执行
+	docs := []*schema.Document{
+		{ID: "a", Content: "ca", MetaData: map[string]any{}},
+	}
+	searcher := &fakeDocSearcher{result: docs}
+
+	r := newOrchestrationTestRag(searcher,
+		func(_ context.Context, _ int64, _ []entity.KnowledgeChunks) error { return nil },
+		func(_ context.Context, _ int64, _ int) error { return nil },
+		&fakeAsyncRunnable{},
+	)
+
+	// 创建已取消的 ctx
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // 立即取消
+
+	_, err := r.indexAsyncByDocsID(ctx, &IndexAsyncByDocsIDReq{
+		DocsIDs: []string{"a"}, KnowledgeName: "kb", DocumentsId: 1, try: 0,
+	})
+
+	// 应返回 context.Canceled
+	if err == nil {
+		t.Fatal("expected error from cancelled context")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+
+	// searcher 不应被调用
+	if searcher.called {
+		t.Fatal("searcher should not be called when context is already cancelled")
+	}
 }

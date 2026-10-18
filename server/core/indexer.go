@@ -126,12 +126,19 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 		stopAfterFunc()
 	}
 
-	// 同步调用退出后检查取消结果
-	// 避免下游忽略取消、返回 nil 后继续按正常成功启动后台
-	if syncCtx.Err() != nil {
-		// syncCtx 被取消（请求取消或服务停止）
-		// 即使 err == nil，也不走正常成功路径
-		return nil, syncCtx.Err()
+	// 同步调用退出后直接检查双路取消（不依赖 AfterFunc 调度）
+	// 若同时存在业务错误和取消，用 errors.Join 保留可识别错误链
+	syncErr := syncCtx.Err()
+	rootErr := x.bgRootCtx.Err()
+	if syncErr != nil || rootErr != nil {
+		if err != nil {
+			// 业务错误 + 取消：保留两者
+			return nil, errors.Join(err, syncErr, rootErr)
+		}
+		if syncErr != nil {
+			return nil, syncErr
+		}
+		return nil, rootErr
 	}
 
 	if err != nil {
@@ -192,6 +199,12 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 			}
 		}
 
+		// 等待后检查 context：避免已取消后仍调用 asyncIndexer
+		if bgCtx.Err() != nil {
+			bgErr = bgCtx.Err()
+			return // 进入统一失败终结
+		}
+
 		// 后台执行（indexAsyncByDocsID 内部会检查 bgCtx 取消）
 		if asyncErr := asyncIdx.indexAsyncByDocsID(bgCtx, knowledgeName, documentsID, docsIDs); asyncErr != nil {
 			bgErr = asyncErr
@@ -220,6 +233,12 @@ func (x *Rag) IndexAsync(ctx context.Context, req *IndexAsyncReq) (ids []string,
 // 错误传播契约（Stage 1D-1）：任一阶段失败都立即返回错误，不继续后续阶段，
 // 且绝不把文档标为 Active。统一的 Failed 标记（markFailed）归属 1D-3。
 func (x *Rag) indexAsyncByDocsID(ctx context.Context, req *IndexAsyncByDocsIDReq) (ids []string, err error) {
+	// 入口检查：避免已取消后继续执行
+	// 注意：不宣称检查能消除所有"检查后立即取消"的竞争窗口
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	// 0. 超限保护：避免递归重试把异常入参放大成超大检索
 	if len(req.DocsIDs) > 1000 {
 		return nil, fmt.Errorf("indexAsyncByDocsID: DocsIDs count %d exceeds limit 1000", len(req.DocsIDs))

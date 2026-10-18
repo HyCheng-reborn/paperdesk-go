@@ -1,0 +1,38 @@
+﻿# CMD: go test ./internal/cmd/... -count=1 -v
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 15:11:08
+
+=== RUN   TestRunInitSteps_AllSuccess
+--- PASS: TestRunInitSteps_AllSuccess (0.00s)
+=== RUN   TestRunInitSteps_FailureStopsAndCleans
+--- PASS: TestRunInitSteps_FailureStopsAndCleans (0.00s)
+=== RUN   TestRunInitSteps_CleanupErrorPreserved
+--- PASS: TestRunInitSteps_CleanupErrorPreserved (0.00s)
+=== RUN   TestRunInitSteps_EmptySteps
+--- PASS: TestRunInitSteps_EmptySteps (0.00s)
+=== RUN   TestRunInitSteps_FirstStepFails
+--- PASS: TestRunInitSteps_FirstStepFails (0.00s)
+=== RUN   TestRunInitSteps_ErrorContainsStageName
+--- PASS: TestRunInitSteps_ErrorContainsStageName (0.00s)
+=== RUN   TestMiddleware_SSEStarted_NoJSONAppend
+2026-10-18T15:11:03.916+08:00 [INFO] pid[15044]: http server started listening on [:49273]
+2026-10-18T15:11:03.916+08:00 [INFO] openapi specification is disabled
+2026-10-18T15:11:03.918+08:00 {84bb1573248edf181656ed164a1aee3e} 200 "GET http 127.0.0.1:49273 /test/stream HTTP/1.1" 1028.900, 127.0.0.1, "", "Go-http-client/1.1", -1, "", ""
+Stack:
+model_failure
+2026-10-18T15:11:05.918+08:00 15044: http server [:0] shutdown error: context deadline exceeded
+2026-10-18T15:11:05.918+08:00 pid[15044]: all servers shutdown
+--- PASS: TestMiddleware_SSEStarted_NoJSONAppend (2.01s)
+=== RUN   TestMiddleware_NoSSE_WithError
+2026-10-18T15:11:05.922+08:00 [INFO] pid[15044]: http server started listening on [:49277]
+2026-10-18T15:11:05.922+08:00 [INFO] openapi specification is disabled
+2026-10-18T15:11:05.923+08:00 {94d0a0ea248edf181856ed164417d61c} 200 "GET http 127.0.0.1:49277 /test/error HTTP/1.1" 525.400, 127.0.0.1, "", "Go-http-client/1.1", -1, "", ""
+Stack:
+handler error
+2026-10-18T15:11:07.923+08:00 15044: http server [:0] shutdown error: context deadline exceeded
+2026-10-18T15:11:07.923+08:00 pid[15044]: all servers shutdown
+--- PASS: TestMiddleware_NoSSE_WithError (2.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	4.172s
+

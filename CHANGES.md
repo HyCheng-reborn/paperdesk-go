@@ -1,5 +1,32 @@
 # 变更记录
 
+### Stage 1D-3 A+B+C 全部实施完成（2026-10-18）
+
+- **类型**：定点修正 + 业务代码实施
+- **基线**：e3586a5374650293ee587fed13b2fc1b70f8a0bd
+- **A+B 剩余修正**：
+  - 同步结束直接检查 `syncCtx.Err()` 和 `bgRootCtx.Err()`，不依赖 AfterFunc 调度
+  - 同时存在业务错误和取消时用 `errors.Join` 保留可识别错误链
+  - 初始等待后检查 `bgCtx.Err()`，取消则进入统一失败终结
+  - `indexAsyncByDocsID` 入口检查 context，已取消立即返回
+- **C 实施**：
+  - `core/shutdown.go`：新增 `ShutdownCoordinator` 协调 Rag Shutdown 和资源 Cleanup
+  - 先执行 Rag.Shutdown，收敛成功后逆序执行资源 Cleanup
+  - Shutdown 超时：跳过依赖清理，保留服务引用，返回可识别错误
+  - Cleanup 中一个失败仍按约定清理其他资源，最终聚合返回
+  - `internal/cmd/cmd.go`：s.Run() 返回后使用 ShutdownCoordinator 协调关闭（30s 超时）
+  - `internal/logic/rag/retriever.go`：Reset 内部先调用 Rag.Shutdown 等待后台任务收敛
+- **新增测试**：
+  - `TestBackgroundCancelAfterWait_NoAsyncIndexer`：等待期间取消后不进入 asyncIndexer
+  - `TestIndexAsyncByDocsID_EntryContextCheck`：入口 context 检查
+  - `TestShutdownCoordinator_*`：5 个关闭协调测试（成功/超时/部分失败/无资源/nil closer）
+- **验证**：gofmt/build/vet exit 0；31 core 定点测试 + 8 cmd 测试通过；core+rag+cmd race 通过；关键协调测试压测 -race -count=10 通过；全项目 go test -p 1 ./... 通过（15 包）
+- **范围**：1D-3 全部（A 准入+所有权+Shutdown、B 统一终结、C cmd 接线）
+- **已知边界**：保留历史 race、A-4 及驱动取消响应未验证边界；不宣称检查能消除所有竞争窗口
+- **状态**：1D-3 A+B+C 全部实施完成，待独立复核；Stage 1 整体未标完成
+
+---
+
 ### Stage 1D-3-A 剩余修正 + B 实施完成（2026-10-18）
 
 - **类型**：定点修正 + 业务代码实施

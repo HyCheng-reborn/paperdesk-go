@@ -57,6 +57,10 @@ qa:
   enabled: true            # 是否启用 QA 生成（默认 true）
   maxConcurrent: 4         # 单次索引 QA 生成并发上限（默认 4，最大 32）
 
+rag:
+  maxBackgroundTasks: 8          # 后台索引任务最大并发数（默认 8，最大 32）
+  backgroundTaskTimeoutMinutes: 5 # 后台任务超时时间（分钟，默认 5）
+
 chat:
   apiKey: "sk-****"
   baseURL: "https://api.siliconflow.cn/v1"

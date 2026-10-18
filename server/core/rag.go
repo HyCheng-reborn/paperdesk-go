@@ -2,7 +2,10 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
@@ -17,6 +20,13 @@ import (
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
+)
+
+var (
+	// ErrBackgroundFull 后台任务队列已满
+	ErrBackgroundFull = errors.New("background task queue full")
+	// ErrShuttingDown Rag 已关闭，拒绝新请求
+	ErrShuttingDown = errors.New("rag is shutting down")
 )
 
 const (
@@ -42,15 +52,27 @@ type Rag struct {
 	grader *grader.Grader // 暂时先弃用，使用 grader 会严重影响rag的速度
 	conf   *config.Config
 
-	docRet    docRetriever        // 注入边界：用于测试替换
-	rwModel   model.BaseChatModel // 注入边界：用于测试替换 rewrite model
-	asyncWait func()              // 可注入等待机制，测试用
+	docRet    docRetriever              // 注入边界：用于测试替换
+	rwModel   model.BaseChatModel       // 注入边界：用于测试替换 rewrite model
+	asyncWait func(ctx context.Context) // 可注入等待机制，测试用
 
 	// 以下三个字段与 syncIndexer/asyncIndexer/docRet 同模式：
 	// 构建时固定、运行期只读，不使用可变包级函数替换。
 	docSearch       docSearcher                                                                   // 注入边界：文档检索
 	saveChunksFn    func(ctx context.Context, docID int64, chunks []entity.KnowledgeChunks) error // 注入边界：保存 chunks
 	updateDocStatus func(ctx context.Context, docID int64, status int) error                      // 注入边界：更新文档状态
+
+	// 后台任务生命周期管理（Stage 1D-3-A）
+	mu            sync.Mutex
+	closed        bool
+	bgWG          sync.WaitGroup
+	bgSem         chan struct{}
+	bgRootCtx     context.Context
+	bgRootCancel  context.CancelFunc
+	shutdownOnce  sync.Once
+	done          chan struct{}
+	taskTimeout   time.Duration
+	maxBackground int
 }
 
 func New(ctx context.Context, conf *config.Config) (*Rag, error) {
@@ -105,6 +127,22 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		g.Log().Error(ctx, "GetChatModel failed, err=%v", err)
 		return nil, err
 	}
+
+	// 后台任务生命周期配置钳位
+	maxBG := conf.MaxBackgroundTasks
+	if maxBG <= 0 {
+		maxBG = 8
+	}
+	if maxBG > 32 {
+		maxBG = 32
+	}
+	timeout := conf.BackgroundTaskTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Minute
+	}
+
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+
 	rag := &Rag{
 		idxerAsync: buildIndexAsync,
 		rtrvr:      buildRetriever,
@@ -113,6 +151,14 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 		cm:         cm,
 		conf:       conf,
 		// grader:  grader.NewGrader(cm),
+
+		// 后台任务生命周期
+		bgRootCtx:     bgRootCtx,
+		bgRootCancel:  bgRootCancel,
+		bgSem:         make(chan struct{}, maxBG),
+		done:          make(chan struct{}),
+		taskTimeout:   timeout,
+		maxBackground: maxBG,
 	}
 	rag.syncIndexer = &prodSyncIndexer{runnable: buildIndex} // 发布前设置注入字段，运行期间只读
 	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}           // 发布前设置注入字段，运行期间只读
@@ -126,4 +172,29 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 // GetKnowledgeBaseList 获取知识库列表
 func (x *Rag) GetKnowledgeBaseList(ctx context.Context) (list []string, err error) {
 	return x.conf.GetKnowledgeBaseList(ctx)
+}
+
+// Shutdown 停止接收新请求并等待已准入任务完成。
+// ctx 超时后返回 ctx.Err()，但后台仍继续等待 bgWG，done 最终会 close。
+// 后续调用 Shutdown 仍能等待同一 done channel。
+func (x *Rag) Shutdown(ctx context.Context) error {
+	x.shutdownOnce.Do(func() {
+		x.mu.Lock()
+		x.closed = true
+		x.mu.Unlock()
+		x.bgRootCancel()
+		go func() {
+			x.bgWG.Wait()
+			close(x.done)
+		}()
+	})
+
+	select {
+	case <-x.done:
+		return nil
+	case <-ctx.Done():
+		// 超时后后台 goroutine 仍继续等待 bgWG.Wait()，done 最终会 close
+		// 本次返回 ctx.Err()，但下次调用 Shutdown 仍能等待同一 done
+		return ctx.Err()
+	}
 }

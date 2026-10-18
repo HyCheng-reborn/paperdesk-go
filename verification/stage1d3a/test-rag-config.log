@@ -1,0 +1,25 @@
+﻿# CMD: go test ./internal/logic/rag/... -count=1 -v -run "TestReadLifecycleConfig_"
+# GOFLAGS: (empty)
+# EXIT: 0
+# DATE: 2026-10-18 13:52:59
+
+=== RUN   TestReadLifecycleConfig_Missing
+--- PASS: TestReadLifecycleConfig_Missing (0.00s)
+=== RUN   TestReadLifecycleConfig_Explicit
+--- PASS: TestReadLifecycleConfig_Explicit (0.00s)
+=== RUN   TestReadLifecycleConfig_Boundary
+=== RUN   TestReadLifecycleConfig_Boundary/negative
+=== RUN   TestReadLifecycleConfig_Boundary/zero
+=== RUN   TestReadLifecycleConfig_Boundary/normal
+=== RUN   TestReadLifecycleConfig_Boundary/max
+=== RUN   TestReadLifecycleConfig_Boundary/over_max
+--- PASS: TestReadLifecycleConfig_Boundary (0.00s)
+    --- PASS: TestReadLifecycleConfig_Boundary/negative (0.00s)
+    --- PASS: TestReadLifecycleConfig_Boundary/zero (0.00s)
+    --- PASS: TestReadLifecycleConfig_Boundary/normal (0.00s)
+    --- PASS: TestReadLifecycleConfig_Boundary/max (0.00s)
+    --- PASS: TestReadLifecycleConfig_Boundary/over_max (0.00s)
+=== RUN   TestReadLifecycleConfig_ReadError
+--- PASS: TestReadLifecycleConfig_ReadError (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	0.174s

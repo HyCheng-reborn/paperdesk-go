@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gogf/gf/v2/container/gvar"
@@ -32,6 +33,10 @@ type RagConfig struct {
 	ChatModel       string
 	QAEnabled       *bool // nil = 默认启用
 	QAMaxConcurrent int   // 0 或负数 = 默认 4
+
+	// 后台任务生命周期配置
+	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>32 钳位
+	BackgroundTaskTimeout time.Duration // 默认 5min
 }
 
 // RagFactory 创建 *core.Rag 的工厂接口
@@ -57,15 +62,17 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	}
 
 	return core.New(ctx, &config.Config{
-		Client:          client,
-		QdrantClient:    qdrantClient,
-		IndexName:       cfg.VectorCfg.IndexName,
-		APIKey:          cfg.EmbeddingAPIKey,
-		BaseURL:         cfg.BaseURL,
-		EmbeddingModel:  cfg.EmbeddingModel,
-		ChatModel:       cfg.ChatModel,
-		QAEnabled:       cfg.QAEnabled,
-		QAMaxConcurrent: cfg.QAMaxConcurrent,
+		Client:                client,
+		QdrantClient:          qdrantClient,
+		IndexName:             cfg.VectorCfg.IndexName,
+		APIKey:                cfg.EmbeddingAPIKey,
+		BaseURL:               cfg.BaseURL,
+		EmbeddingModel:        cfg.EmbeddingModel,
+		ChatModel:             cfg.ChatModel,
+		QAEnabled:             cfg.QAEnabled,
+		QAMaxConcurrent:       cfg.QAMaxConcurrent,
+		MaxBackgroundTasks:    cfg.MaxBackgroundTasks,
+		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
 	})
 }
 
@@ -136,6 +143,29 @@ func readQAConfig(ctx context.Context, getter configGetter) (qaEnabled *bool, qa
 	return qaEnabled, qaMaxConcurrent, nil
 }
 
+// readLifecycleConfig 从 reader 读取后台任务生命周期配置。缺失字段使用默认值；读取失败返回 error。
+func readLifecycleConfig(ctx context.Context, getter configGetter) (maxBG int, timeout time.Duration, err error) {
+	// rag.maxBackgroundTasks: 缺失默认 0（由 New() 钳位到 8）
+	v, err := getter.Get(ctx, "rag.maxBackgroundTasks")
+	if err != nil {
+		return 0, 0, fmt.Errorf("read rag.maxBackgroundTasks: %w", err)
+	}
+	if !v.IsNil() {
+		maxBG = v.Int()
+	}
+
+	// rag.backgroundTaskTimeoutMinutes: 缺失默认 0（由 New() 钳位到 5min）
+	v, err = getter.Get(ctx, "rag.backgroundTaskTimeoutMinutes")
+	if err != nil {
+		return 0, 0, fmt.Errorf("read rag.backgroundTaskTimeoutMinutes: %w", err)
+	}
+	if !v.IsNil() {
+		timeout = time.Duration(v.Int()) * time.Minute
+	}
+
+	return maxBG, timeout, nil
+}
+
 // readRagConfig 从 GoFrame 配置读取完整 RAG 配置（生产入口）
 func readRagConfig() (RagConfig, error) {
 	ctx := gctx.New()
@@ -168,14 +198,22 @@ func readRagConfig() (RagConfig, error) {
 		return RagConfig{}, fmt.Errorf("read qa config: %w", err)
 	}
 
+	// 后台任务生命周期配置
+	maxBG, timeout, err := readLifecycleConfig(ctx, &defaultConfigGetter{})
+	if err != nil {
+		return RagConfig{}, fmt.Errorf("read lifecycle config: %w", err)
+	}
+
 	return RagConfig{
-		VectorCfg:       *vectorCfg,
-		EmbeddingAPIKey: apiKey,
-		BaseURL:         baseURL,
-		EmbeddingModel:  embeddingModel,
-		ChatModel:       chatModel,
-		QAEnabled:       qaEnabled,
-		QAMaxConcurrent: qaMaxConcurrent,
+		VectorCfg:             *vectorCfg,
+		EmbeddingAPIKey:       apiKey,
+		BaseURL:               baseURL,
+		EmbeddingModel:        embeddingModel,
+		ChatModel:             chatModel,
+		QAEnabled:             qaEnabled,
+		QAMaxConcurrent:       qaMaxConcurrent,
+		MaxBackgroundTasks:    maxBG,
+		BackgroundTaskTimeout: timeout,
 	}, nil
 }
 

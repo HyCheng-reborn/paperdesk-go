@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
@@ -588,6 +589,98 @@ func TestReadQAConfig_ReadError(t *testing.T) {
 	getter := &fakeConfigGetter{err: sentinel}
 
 	_, _, err := readQAConfig(ctx, getter)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected sentinel error, got: %v", err)
+	}
+}
+
+// --- 1D-3 readLifecycleConfig 测试 ---
+
+// TestReadLifecycleConfig_Missing 缺失配置使用默认值（0，由 New() 钳位）
+func TestReadLifecycleConfig_Missing(t *testing.T) {
+	ctx := context.Background()
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{}}
+
+	maxBG, timeout, err := readLifecycleConfig(ctx, getter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if maxBG != 0 {
+		t.Errorf("expected 0 maxBG for missing config, got %d", maxBG)
+	}
+	if timeout != 0 {
+		t.Errorf("expected 0 timeout for missing config, got %v", timeout)
+	}
+}
+
+// TestReadLifecycleConfig_Explicit 显式值
+func TestReadLifecycleConfig_Explicit(t *testing.T) {
+	ctx := context.Background()
+	getter := &fakeConfigGetter{data: map[string]*gvar.Var{
+		"rag.maxBackgroundTasks":           gvar.New(16),
+		"rag.backgroundTaskTimeoutMinutes": gvar.New(10),
+	}}
+
+	maxBG, timeout, err := readLifecycleConfig(ctx, getter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if maxBG != 16 {
+		t.Errorf("maxBG = %d, want 16", maxBG)
+	}
+	if timeout != 10*time.Minute {
+		t.Errorf("timeout = %v, want 10m", timeout)
+	}
+}
+
+// TestReadLifecycleConfig_Boundary 边界值
+func TestReadLifecycleConfig_Boundary(t *testing.T) {
+	tests := []struct {
+		name        string
+		maxBG       int
+		timeout     int
+		wantMaxBG   int
+		wantTimeout time.Duration
+	}{
+		{"negative", -1, -1, -1, -1 * time.Minute},
+		{"zero", 0, 0, 0, 0},
+		{"normal", 8, 5, 8, 5 * time.Minute},
+		{"max", 32, 60, 32, 60 * time.Minute},
+		{"over_max", 64, 120, 64, 120 * time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			getter := &fakeConfigGetter{data: map[string]*gvar.Var{
+				"rag.maxBackgroundTasks":           gvar.New(tt.maxBG),
+				"rag.backgroundTaskTimeoutMinutes": gvar.New(tt.timeout),
+			}}
+
+			maxBG, timeout, err := readLifecycleConfig(ctx, getter)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if maxBG != tt.wantMaxBG {
+				t.Errorf("maxBG = %d, want %d", maxBG, tt.wantMaxBG)
+			}
+			if timeout != tt.wantTimeout {
+				t.Errorf("timeout = %v, want %v", timeout, tt.wantTimeout)
+			}
+		})
+	}
+}
+
+// TestReadLifecycleConfig_ReadError 读取错误传播
+func TestReadLifecycleConfig_ReadError(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("config read failed")
+	getter := &fakeConfigGetter{err: sentinel}
+
+	_, _, err := readLifecycleConfig(ctx, getter)
 	if err == nil {
 		t.Fatal("expected error")
 	}

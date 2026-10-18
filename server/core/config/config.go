@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/qdrant/go-client/qdrant"
@@ -19,6 +21,10 @@ type Config struct {
 	// QA 生成配置
 	QAEnabled       *bool // nil = 默认启用（向后兼容）
 	QAMaxConcurrent int   // 0 或负数 = 默认 4；>32 钳位到 32
+
+	// 后台任务生命周期配置
+	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>32 钳位
+	BackgroundTaskTimeout time.Duration // 默认 5min
 }
 
 func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
@@ -38,11 +44,13 @@ func (x *Config) Copy() *Config {
 		QdrantClient: x.QdrantClient,
 		IndexName:    x.IndexName,
 		// embedding 时使用
-		APIKey:          x.APIKey,
-		BaseURL:         x.BaseURL,
-		EmbeddingModel:  x.EmbeddingModel,
-		ChatModel:       x.ChatModel,
-		QAEnabled:       x.QAEnabled,
-		QAMaxConcurrent: x.QAMaxConcurrent,
+		APIKey:                x.APIKey,
+		BaseURL:               x.BaseURL,
+		EmbeddingModel:        x.EmbeddingModel,
+		ChatModel:             x.ChatModel,
+		QAEnabled:             x.QAEnabled,
+		QAMaxConcurrent:       x.QAMaxConcurrent,
+		MaxBackgroundTasks:    x.MaxBackgroundTasks,
+		BackgroundTaskTimeout: x.BackgroundTaskTimeout,
 	}
 }

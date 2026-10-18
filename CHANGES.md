@@ -1,5 +1,25 @@
 # 变更记录
 
+### Stage 1D-3-A 实施完成（2026-10-18）
+
+- **类型**：业务代码实施
+- **分支**：review/stage1a
+- **基线**：17d7654ecc0656dcc638e92791fdca61c743cf21
+- **内容**：
+  - `server/core/rag.go`：新增 ErrShuttingDown/ErrBackgroundFull sentinel errors；Rag struct 新增 mu/closed/bgWG/bgSem/bgRootCtx/bgRootCancel/shutdownOnce/done/taskTimeout/maxBackground 字段；asyncWait 签名改为 func(ctx)；New() 初始化生命周期配置；新增 Shutdown() 方法
+  - `server/core/indexer.go`：asyncIndexer 接口新增 ctx 参数；prodAsyncIndexer 使用传入 ctx（删除 gctx.New()）；Index() 重写为 mu 锁保护准入→bgSem 非阻塞获取→bgWG.Add 登记→defer 兜底释放→同步索引→所有权转移给后台 goroutine→bgCtx 从 bgRootCtx 派生 timeout
+  - `server/core/config/config.go`：Config struct 新增 MaxBackgroundTasks/BackgroundTaskTimeout 字段；Copy() 同步复制
+  - `server/internal/logic/rag/retriever.go`：RagConfig 新增字段；新增 readLifecycleConfig 函数；readRagConfig 调用级联；defaultRagFactory.Create 传递
+  - `server/manifest/config/config_demo.yaml`、`config_qd_demo.yaml`：新增 rag.maxBackgroundTasks 和 rag.backgroundTaskTimeoutMinutes 示例
+  - `server/core/indexer_test.go`：fake 签名同步；newIndexerTestRag 初始化生命周期字段；所有 9 个现有测试 asyncWait 签名更新；新增 10 个 A 组测试
+  - `server/internal/logic/rag/retriever_test.go`：新增 4 个 readLifecycleConfig 配置测试
+- **验证**：gofmt/build/vet exit 0；core 19 Index 测试 + rag 4 配置测试通过；core+rag race 通过；关键协调测试压测 -race -count=10 通过；全项目 go test -p 1 ./... 通过
+- **范围**：仅 1D-3-A（准入、所有权转移、Shutdown 核心），不实施 B（统一 markFailed/重试）和 C（cmd 接线）
+- **已知边界**：保留历史 race、A-4 及驱动取消未验证边界；B/C 待实施
+- **状态**：Stage 1D-3-A 实施完成，待独立复核
+
+---
+
 ### Stage 1D-3 计划定点修订（2026-10-18，仅文档）
 
 - **类型**：计划文档修订（`design/stage1d-plan.md`）；不开始业务编码，不实施 1D-3。基线 `80bb105d3de32cf7b924285f04144d10f508cb35`。

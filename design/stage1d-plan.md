@@ -476,7 +476,7 @@ err := testRag.asyncIndexer.indexAsyncByDocsID(ctx, "kb1", 42, []string{"id1","i
 
 ## 7. 批次 1D-2：F08 QA 有限并发和失败状态
 
-> **状态**：定点修正完成，待独立复核（2026-10-17）——基线 `575949abfde25ff0e5ffc68ed0211b92430f54a6`。本轮只修正三项：（一）提取包内共享 `buildAsyncGraph` 作为唯一 Graph 装配（QA 节点/分支/并发上限/边/Compile 仅一处并传播构图错误），`BuildIndexerAsync` 与 graph_test 共用，测试注入实现 `indexer.Indexer` 的 fake（删除复制的 buildTestGraph）；（二）`documentToFields` 为唯一完整转换 helper（内部序列化 getExtData、Extra 写新 map 不写回输入、失败返回可追踪错误），ES 回调仅委派；（三）`qaModelCache` 实例级锁/缓存，`GetQAModel` 委派 `qaDefaultCache`，删除包级 qaModel/qaModelMu/qaModelReady，测试用独立实例验证重试/缓存/并发只建一次。验证：build/vet/gofmt exit 0，indexer+common 64 pass，`go test -p 1 ./...` 13 包 ok；indexer/common 的 -race 因 Windows `0xc0000139` 无法启动（运行异常、race 未完成、根因待确认）。保留 A-4 检索行为待验证与历史 race 未补证边界；不实施 1D-3。
+> **状态**：已通过独立复核（基线 `d7618e5a092f0b29e6441e98e32d86075b199172`，源码及提交日志复核，未独立重跑测试）——基线 `575949abfde25ff0e5ffc68ed0211b92430f54a6`。本轮只修正三项：（一）提取包内共享 `buildAsyncGraph` 作为唯一 Graph 装配（QA 节点/分支/并发上限/边/Compile 仅一处并传播构图错误），`BuildIndexerAsync` 与 graph_test 共用，测试注入实现 `indexer.Indexer` 的 fake（删除复制的 buildTestGraph）；（二）`documentToFields` 为唯一完整转换 helper（内部序列化 getExtData、Extra 写新 map 不写回输入、失败返回可追踪错误），ES 回调仅委派；（三）`qaModelCache` 实例级锁/缓存，`GetQAModel` 委派 `qaDefaultCache`，删除包级 qaModel/qaModelMu/qaModelReady，测试用独立实例验证重试/缓存/并发只建一次。验证：build/vet/gofmt exit 0，indexer+common 64 pass，`go test -p 1 ./...` 13 包 ok；indexer/common 的 -race 因 Windows `0xc0000139` 无法启动（运行异常、race 未完成、根因待确认）。保留 A-4 检索行为待验证与历史 race 未补证边界；不实施 1D-3。
 
 ### 7.1 修改文件清单
 
@@ -987,6 +987,141 @@ go func() {
 | slot 释放者 | goroutine 自身（defer） |
 | Done 调用者 | goroutine 自身（defer） |
 | Failed 写入者 | goroutine 自身（使用 cleanupCtx） |
+
+### 8.11 清理顺序
+
+**约束**：先停止并收敛后台任务，再关闭任务依赖的资源。
+
+| 顺序 | 资源 | 操作 | 说明 |
+|---|---|---|---|
+| 1 | 后台任务 | `Rag.Shutdown(ctx)` | 停止准入 + 取消 bgRootCtx + 等待 bgWG |
+| 2 | 逆序 Cleanup | `steps[i].Cleanup()` 逆序执行 | 已有 steps 链逆序关闭 |
+| 3 | MySQL | `dao.Close()` | 关闭数据库连接 |
+| 4 | ES client | 随进程退出释放 | 当前无显式 Close（已知限制） |
+| 5 | Qdrant client | 随进程退出释放 | 当前无显式 Close（已知限制） |
+
+**说明**：ES/Qdrant client 当前无显式 Close 接口，随进程退出自然释放。Stage 4 可引入完整 graceful shutdown。
+
+### 8.12 清理 Context
+
+markFailed 使用独立且有期限的 `cleanupCtx`，不受 bgCtx 取消影响：
+
+```go
+cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cleanupCancel()
+x.markFailed(cleanupCtx, documentsID, localErr)
+```
+
+- **超时时长**：5 秒（足够单次 DB 写入）
+- **来源**：`context.Background()` 派生，独立于 bgRootCtx 和请求 ctx
+- **错误处理**：cleanupCtx 内写入失败仅记录日志，不重试
+- **保留原始错误信息**：`markFailed` 接收的 `err` 参数包含原始错误链（panic/超时/业务错误），日志中记录完整信息
+
+### 8.13 分批实施计划
+
+基于研究结论：所有 1D-3 字段均不存在，需全新引入；asyncIndexer 接口签名变更是确定的；cmd.go 当前无清理逻辑。分三批实施：
+
+#### 批次 A：基础设施变更
+
+**修改文件**：
+
+| 文件 | 变更 |
+|---|---|
+| `server/core/rag.go` | Rag struct 新增 bgRootCtx/bgRootCancel/bgWG/bgSem/mu/closed/shutdownOnce/done/taskTimeout/markFailed 字段；`New()` 中创建 bgRootCtx = `context.WithCancel(context.Background())`；初始化 bgSem = `make(chan struct{}, maxBgTasks)`；done = `make(chan struct{})`；taskTimeout 默认 5min；markFailed 默认实现 |
+| `server/core/indexer.go` | asyncIndexer 接口签名变更：新增 ctx 参数；asyncWait 签名变更：`func()` → `func(ctx context.Context)` |
+| `server/core/indexer.go` | prodAsyncIndexer 修改：使用传入 ctx 替代 `gctx.New()` |
+| `server/core/rag.go` | New() 中 asyncWait 生产实现改为 `select { case <-time.After(time.Second); case <-ctx.Done() }` |
+| `server/core/indexer_test.go` | 8 处 asyncWait 注入同步修改签名 |
+
+**依赖**：无前置依赖（在 1D-1/1D-2 基础上）
+
+**验收条件**：
+- `go build ./...` exit 0
+- 已有测试全部通过（签名同步更新）
+- 新增 Shutdown 基本测试（幂等、拒绝新任务）
+- `go test -race ./core -count=1` exit 0
+
+#### 批次 B：核心逻辑实现
+
+**修改文件**：
+
+| 文件 | 变更 |
+|---|---|
+| `server/core/indexer.go` | Index() goroutine 改造：bgCtx 从 bgRootCtx 派生 `context.WithTimeout`；准入检查（mu 保护 closed + bgWG.Add + bgSem）；goroutine 体 defer Done/释放 sem/defer recover+markFailed；markFailed 使用 cleanupCtx |
+| `server/core/indexer.go` | 递归重试 Sleep 改为 `select { case <-ctx.Done(): return ctx.Err(); case <-time.After(time.Second) }` |
+| `server/core/indexer.go` | 满载时同步返回 ids+nil，不启动 goroutine，记录 WARN 日志 |
+
+**依赖**：批次 A（基础设施字段必须已存在）
+
+**验收条件**：
+- `go build ./...` exit 0
+- 新增测试全部通过：BackgroundFailure_MarksFailed、BackgroundPanic_MarksFailed、ContextTimeout_MarksFailed、SemaphoreFull_Rejects、RetryRespectsCtx、CleanupCtx_Independent、Success_NoMarkFailed、AsyncWaitReceivesCtx
+- `go test -race ./core -count=1` exit 0
+- `go test -race ./core -count=10 -run TestIndex_` 无 DATA RACE
+
+#### 批次 C：收尾与集成
+
+**修改文件**：
+
+| 文件 | 变更 |
+|---|---|
+| `server/internal/cmd/cmd.go` | s.Run() 返回后追加：创建 shutdownCtx → `ragSvr.Shutdown(shutdownCtx)` → 逆序 `steps[i].Cleanup()` |
+| `server/core/indexer_test.go` | 新增 Shutdown 集成测试（WaitsBackground、Timeout、Idempotent、RejectsNew） |
+| `server/internal/cmd/cmd_test.go`（可选） | 清理流程集成测试 |
+
+**依赖**：批次 A+B（Shutdown 方法和字段必须已存在）
+
+**验收条件**：
+- `go build ./...` exit 0
+- `go vet ./...` exit 0
+- `go test -p 1 ./... -count=1` exit 0
+- `go test -race ./core -count=1` exit 0
+- `go test -race ./core -count=10 -run TestIndex_` 无 DATA RACE
+- 离线测试不触发真实连接
+- 全量验证通过
+
+#### 协调回滚边界
+
+- 批次 A 引入签名变更，回滚需同步恢复 asyncIndexer/asyncWait 接口及所有 fake
+- 批次 B 引入 goroutine 体改造，回滚独立于 A（但 A 回滚必须同步回滚 B）
+- 批次 C 引入 cmd.go 接线，回滚独立
+- 回滚链：C 可独立回滚 → B 回滚需同步 A → A 回滚需同步 B
+
+### 8.14 MaxBackgroundTasks 配置来源与已知限制
+
+#### MaxBackgroundTasks 配置来源（待决策）
+
+**方案**：与 QAMaxConcurrent 同模式，从 Config 结构体读取。
+
+**配置路径**：
+1. `core/config/config.go` — Config struct 新增 `MaxBackgroundTasks int`
+2. `internal/logic/rag/retriever.go` — RagConfig 新增对应字段 + `defaultRagFactory.Create` 传递
+3. `manifest/config/config_demo.yaml` + `config_qd_demo.yaml` — 示例配置
+4. `New()` 中读取，缺失默认 8
+
+**待决策**：此方案需确认。若采用硬编码默认值 + 后续配置化，可减少初始变更范围。
+
+#### 已知限制
+
+1. **不新增持久化任务系统**：归属 Stage 4，本批不引入
+2. **现有固定等待处理**：重试仍为 1 秒固定延迟，但改为可取消的 select（`select { case <-ctx.Done(); case <-time.After(time.Second) }`）。不引入指数退避
+3. **不扩大至 Stage 4**：不实现任务恢复/重跑机制
+4. **不用不可等待退出的 goroutine 包装阻塞操作**：每个 goroutine 必须通过 bgWG 追踪，确保 Shutdown 可等待完成
+5. **Qdrant 异步 indexer 路径**：保留现状，1D-3 不涉及
+6. **满载时文档状态**：停留在 Indexing（因同步写入已成功），不标 Failed（同步路径成功），不标 Active（IndexAsync 未执行）
+7. **ES/Qdrant client 无显式 Close**：随进程退出释放，已知限制
+
+### 8.15 未核实框架语义
+
+以下项**未按假设开始实现**，如实列出：
+
+| # | 未核实项 | 说明 | 影响 |
+|---|---|---|---|
+| 1 | GoFrame graceful shutdown 超时配置 | `s.Run()` 已验证正常 return，但具体超时配置和信号处理顺序未验证 | cmd.go 清理代码执行时机 |
+| 2 | DB driver 对 context 取消的响应 | `UpdateDocumentsStatus(cleanupCtx, ...)` 中 cleanupCtx 超时后 driver 是否能中断正在执行的 SQL 未验证 | markFailed 在 cleanupCtx 超时后可能失败（仅记日志） |
+| 3 | ES client 对 context 取消的响应 | indexAsyncByDocsID 中 bgCtx 取消后 ES client 行为未验证 | 后台任务可能在 bgCtx 取消后仍阻塞于 ES 调用 |
+| 4 | chat-history SaveMessage 无 context | 第三方包不支持 context timeout，保持现状 | History 保存无法施加有界 timeout |
+| 5 | Windows race 检测 | core/indexer、core/common 的 race 因 `0xc0000139` 未完成，根因待确认 | race 证据不完整 |
 
 ---
 

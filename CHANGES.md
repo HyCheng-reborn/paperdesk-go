@@ -1,5 +1,15 @@
 # 变更记录
 
+### Stage 1D-3 验收通过 + Stage 1 收尾清点（2026-10-18，仅文档）
+
+- **类型**：验收记录与 Stage 1 退出条件清点；不修改业务代码、不重跑测试、不启动 Stage 2。
+- **被验收完整 SHA**：`71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`（已用 Git 对象核实=当前 HEAD）；审查范围 `3e24a533..71c4c81`，1D-3 累计起点 `17d7654`。
+- **独立复核**：本地 Codex 在干净工作树独立重跑（普通/race/关键用例 -race -count=10/串行全量/build/vet）均 EXIT 0，本轮未出现 `0xc0000139`；另用真实 `prodAsyncIndexer`→真实 `indexAsyncByDocsID`→知识层 `SaveChunksDataWithDeps` 的生产适配器三场景各十轮 race 补证（`production-adapter.log` EXIT 0）。报告 `verification/independent-1d3-71c4c81/REPORT.md`。
+- **结论**：1D-3 有明确边界可通过、无剩余阻塞；1D-3 A/B/C 与 1D 汇总状态改为已通过。明确区分“本地 Codex 实际执行”与“实现者自测”；r4 日志未进验收提交但已有独立补证，不改写历史、不再开修复轮次。
+- **Stage 1 退出条件**：代码批次全部通过；启动/设施验证、A-4 kNN、历史 race、SQL driver 取消、持久化恢复、History/MCP 边界按原方案保留归后续阶段。**不宣布 Stage 1 整体完成、不启动 Stage 2**（详见 PROJECT_PROGRESS.md「Stage 1 退出条件收尾清点」）。
+
+---
+
 ### Stage 1D-3 测试等待机制统一为 Shutdown（2026-10-18）
 
 - **类型**：测试重构（基于测试证据阻塞修复的进一步优化）

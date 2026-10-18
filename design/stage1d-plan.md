@@ -696,7 +696,7 @@ return fields, nil
 
 ## 8. 批次 1D-3：F07 goroutine 入库止损与生命周期
 
-> **状态**：测试等待机制统一为 Shutdown（2026-10-18），待再次复核
+> **状态**：已通过本地 Codex 独立复核（被验收完整 SHA `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`，2026-10-18，干净工作树独立重跑普通/race/关键用例十轮/串行全量/build/vet，另有真实生产适配器三场景十轮 race 补证；有明确边界可通过、未发现剩余阻塞）。保留边界：A-4 缺 QA 向量 kNN、indexer/common/retriever/rerank 历史 race（0xc0000139）、SQL driver 中断执行中 SQL、Stage 4 持久化恢复、History context/完整 MCP 生命周期仍未验证。报告：`verification/independent-1d3-71c4c81/REPORT.md`。
 
 ### 8.1 修改文件清单
 

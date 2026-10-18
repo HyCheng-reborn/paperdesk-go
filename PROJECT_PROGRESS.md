@@ -3,9 +3,9 @@
 ## 当前状态
 
 **日期**：2026-10-18
-**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1、1D-2 均已通过复核（1D-2 基线 d7618e5），Stage 1D-3 A+B+C 全部实施完成，独立复核阻塞修复完成，独立增量复核阻塞修复完成，测试证据阻塞修复完成，测试等待机制统一为 Shutdown，待再次复核，Stage 1 整体尚未完成
-**复核方式**：源码及提交日志复核，复核方未独立重跑测试
-**验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`
+**阶段**：Stage 1-Pre、1A、1B（含 1B-1/1B-2/1B-3）、1C（含 1C-1/1C-2）、1D-1、1D-2 均已通过复核（1D-2 基线 d7618e5）；**Stage 1D-3 已通过本地 Codex 独立复核（被验收完整 SHA 71c4c81cb6a3eae060365e1f59f6dfe79aed83ce，有明确边界可通过、未发现剩余阻塞）**。代码批次全部通过，Stage 1 整体尚未正式宣布完成（退出条件收尾清点见下）
+**复核方式**：1-Pre/1A/1B/1C/1D-1/1D-2 为源码及提交日志复核，复核方未独立重跑测试；**1D-3 由本地 Codex 在干净工作树独立重跑**（普通/race/关键用例十轮/串行全量/build/vet，见 1D-3 验收记录）
+**验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；**Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`**（本轮审查范围 `3e24a533f99aaa8578b848ae550dfd2e10292723..71c4c81`）
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
 
 ## Stage 0：事实基线与只读核对
@@ -28,7 +28,7 @@
 
 ## Stage 1：初始化副作用清理 + 并发安全修复
 
-**状态**：1-Pre/1A/1B/1C/1D-1/1D-2 已通过复核，1D-3 A+B+C 全部实施完成，独立复核阻塞修复完成，独立增量复核阻塞修复完成，测试等待机制统一为 Shutdown，待再次复核
+**状态**：1-Pre/1A/1B/1C/1D-1/1D-2/1D-3 代码批次均已通过复核（1D-3 经本地 Codex 干净树独立重跑，基线 71c4c81）；Stage 1 退出条件尚含启动/设施验证及后续阶段边界未闭合，未宣布整体完成
 
 ### 批次计划
 
@@ -40,7 +40,42 @@
 | 1B-2 | F01 Retriever 并发安全 | F01 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1B-3 | F02 Indexer 异步闭包 | F02 | 1A | **✅ 已通过独立源码与提交日志复核** |
 | 1C | Chat context + 流式 EOF + 错误语义 | F03/F04 | 1A | **1C-1 ✅ 已通过；1C-2 ✅ 已通过源码及提交日志复核（未独立重跑测试）** |
-| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 ✅ 已通过独立复核（基线 d7618e5）；1D-3-A+B+C ✅ 全部实施完成；独立复核阻塞修复完成；独立增量复核阻塞修复完成；测试证据阻塞修复完成；测试等待机制统一为 Shutdown，待再次复核** |
+| 1D | Chunk 写入错误传播 + QA 并发 + goroutine 止损 | F07/F08/F09 | 1A, 1B | **1D-1 ✅ 已通过独立复核（基线 6446427）；1D-2 ✅ 已通过独立复核（基线 d7618e5）；1D-3-A+B+C ✅ 已通过本地 Codex 独立复核（完整 SHA 71c4c81，干净树独立重跑，有明确边界可通过、无剩余阻塞）** |
+
+### Stage 1D-3 验收记录（本地 Codex 独立复核，2026-10-18）
+
+- **被验收完整 SHA**：`71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`；本轮审查范围 `3e24a533f99aaa8578b848ae550dfd2e10292723..71c4c81`（1D-3 累计起点 `17d7654`）。已用 Git 对象核实该完整 SHA（= 当前 HEAD）。
+- **独立报告**：`verification/independent-1d3-71c4c81/REPORT.md`。结论：1D-3 有明确边界可通过，未发现剩余阻塞；可验收 1D-3，**不代表整个 Stage 1 完成**。
+- **本地 Codex 干净树独立重跑**（`C:/Zhy/code/go-rag-review-1d3/server`，Go 1.27.1 windows/amd64，CGO=1/gcc，GOPROXY=off、GOSUMDB=off、无 online 标签、无真实 DB/ES/Qdrant/模型），全 EXIT 0（日志 `target-1..7.log`）：受影响包普通测试、同组 `-race`、关键用例 `-race -count=10 -v`（正则 `^(TestIndex_Background(Chunks.*|CleanupBeforeDone)|TestSaveChunks_IndexingOnlyUpdater_SkipsFailed|TestShutdownCoordinator_.*)$`，命中 12 项×10=120 RUN，无 no tests to run）、`-p 1 ./...` 串行全量、`go build ./...`、`go vet ./...`。本轮未出现 `0xc0000139`。
+- **真实生产适配器补证**（`production-adapter.log` EXIT 0）：`TestReviewProductionAdapterChunksLifecycle` 用真实 `prodAsyncIndexer`→真实 `indexAsyncByDocsID`→知识层 `SaveChunksDataWithDeps`（共享 `saveChunks`+`indexingOnly`），三场景各十轮 race：chunk insert 失败→Failed 恰好一次/无 Active/QA 未执行/原始 sentinel 与 docID 可识别/清理 ctx 未取消；chunks 成功→Indexing→Active 一次无 Failed；Indexing 写失败→原始 sentinel 保留、Failed 一次。结果归属“目标＋独立补充测试”，不计入目标自带次数；不测真实 DAO/SQL driver/真实模型。
+- **两前次阻塞闭合**：①依赖不完整（chunks.go `ChunkStore`/`DocStatusUpdater`/`SaveChunksDataWithDeps`，与生产 `SaveChunksDataIndexingOnly` 同内核，公开签名不变）；②完成边界与 cleanup 假通过（组合测试先等内层再等生产 Shutdown，覆盖 markFailed/容量释放/bgWG.Done）。
+- **r4 归属**：`verification/stage1d3-r4/` 在验收提交中未跟踪，为原工作区未跟踪；已有独立补证，不为其再开修复或重复测试轮次，不改写历史日志；`server/verification/stage1d3a` 错位历史日志本轮纳入但不当 r4 新验证。
+- **保留边界（未验证，不改写为通过）**：A-4 缺 QA 向量 kNN；`core/indexer`/`core/common`/`core/retriever`/`core/rerank` 历史 race 补证；SQL driver 中断执行中 SQL；Stage 4 持久化恢复；History context / 完整 MCP 生命周期。
+
+### Stage 1 退出条件收尾清点（本轮不宣布整体完成）
+
+> 要求按总方案（`design/go-rag_PaperDesk_改进方案_v1.1.2.md`）与 `design/stage1-plan.md`：Stage 1 = 修复 init 副作用、优先 nil 访问、并发安全与错误处理，形成离线可测基础；不实现持久化任务引擎/重启恢复，不在线验证。
+
+| 要求 | 当前状态 | 证据/验收基线 | 剩余动作 |
+|---|---|---|---|
+| init 副作用清理 + 离线可测基础 | ✅ 已通过 | 1A `3b8f7a0` | 无 |
+| F06 nil 访问 | ✅ 已完成 | 1-Pre | 无 |
+| F01 Retriever 并发 | ✅ 已通过 | 1B-2 | 无 |
+| F02 Indexer 异步闭包 | ✅ 已通过 | 1B-3 | 无 |
+| F05 Rerank ctx/校验 | ✅ 代码批次通过 | 1B-1 | 在线端到端校验→Stage 2 |
+| F03/F04 SSE+chat context | ✅ 代码批次通过 | 1C-1/1C-2（1C-2 `26e55ee`）| 持久化消息状态/来源→Stage 5 |
+| F09 chunk 错误传播/完整性 | ✅ 已通过 | 1D-1（`6446427`）| 部分写回滚/恢复→Stage 4 |
+| F08 QA 有限并发 | ✅ 已通过 | 1D-2（`d7618e5`）| 费用上限/降级→Stage 2/4 |
+| F07 goroutine 止损/生命周期 | ✅ 已通过（独立重跑）| 1D-3（`71c4c81`）| 持久化恢复/重跑→Stage 3/4 |
+| 启动/设施验证（ES 版本运行、MySQL SKIP LOCKED、Eino 运行时兼容）| ⬜ 未执行（总方案显式延后）| stage0 V03/V04/V05 | 归 Stage 2/4 启动与在线验证 |
+| A-4 缺 QA 向量 kNN 行为 | ⬜ 未验证 | 1D-3 报告/边界 | 待 ES/在线验证，不扩大 Stage 1 |
+| 历史 race（indexer/common/retriever/rerank，0xc0000139）| ⚠️ 运行异常/未补证 | 各 *-race/*-fix 日志 | 根因待确认，不作通过 |
+| SQL driver 中断执行中 SQL | ⬜ 未验证 | 1D-3 报告 | cleanup 仅调用预算，归后续 |
+| History SaveMessage 无 context / 完整 MCP 生命周期 | ⬜ 未验证 | 边界记录 | Stage 5 |
+| 完整持久化任务引擎/重启恢复 | ⬜ 不属 Stage 1 | stage1-plan 未验证项 | Stage 4 |
+| 文档状态一致性 | ✅ 本轮已同步 | 本提交（1D-3 通过、Stage 1 未整体完成）| 无 |
+
+**建议与最小剩余动作**：Stage 1 代码批次（1-Pre/1A/1B/1C/1D-1/1D-2/1D-3）均已通过独立复核（1D-3 含干净树独立重跑），具备进入 Stage 1 整体验收评审的代码侧条件；总方案将运行/在线/持久化验证明确延后至 Stage 2/3/4/5，Stage 1 范围内“离线可测基础 + 并发/错误/生命周期修复”已全部落地并通过。最小剩余动作（不擅自扩大 Stage 1）：①正式关闭 Stage 1 前仅确认上述延后项归属不变；②将 r4/错位日志与独立复核原始证据归档到验收提交或明确标注（非正确性阻塞）；③保留 A-4/历史 race/driver 取消为“未验证”，不改写。本轮不启动 Stage 2、不宣布 Stage 1 整体完成。
 
 ### Stage 1-Pre 完成记录
 

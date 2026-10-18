@@ -1,5 +1,29 @@
 # 变更记录
 
+### Stage 2 方案修订（R1/R2 预算规则）（2026-10-19，仅文档）
+
+- **类型**：方案修订；不改业务代码、不启动服务、不调用模型 API、不操作 Codex 审查 worktree。
+- **基线**：`0d0bab9`（`review/stage1a` 分支）。
+- **修订文件**：`design/stage2-plan.md`、`PROJECT_PROGRESS.md`、`CHANGES.md`。
+- **R1 尝试数发送前预留 + 三层 owner 结构**：
+  - §4.1：总发送尝试计数改为“发送前原子预留，发送后单调消耗（不退款）”；明确 reserved → committed 状态机
+  - §4.3：引入三层 owner 结构（`ProcessBudget`/`RequestBudget`-`TaskBudget`/`AttemptLease`）；明确 RequestBudget 覆盖整个 Retrieve/Index；ChatStream 各阶段共享同一 request owner；Index 同步+后台通过显式移交而非 ctx 继承
+  - §4.4：发送前在两个作用域整体原子预留；任一不足返回 ErrBudgetExhausted 不进入 sender；reserved → committed 状态机
+  - §4.9：后台 goroutine 通过 `TaskBudget.TransferToBackground()` 接收 task owner 引用；保留 Stage 1 后台生命周期语义
+  - §7.1 budget.go 草案：替换为 ProcessBudget/RequestBudget/TaskBudget/AttemptLease/TokenEstimate 完整签名
+- **R2 并发槽释放时点**：
+  - §4.1：在途并发 slot 释放改为幂等 finalize（stream 四种路径共用；非流式 body 消费完成并关闭）；删除“EOF + Close”的逻辑与表述
+  - §4.5：流中断/usage 缺失/网络失败均采用幂等 finalize 释放 slot；slot 与 token 结算解耦
+  - §4.6：明确 Finish/Abort/Close 分别对 slot 与 token 结算做幂等保护；不能保留 token 就连 slot 一并泄漏
+  - §4.7：替换为四路径幂等 finalize + 非流式 body 消费完成并关闭；补充幂等 finalize 语义说明
+  - §3.7：补充 Provider 层包装 reader/body 必须为透明包装，不与消费者抢读，不新增裸 goroutine
+- **§9 验收表**：2A 新增 9 项预算规则相关验收条件（MaxRequests=1 并发/请求足够进程不足/重试不刷新/网络失败不返还/重复结算不退款/阻塞 body 不越并发上限/各路径释放 slot/Close-EOF 并发只 finalize 一次/unknown usage slot 释放）
+- **§10.2 设计决定**：新增 5 项（发送前原子预留/三层 owner/显式移交/幂等 finalize/slot-token 解耦）
+- **PROJECT_PROGRESS.md**：Stage 2 状态改为“方案修订完成（R1/R2 预算规则），待再次复核”
+- **状态**：本轮不宣布方案已通过、不开始 2A 编码、不修改 Stage 1 已验收代码
+
+---
+
 ### Stage 2 方案修订（独立复核 A1-A3）（2026-10-19，仅文档）
 
 - **类型**：方案修订；不改业务代码、不启动服务、不调用模型 API、不操作 Codex 独立审查 worktree。

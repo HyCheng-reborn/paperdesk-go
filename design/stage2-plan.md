@@ -1,9 +1,9 @@
 # Stage 2 细化实施方案
 
-> **状态**：方案修订完成（独立复核 A1-A3），待再次复核
+> **状态**：方案修订完成（R1/R2 预算规则），待再次复核
 > **日期**：2026-10-19
-> **基线**：`3bde7cd`（`review/stage1a` 分支）
-> **约束**：本轮只读源码、核实依赖、编写方案；不改业务代码；不启动服务；不调用模型 API；不操作 Codex 独立审查 worktree
+> **基线**：`0d0bab9`（`review/stage1a` 分支）
+> **约束**：本轮只修订方案文档，不改业务代码；不启动服务；不调用模型 API；不操作 Codex 独立审查 worktree
 
 ---
 
@@ -207,6 +207,7 @@ type Capabilities struct {
 
 - **已确认**：Stage 1C 已处理流式 EOF/错误语义（`stream.go`）、成功路径关闭前台分支（`chat.go:streamCoordinator`）。
 - **设计决定**：Stage 2 不改变流式 reader 的所有权规则；Provider 层的流式实现必须将 `model.BaseChatModel.Stream()` 返回的 reader 资源所有权传递给调用方，Provider 层不消费 reader。
+- **设计决定**：Provider 层若包装 reader/body 用于观察终结（如 finalize slot），必须为透明包装，不与消费者抢读，不新增裸 goroutine 包装阻塞调用；不改变 Stage 1 SSE EOF/错误和流关闭规则。
 
 ---
 
@@ -218,10 +219,16 @@ type Capabilities struct {
 
 | 计数器 | 说明 | 消耗时机 | 释放时机 |
 |---|---|---|---|
-| **总发送尝试计数** | 每次实际 HTTP 发送后单调消耗，不退款 | 发送后 | 不释放（单调递减） |
-| **在途并发 slot** | 请求开始时占，响应结束/EOF/Close 时释放 | 请求开始时占 slot | stream: body EOF + `stream.Close()` 后释放；非流式: `HTTPClient.Do` 返回后释放 |
+| **总发送尝试计数** | **发送前**原子预留，发送后单调消耗（不退款）；reserved → committed 状态机 | 发送前预留（reserved）→ 进入实际发送边界前原子承诺（committed） | 不释放（单调递减） |
+| **在途并发 slot** | 请求开始时占，幂等 finalize 释放 | 请求开始时占 slot | stream: 四种路径（EOF、终止性读错、取消后关闭、提前 Close）共用**幂等 finalize**，任一路径 finalize 一次即释放；非流式: body 消费/解析完成并关闭（或读错/取消后关闭） |
 | **token 预留账本** | 输入+输出预留 token 额度 | 发送前预留 | 按 usage 结算后释放差额；usage 缺失时保守保留预留 |
 | **实际结算账本** | 按 usage 实际值结算 | 响应完成后 | 单调消耗，不释放 |
+
+**reserved → committed 状态机**：
+- `reserved`：发送前原子预留成功，尚未进入实际 HTTP 发送
+- `committed`：进入实际发送边界前原子承诺，此后不可撤销
+- 尚未 committed 的 reserved 可因预算不足回退（不消耗计数）
+- 已 committed 的尝试无论结果如何均单调消耗
 
 ### 4.2 RequestBudget 最小可实施语义
 
@@ -238,48 +245,76 @@ type RequestBudget struct {
 - **设计决定**：RequestBudget 是“每次 HTTP 尝试前的原子预留”机制，不是精确费用上限。
 - **不将 token 估算声称为精确费用上限**：输入 token 基于文本长度的粗略估算（字符数/系数），实际消耗以 Provider 返回的 usage 为准。**token 粗估明确标注为估算，不冒充精确金额。**
 
-### 4.3 预算作用域
+### 4.3 预算作用域（三层 owner 结构）
 
-| 作用域 | 说明 | 实现 |
-|---|---|---|
-| **请求级** | 单次 `Retrieve()` 或 `Index()` 调用内的预算 | context 携带 `*RequestBudget` |
-| **进程级** | 整个进程的全局预算上限 | `ProcessBudget` 由进程 owner 持有，Registry 构造时绑定 |
+> **设计决定**：引入三层 owner 结构，明确每层的生命周期和职责。
 
-- **进程预算由进程 owner 持有**：不能通过新建 Registry 重置全局额度。
+| 层级 | 结构 | Owner | 生命周期 | 说明 |
+|---|---|---|---|---|
+| **进程级** | `ProcessBudget` | 进程 owner | 进程启动→关闭 | Registry 构造时绑定，不可重置；不能通过新建 Registry 重置全局额度 |
+| **请求/任务级** | `RequestBudget` / `TaskBudget` | 请求或任务 | 单次 Retrieve/Index/ChatStream 调用→完成 | 独立结构，绑定 ProcessBudget；累计上限受 ProcessBudget 约束 |
+| **尝试级** | `AttemptLease` | 单次 HTTP 尝试 | Reserve→Commit→Finish/Abort | 每次 HTTP 尝试的短期句柄；持有 slot + token 预留引用 |
+
+**请求级 owner 覆盖规则**：
+- `RequestBudget` 覆盖整个 `Retrieve()`/`Index()` 调用，在 controller/indexer 入口构造一次
+- ChatStream 各阶段（Retrieve + Rewrite + Rerank + 最终 Generate）共享同一 request owner
+- Index 同步与后台共享同一 task owner（`TaskBudget`），通过**显式移交**而非 ctx 继承
+- 每个 `RequestBudget`/`TaskBudget` 内部维护独立累计，同时向 `ProcessBudget` 原子预扣
+
+**进程预算不可重置**：`ProcessBudget` 由进程 owner 持有，不能通过新建 Registry 重置全局额度。
 
 ### 4.4 原子预留规则（attempt lease/reservation 模式）
 
-- 每次实际 HTTP 尝试前执行 lease/reservation：
-  1. 占在途并发 slot（`atomic.AddInt64(&inFlight, 1)`）；超限则回退并返回 `ErrBudgetExhausted`
-  2. 预留 token 额度（输入+最大输出）；不足则回退 slot 并返回 `ErrBudgetExhausted`
-  3. 总发送尝试计数在**发送后**单调消耗（不退款）
-- **预留失败不发送请求**：预算不足时返回 `ErrBudgetExhausted`，不发起 HTTP 调用。
-- **重试也计入预算**：每次重试预留新的 slot + token 额度。
+- 发送前在两个作用域（`RequestBudget`/`TaskBudget` + `ProcessBudget`）**整体原子预留**：
+  1. 占在途并发 slot（`atomic.AddInt64(&inFlight, 1)`）
+  2. 预留 token 额度（输入估算 + 最大输出）
+  3. 总发送尝试计数原子预留 1 次（reserved 状态）
+- **任一不足都返回 `ErrBudgetExhausted`，不进入 sender**：已成功的部分立即回退（释放 slot、释放 token 预留、释放尝试计数预留）
+- **reserved → committed 状态机**：进入实际发送边界前原子承诺（`AttemptLease.Commit()`），此后不可撤销
+- **重试也计入预算**：每次重试预留新的 slot + token + 尝试计数
+- 返回 `*AttemptLease` 作为单次 HTTP 尝试的短期句柄，持有 slot、token、尝试计数的预留引用
 
 ### 4.5 预留退款/结算规则
 
 | 场景 | 处理 |
 |---|---|
-| **尚未发送的失败** | 可撤销尝试预留：释放 slot + 预留 token，不消耗总发送尝试计数 |
-| **发送后网络失败** | 总发送尝试计数已消耗（不退款）；保守保留输入+输出预留（因为无法确认 Provider 是否已处理）；释放 slot |
-| **usage 缺失** | 记录 `unknown`，**不把 unknown 当 0**；保守保留预留（输入+最大输出）；释放 slot |
-| **流中断** | 总发送尝试计数已消耗；已预留的 token 不退款；释放 slot（body EOF + stream.Close() 后） |
-| **正常完成** | 按 usage 实际值结算；释放 slot；预留与实际差额释放回预留账本 |
+| **尚未发送的失败**（reserved 未 commit） | 可撤销尝试预留：释放 slot + 预留 token + 释放尝试计数预留，不消耗计数 |
+| **发送后网络失败**（已 commit） | 总发送尝试计数已消耗（不退款）；保守保留输入+输出预留（因为无法确认 Provider 是否已处理）；幂等 finalize 释放 slot |
+| **usage 缺失** | 记录 `unknown`，**不把 unknown 当 0**；保守保留预留（输入+最大输出）；幂等 finalize 释放 slot |
+| **流中断** | 总发送尝试计数已消耗；已预留的 token 不退款；**幂等 finalize 释放 slot** |
+| **正常完成** | 按 usage 实际值结算；幂等 finalize 释放 slot；预留与实际差额释放回预留账本 |
 
-### 4.6 一次性结算（Finish/Abort/Close）
+**slot 与 token 结算解耦**：
+- slot 释放由幂等 finalize 触发，与 token 结算独立
+- token 结算可在 slot 释放之后异步完成（如 usage 解析）
+- 不能保留 token 就连 slot 一并泄漏
+
+### 4.6 一次性结算（Finish/Abort/Close 幂等保护）
 
 - **设计决定**：采用每 attempt lease/reservation 模式，明确 Finish/Abort/Close 一次性结算：
-  - 释放 slot
+  - 幂等 finalize 释放 slot（`sync.Once` 或等价原子保护）
   - 按 usage 结算 token（或保守保留）
   - 记录实际消耗到结算账本
+- **幂等保护**：Finish/Abort/Close 分别对 slot 与 token 结算做幂等保护：
+  - 重复调用 Finish/Abort/Close 不重复退款 token
+  - 重复调用不重复释放 slot
+  - Close 与 EOF 并发时只 finalize 一次
+- **slot 与 token 解耦**：不能保留 token 就连 slot 一并泄漏；即使 token 结算未确定（如 usage 缺失），slot 仍必须释放
 - 结算必须在 attempt 结束后执行一次，不分散执行。
 
 ### 4.7 并发 slot 释放时机
 
 | 场景 | slot 释放时机 |
 |---|---|
-| **stream** | body EOF + `stream.Close()` 后释放 |
-| **非流式** | `HTTPClient.Do` 返回后释放 |
+| **stream** | 四种路径（EOF、终止性读错、取消后关闭、提前 Close）共用幂等 finalize，任一路径 finalize 一次即释放 |
+| **非流式** | body 消费完成并关闭（或读错/取消后关闭） |
+
+**幂等 finalize 语义**：
+- 无论哪条路径触发，finalize 只执行一次（`sync.Once` 或等价原子保护）
+- Close 与 EOF 并发时只 finalize 一次
+- 提前 Close（如取消后主动关闭）也触发 finalize
+- 终止性读错（如网络中断、解析失败）也触发 finalize
+- 删除“EOF + Close”的逻辑与表述：不再要求“先 EOF 再 Close”才释放
 
 ### 4.8 自动重试
 
@@ -290,10 +325,16 @@ type RequestBudget struct {
 
 ### 4.9 Index 后台接管预算的方式
 
-- **设计决定**：Index 后台任务（`indexAsyncByDocsID`）接管预算的方式：
-  - 后台任务从进程级 `ProcessBudget` 获取额度，不重新绑定 HTTP 请求取消。
-  - 后台任务的每个 HTTP 尝试前预留 slot + token，完成后结算。
-  - 后台任务取消时，未发送的预留释放；已发送的保守保留。
+- **设计决定**：Index 同步 + 后台共享同一 `TaskBudget` owner：
+  - 后台 goroutine 在同步阶段结束时接收 task owner 引用（通过显式移交 `TaskBudget.TransferToBackground()`，而非 ctx 继承）
+  - 保留 Stage 1 后台生命周期与 HTTP 取消不迁移的现有语义
+  - Index 同步 + 后台的累计上限受同一 task owner 约束
+  - 后台任务的每个 HTTP 尝试前预留 slot + token + 尝试计数，完成后结算
+  - 后台任务取消时，未发送的预留释放；已发送的保守保留
+- **显式移交语义**：
+  - `TaskBudget.TransferToBackground()` 返回新句柄，后台持有该句柄继续操作
+  - 同步阶段返回后，同步侧不再持有该 task owner 的活跃引用
+  - 进程级 `ProcessBudget` 仍约束后台任务的累计消耗
 
 ### 4.10 禁止静默切换
 
@@ -463,12 +504,28 @@ type ProviderRegistry interface {
 }
 
 // budget.go
-type ProcessBudget struct { ... }
+type ProcessBudget struct { ... }  // 进程级 owner，Registry 构造时绑定，不可重置
 func NewProcessBudget(maxRequests, maxInputTokens, maxOutputTokens int64, maxConcurrency int) *ProcessBudget
-type RequestBudget struct { ... }
-func (pb *ProcessBudget) NewAttempt(ctx context.Context) (*RequestBudget, error)
-func (rb *RequestBudget) Finish(usage *model.TokenUsage)
-func (rb *RequestBudget) Abort(err error)
+
+type RequestBudget struct { ... }  // 请求/任务级累计 owner，绑定 ProcessBudget
+func (pb *ProcessBudget) NewRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error)
+func (rb *RequestBudget) Reserve(estimate *TokenEstimate) (*AttemptLease, error)  // 返回 AttemptLease
+
+type TaskBudget struct { ... }  // Index 同步+后台共享
+func (pb *ProcessBudget) NewTaskBudget(ctx context.Context, opts ...BudgetOption) (*TaskBudget, error)
+func (tb *TaskBudget) Reserve(estimate *TokenEstimate) (*AttemptLease, error)
+func (tb *TaskBudget) TransferToBackground() (*TaskBudget, error)  // 显式移交
+
+type AttemptLease struct { ... }  // 每次 HTTP 尝试的短期句柄
+func (al *AttemptLease) Commit() error  // reserved → committed
+func (al *AttemptLease) Finish(usage *model.TokenUsage)  // 一次性结算（幂等）
+func (al *AttemptLease) Abort(err error)  // 取消（幂等）
+func (al *AttemptLease) Close()  // 等价 Abort（幂等）
+
+type TokenEstimate struct {
+    InputTokens  int64  // 输入 token 估算
+    MaxOutput    int64  // 最大输出 token
+}
 ```
 
 **2A 首批必须包含**：
@@ -484,9 +541,18 @@ func (rb *RequestBudget) Abort(err error)
 - 预算并发争用（atomic 预留 + race）
 - 预算不足返回 `ErrBudgetExhausted`
 - 取消传播
-- attempt lease/reservation 生命周期（占 slot→发送→结算→释放 slot）
+- attempt lease/reservation 生命周期（占 slot→commit→发送→结算→释放 slot）
 - usage 缺失时保守保留预留
 - adapter 生产共享链：现有 `openai.NewChatModel` → ChatRole 适配
+- `MaxRequests=1` 并发实际发送计数为 1
+- 请求足够/进程不足或反之均零发送且完全回退
+- 重试/子步骤/后台接管不刷新累计额度
+- 发送后网络失败不返还尝试计数
+- 重复 Finish/Abort/Close 不重复退款
+- httptest 阻塞 body 时下个请求不越过并发上限
+- 非流式读失败/stream 提前 Close/取消/错误均最终释放 slot
+- Close 与 EOF 并发只 finalize 一次
+- unknown usage 不退款 token 但下一请求能用释放的 slot
 
 **回滚边界**：2A 仅新增文件 + 兼容层，不改变现有调用方行为。回滚 = 删除 `providers/` 目录。
 
@@ -663,7 +729,7 @@ PROBE_MAX_TOKENS=1000                     # 探针最大 token
 
 | 批次 | 验收条件 | 回滚边界 |
 |---|---|---|
-| **2A** | 不可变 ProviderProfile/角色+capabilities；锁定 Eino 的可编译 Stream/Embedding 适配；共享预算执行核心（attempt lease、deadline/并发、一次性结算）；生产共享链；fake 覆盖所有角色；预算并发争用 race 通过；预算不足返回错误；取消传播；usage 缺失保守预留；`go test -race ./core/providers/...` exit 0 | 删除 `providers/` 目录 |
+| **2A** | 不可变 ProviderProfile/角色+capabilities；锁定 Eino 的可编译 Stream/Embedding 适配；共享预算执行核心（attempt lease、deadline/并发、一次性结算）；生产共享链；fake 覆盖所有角色；预算并发争用 race 通过；预算不足返回错误；取消传播；usage 缺失保守预留；`MaxRequests=1` 并发实际发送计数为 1；请求足够/进程不足或反之均零发送且完全回退；重试/子步骤/后台接管不刷新累计额度；发送后网络失败不返还尝试计数；重复 Finish/Abort/Close 不重复退款；httptest 阻塞 body 时下个请求不越过并发上限；非流式读失败/stream 提前 Close/取消/错误均最终释放 slot；Close 与 EOF 并发只 finalize 一次；unknown usage 不退款 token 但下一请求能用释放的 slot；`go test -race ./core/providers/...` exit 0 | 删除 `providers/` 目录 |
 | **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 |
 | **2C** | 维度 fingerprint 匹配/不匹配逻辑正确；ES/Qdrant CreateIndex 使用配置维度；维度不匹配阻断写入/检索；同维度不等于同模型 | `git revert` 2C 提交 |
 | **2D** | 探针在授权预算内执行；所有候选模型最小调用通过；脱敏证据完整；A-4 QA 向量行为记录 | 不影响离线代码（探针为只读验证） |
@@ -718,6 +784,11 @@ PROBE_MAX_TOKENS=1000                     # 探针最大 token
 | EmbedRole 采用 `EmbedStrings` 与 Eino 对齐 | 不拆分 EmbedDocuments/EmbedQuery |
 | Extract 先作为 ChatRole 的角色标识（alias） | 与 Chat 共享配置，独立角色接口 |
 | 四种计数器独立生命周期 | 总发送尝试/在途 slot/token 预留/实际结算 |
+| 总发送尝试计数发送前原子预留（reserved → committed） | 避免发送后才发现超额；未 commit 可回退 |
+| 三层 owner 结构（Process/Request-Task/AttemptLease） | 明确各层生命周期与职责；进程级不可重置；请求/任务级独立累计 |
+| Index 同步+后台共享 TaskBudget，显式移交 | 不依赖 ctx 继承；保留 Stage 1 后台生命周期语义 |
+| 幂等 finalize 释放 slot（四路径共用） | 避免 EOF+Close 耦合；重复调用安全；slot 与 token 结算解耦 |
+| slot 与 token 结算解耦 | 不能保留 token 就泄漏 slot；usage 缺失不影响 slot 释放 |
 | 仅“尚未发送的失败”可撤销尝试预留 | 发送后网络失败保守保留预留 |
 | 进程预算由进程 owner 持有，不能通过新建 Registry 重置 | 全局额度不可重置 |
 | 已向用户输出的 stream 不自动重放 | 重试不重放已输出内容 |

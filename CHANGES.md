@@ -1,5 +1,19 @@
 # 变更记录
 
+### Stage 2 方案修订（独立复核 A1-A3）（2026-10-19，仅文档）
+
+- **类型**：方案修订；不改业务代码、不启动服务、不调用模型 API、不操作 Codex 独立审查 worktree。
+- **基线**：`3bde7cd`（`review/stage1a` 分支）。
+- **修订文件**：`design/stage2-plan.md`。
+- **阻塞 1 预算契约（§4）**：区分四种计数器（总发送尝试/在途 slot/token 预留/实际结算）；仅“尚未发送的失败”可撤销预留；发送后网络失败保守保留输入+输出预留；采用 attempt lease/reservation 模式，Finish/Abort/Close 一次性结算；明确 stream/非流式 slot 释放时机；usage 缺失时保守保留预留（不把 unknown 当 0）；重试有绝对 deadline + 有限尝试数 + 退避，已向用户输出的 stream 不自动重放；token 粗估标注为估算；明确 Index 后台接管预算方式。
+- **阻塞 2 可编译接口（§3.4/§7.1）**：Stream 返回 `*schema.StreamReader[*schema.Message]`（不是 `model.StreamReader`）；EmbedRole 采用 `EmbedStrings` 与 Eino 对齐；Generate/Stream 包含 `opts ...model.Option`；明确 Role↔Eino 适配策略（嵌入 Eino interface）；固定 Capabilities 最小结构（Stream/StructuredOutput/ToolCalling/Usage）；Extract 先作为 ChatRole 的角色标识（alias）。
+- **阻塞 3 生产接线与缓存隔离（§3/§5/§7）**：补全“默认创建→注入→业务调用→HTTP 尝试”完整映射表（Chat/Embedding×3/Rewrite/Rerank/QA 共 7 处）；明确 Registry 不可变 Profile 键（provider/协议/endpoint/地域/模型/版本/维度/关键选项/凭据身份）；进程预算由进程 owner 持有不能通过新建 Registry 重置；兼容层收到非 nil 配置必须参与身份；2A 先落实可复用生产共享预算/适配核心；2B 承接默认工厂和业务接线；补全维度硬编码六处位置（`config/helpers.go:40/45/57/61`、`indexer/indexer.go:73`、`indexer_async.go:52`）；QA 缓存描述从 `sync.Once` 修正为 `sync.Mutex + ready bool`。
+- **后续问题落实到批次**：2B 落实 Embedding 响应边界验证/百炼 encoder-decoder/新 Embedding profile 生产启用；2C 落实真实索引创建入口/维度位置/fingerprint 存取/同维度不等于同模型/guard 依赖；在线未知项继续留给授权探针。
+- **2A 首批范围统一**：不可变 ProviderProfile/角色+capabilities + 共享预算执行核心 + 生产共享链 + default 构造只发布完整初始化对象。
+- **PROJECT_PROGRESS.md 更新**：Stage 2 状态改为“方案修订完成（独立复核 A1-A3），待再次复核”。
+
+---
+
 ### Stage 2 细化实施方案编写（2026-10-19，仅文档）
 
 - **类型**：方案编写；不改业务代码、不启动服务、不调用模型 API、不操作 Codex 独立审查 worktree。

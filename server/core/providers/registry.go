@@ -217,6 +217,17 @@ func (r *registry) buildChat(ctx context.Context, p *ProviderProfile) (ChatRole,
 	if err != nil {
 		return nil, err
 	}
+	// Provider-specific builder hook (2B: bailian dispatch)
+	if b, ok := chatBuilders[p.ProviderName]; ok {
+		role, err := b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+		if err != nil {
+			return nil, err
+		}
+		if role == nil {
+			return nil, fmt.Errorf("providers: %s chat builder returned nil for %s", p.ProviderName, p.ModelID())
+		}
+		return role, nil
+	}
 	chat, err := BuildChatRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
 	if err != nil {
 		return nil, err
@@ -245,7 +256,13 @@ func (r *registry) GetEmbedder(ctx context.Context) (EmbedRole, error) {
 	if err != nil {
 		return nil, err // 失败不发布缓存
 	}
-	emb, err := BuildEmbedRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	var emb EmbedRole
+	// Provider-specific builder hook (2B: bailian dispatch)
+	if b, ok := embedBuilders[p.ProviderName]; ok {
+		emb, err = b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	} else {
+		emb, err = BuildEmbedRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	}
 	if err != nil {
 		return nil, err // 失败不发布缓存
 	}
@@ -274,7 +291,13 @@ func (r *registry) GetReranker(ctx context.Context) (RerankRole, error) {
 	if err != nil {
 		return nil, err // 失败不发布缓存
 	}
-	rk, err := BuildRerankRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	var rk RerankRole
+	// Provider-specific builder hook (2B: bailian dispatch)
+	if b, ok := rerankBuilders[p.ProviderName]; ok {
+		rk, err = b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	} else {
+		rk, err = BuildRerankRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	}
 	if err != nil {
 		return nil, err // 失败不发布缓存
 	}
@@ -289,7 +312,7 @@ func (r *registry) GetReranker(ctx context.Context) (RerankRole, error) {
 //
 // 安全边界（stage2 复核 R2）：向回调传入 Profile 的深拷贝（Clone），而非 Registry
 // 内部身份指针。回调对 Profile 字段或 KeyOptions map 的任何改写只作用于其私有副本，
-// 绝不影响 Registry 内部已发布身份，也不会造成“key 先算、模型后建”下错误身份被
+// 绝不影响 Registry 内部已发布身份，也不会造成"key 先算、模型后建"下错误身份被
 // 发布在旧 key 下的问题。单点修复 resolve 即覆盖 chat/embed/rerank 三条构建路径。
 func (r *registry) resolve(ctx context.Context, p *ProviderProfile) (string, error) {
 	apiKey, err := r.creds(ctx, p.Clone())
@@ -297,4 +320,40 @@ func (r *registry) resolve(ctx context.Context, p *ProviderProfile) (string, err
 		return "", fmt.Errorf("providers: resolve credential for %s: %w", p.ModelID(), err)
 	}
 	return apiKey, nil
+}
+
+// ---------------------------------------------------------------------------
+// Provider-specific builder hooks (2B: 百炼适配层注册)
+// ---------------------------------------------------------------------------
+
+// ChatBuilder 是 Provider 特有的 Chat 角色构造函数。
+// 注册后，Registry 在构建 Chat 角色时，若 Profile.ProviderName 匹配，则调用该函数。
+type ChatBuilder func(ctx context.Context, cfg BuildConfig) (ChatRole, error)
+
+// EmbedBuilder 是 Provider 特有的 Embed 角色构造函数。
+type EmbedBuilder func(ctx context.Context, cfg BuildConfig) (EmbedRole, error)
+
+// RerankBuilder 是 Provider 特有的 Rerank 角色构造函数。
+type RerankBuilder func(ctx context.Context, cfg BuildConfig) (RerankRole, error)
+
+var (
+	chatBuilders   = map[string]ChatBuilder{}
+	embedBuilders  = map[string]EmbedBuilder{}
+	rerankBuilders = map[string]RerankBuilder{}
+)
+
+// RegisterChatBuilder 注册 Provider 特有的 Chat 构造函数。
+// 通常在 Provider 适配包的 init() 中调用。
+func RegisterChatBuilder(providerName string, b ChatBuilder) {
+	chatBuilders[providerName] = b
+}
+
+// RegisterEmbedBuilder 注册 Provider 特有的 Embed 构造函数。
+func RegisterEmbedBuilder(providerName string, b EmbedBuilder) {
+	embedBuilders[providerName] = b
+}
+
+// RegisterRerankBuilder 注册 Provider 特有的 Rerank 构造函数。
+func RegisterRerankBuilder(providerName string, b RerankBuilder) {
+	rerankBuilders[providerName] = b
 }

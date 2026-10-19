@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -13,8 +14,13 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/qdrant/go-client/qdrant"
 	"github.com/wangle201210/go-rag/server/core"
+	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
+	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/vector"
+
+	// 导入百炼适配包，触发 init() 注册 builder hooks
+	_ "github.com/wangle201210/go-rag/server/core/providers/bailian"
 )
 
 var (
@@ -37,6 +43,9 @@ type RagConfig struct {
 	// 后台任务生命周期配置
 	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>256 钳位到 256
 	BackgroundTaskTimeout time.Duration // 默认 5min，>60min 钳位到 60min
+
+	// Stage 2B: Provider 配置（可选，nil 时走旧路径）
+	Provider *config.ProviderConfig
 }
 
 // RagFactory 创建 *core.Rag 的工厂接口
@@ -61,6 +70,15 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		qdrantClient = qdrantStore.GetClient()
 	}
 
+	// Stage 2B: 构建 Provider Registry（如果配置了 Provider）
+	if cfg.Provider != nil {
+		reg, err := buildRegistry(ctx, cfg.Provider)
+		if err != nil {
+			return nil, fmt.Errorf("build provider registry: %w", err)
+		}
+		common.SetRegistry(reg)
+	}
+
 	return core.New(ctx, &config.Config{
 		Client:                client,
 		QdrantClient:          qdrantClient,
@@ -73,7 +91,158 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		QAMaxConcurrent:       cfg.QAMaxConcurrent,
 		MaxBackgroundTasks:    cfg.MaxBackgroundTasks,
 		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
+		Provider:              cfg.Provider,
 	})
+}
+
+// buildRegistry 从 ProviderConfig 构建 ProviderRegistry。
+// 构造过程不发起网络请求；凭据解析失败或 Profile 校验失败返回错误。
+func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.ProviderRegistry, error) {
+	if pc == nil {
+		return nil, fmt.Errorf("nil ProviderConfig")
+	}
+
+	// 解析 API Key：优先配置值，其次环境变量
+	apiKey := pc.APIKey
+	if apiKey == "" {
+		apiKey = resolveAPIKeyFromEnv(pc.Name)
+	}
+
+	// 凭据解析器：返回固定 apiKey
+	credFn := func(ctx context.Context, p *providers.ProviderProfile) (string, error) {
+		if apiKey == "" {
+			return "", fmt.Errorf("API key not configured for provider %q", pc.Name)
+		}
+		return apiKey, nil
+	}
+
+	// 构造进程级预算（不限额度，2C 配置化）
+	budget, err := providers.NewProcessBudget(0, 0, 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("create process budget: %w", err)
+	}
+
+	// 构造共享 Transport
+	transport := providers.NewTransport()
+
+	// 构建各角色的 ProviderProfile
+	protocol := "openai-compatible"
+	providerName := pc.Name
+	baseURL := pc.BaseURL
+
+	// Chat Profile
+	var chatProfile *providers.ProviderProfile
+	if pc.ChatModel != "" {
+		chatProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
+			ProviderName: providerName,
+			Protocol:     protocol,
+			Endpoint:     baseURL,
+			Model:        pc.ChatModel,
+			Capabilities: providers.Capabilities{Stream: true, Usage: true},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("chat profile: %w", err)
+		}
+	}
+
+	// Rewrite Profile
+	var rewriteProfile *providers.ProviderProfile
+	if pc.RewriteModel != "" {
+		rewriteProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
+			ProviderName: providerName,
+			Protocol:     protocol,
+			Endpoint:     baseURL,
+			Model:        pc.RewriteModel,
+			Capabilities: providers.Capabilities{Stream: true, Usage: true},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("rewrite profile: %w", err)
+		}
+	}
+
+	// QA Profile
+	var qaProfile *providers.ProviderProfile
+	if pc.QAModel != "" {
+		qaProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
+			ProviderName: providerName,
+			Protocol:     protocol,
+			Endpoint:     baseURL,
+			Model:        pc.QAModel,
+			Capabilities: providers.Capabilities{Stream: true, Usage: true},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("qa profile: %w", err)
+		}
+	}
+
+	// Embed Profile
+	var embedProfile *providers.ProviderProfile
+	if pc.EmbeddingModel != "" {
+		dims := pc.EmbeddingDimensions
+		if dims <= 0 {
+			dims = 1024
+		}
+		embedProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
+			ProviderName: providerName,
+			Protocol:     protocol,
+			Endpoint:     baseURL,
+			Model:        pc.EmbeddingModel,
+			Dimensions:   dims,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("embed profile: %w", err)
+		}
+	}
+
+	// Rerank Profile
+	var rerankProfile *providers.ProviderProfile
+	if pc.RerankModel != "" {
+		rerankURL := pc.RerankURL
+		if rerankURL == "" {
+			rerankURL = baseURL + "/reranks"
+		}
+		rerankProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
+			ProviderName: providerName,
+			Protocol:     protocol,
+			Endpoint:     rerankURL,
+			Model:        pc.RerankModel,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("rerank profile: %w", err)
+		}
+	}
+
+	reg, err := providers.NewRegistry(providers.RegistryConfig{
+		Chat:        chatProfile,
+		Rewrite:     rewriteProfile,
+		QA:          qaProfile,
+		Embed:       embedProfile,
+		Rerank:      rerankProfile,
+		Budget:      budget,
+		Transport:   transport,
+		Credentials: credFn,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create registry: %w", err)
+	}
+	return reg, nil
+}
+
+// resolveAPIKeyFromEnv 根据 Provider 名称从环境变量解析 API Key。
+func resolveAPIKeyFromEnv(providerName string) string {
+	switch providerName {
+	case "bailian":
+		for _, k := range []string{"DASHSCOPE_API_KEY", "OPENAI_API_KEY"} {
+			if v := os.Getenv(k); v != "" {
+				return v
+			}
+		}
+	case "openai":
+		if v := os.Getenv("OPENAI_API_KEY"); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // VectorStoreFactory 创建 VectorStore 的工厂接口
@@ -221,6 +390,16 @@ func readRagConfig() (RagConfig, error) {
 		return RagConfig{}, fmt.Errorf("read lifecycle config: %w", err)
 	}
 
+	// Stage 2B: Provider 配置块（可选，缺失时 nil）
+	var providerCfg *config.ProviderConfig
+	v, err := g.Cfg().Get(ctx, "provider")
+	if err == nil && !v.IsNil() {
+		providerCfg = &config.ProviderConfig{}
+		if scanErr := v.Scan(providerCfg); scanErr != nil {
+			return RagConfig{}, fmt.Errorf("scan provider config: %w", scanErr)
+		}
+	}
+
 	return RagConfig{
 		VectorCfg:             *vectorCfg,
 		EmbeddingAPIKey:       apiKey,
@@ -231,6 +410,7 @@ func readRagConfig() (RagConfig, error) {
 		QAMaxConcurrent:       qaMaxConcurrent,
 		MaxBackgroundTasks:    maxBG,
 		BackgroundTaskTimeout: timeout,
+		Provider:              providerCfg,
 	}, nil
 }
 

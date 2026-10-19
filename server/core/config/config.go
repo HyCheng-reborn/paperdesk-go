@@ -25,6 +25,24 @@ type Config struct {
 	// 后台任务生命周期配置
 	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>256 钳位到 256
 	BackgroundTaskTimeout time.Duration // 默认 5min，>60min 钳位到 60min
+
+	// Stage 2B: Provider 配置（可选，nil 时走旧路径）
+	Provider *ProviderConfig
+}
+
+// ProviderConfig 是 Stage 2B 的 Provider 配置块。
+// 定义百炼/OpenAI 等 Provider 的连接信息、模型 ID 与维度。
+type ProviderConfig struct {
+	Name                string `yaml:"name"`                 // bailian / openai
+	BaseURL             string `yaml:"base_url"`             // https://dashscope.aliyuncs.com/compatible-mode/v1
+	APIKey              string `yaml:"api_key"`              // 或从环境变量读取
+	ChatModel           string `yaml:"chat_model"`           // qwen-plus
+	RewriteModel        string `yaml:"rewrite_model"`        // qwen-plus
+	QAModel             string `yaml:"qa_model"`             // qwen-plus
+	EmbeddingModel      string `yaml:"embedding_model"`      // text-embedding-v4
+	EmbeddingDimensions int    `yaml:"embedding_dimensions"` // 1024
+	RerankModel         string `yaml:"rerank_model"`         // qwen3-rerank
+	RerankURL           string `yaml:"rerank_url"`           // https://dashscope.aliyuncs.com/compatible-api/v1/reranks
 }
 
 func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
@@ -39,7 +57,7 @@ func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
 }
 
 func (x *Config) Copy() *Config {
-	return &Config{
+	cp := &Config{
 		Client:       x.Client,
 		QdrantClient: x.QdrantClient,
 		IndexName:    x.IndexName,
@@ -53,4 +71,9 @@ func (x *Config) Copy() *Config {
 		MaxBackgroundTasks:    x.MaxBackgroundTasks,
 		BackgroundTaskTimeout: x.BackgroundTaskTimeout,
 	}
+	if x.Provider != nil {
+		p := *x.Provider
+		cp.Provider = &p
+	}
+	return cp
 }

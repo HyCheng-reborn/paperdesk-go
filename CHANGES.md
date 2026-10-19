@@ -1,5 +1,20 @@
 # 变更记录
 
+### Stage 2B 实施完成（2026-10-19）
+
+- **类型**：新增实施（基于已通过方案）
+- **基线**：df260ddfb12694e7064d74fb63cc1c228f8ebbfe
+- **实施范围**：
+  1. **百炼 Provider 适配**：Chat/Embedding/Rerank 适配器，走 OpenAI 兼容协议；附加错误映射、响应验证（数量/维度/NaN/Inf）、usage 缺失保守处理；保留 `rerank/rerank.go` 全部已验收校验链
+  2. **Provider Builder 分发机制**：Registry 按 ProviderName 分发到注册的 Provider 特有构造器
+  3. **Provider 配置块**：`config/config.go` 新增 `ProviderConfig` 结构体
+  4. **兼容层委派 Registry**：`common/chat_model.go` 和 `common/embedding.go` 内部委派 Registry
+  5. **业务接线迁移**：`internal/logic/rag/retriever.go` 构建 Registry；`internal/logic/chat/chat.go` 委派 Registry
+- **新增文件**：`server/core/providers/bailian/`（chat.go、embedding.go、rerank.go、register.go + 3 个测试文件）
+- **修改文件**：`config/config.go`、`common/chat_model.go`、`common/embedding.go`、`providers/registry.go`、`internal/logic/rag/retriever.go`、`internal/logic/chat/chat.go`
+- **验证**：gofmt/build/vet exit 0；31 bailian 测试 PASS；62 providers 测试 PASS；压测 -count=10 PASS（310 次）；全项目 go test -p 1 ./... 通过（16 包）；race 因环境限制未完成
+- **状态**：2B 实施完成待独立复核；新 Embedding profile 生产启用须等 2C guard 就绪
+
 ### Stage 2A 剩余阻塞修复（2026-10-19）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

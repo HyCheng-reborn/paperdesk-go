@@ -9,6 +9,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/qwen"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/wangle201210/go-rag/server/core/providers"
 )
 
 var (
@@ -18,9 +19,44 @@ var (
 	chatModel      model.BaseChatModel
 )
 
+// ---------------------------------------------------------------------------
+// Stage 2B: Registry 委派支持
+// ---------------------------------------------------------------------------
+
+var (
+	registryMu sync.RWMutex
+	registry   providers.ProviderRegistry
+)
+
+// SetRegistry 设置全局 ProviderRegistry（2B 接线）。
+// 业务层在初始化时调用，将 Registry 注入到兼容层。
+// 设置后，GetChatModel/GetRewriteModel/GetQAModel 在 cfg==nil 时委派给 Registry。
+func SetRegistry(r providers.ProviderRegistry) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	registry = r
+}
+
+// GetRegistry 返回当前注册的全局 ProviderRegistry（nil 表示未设置）。
+func GetRegistry() providers.ProviderRegistry {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	return registry
+}
+
 func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseChatModel, error) {
 	if chatModel != nil {
 		return chatModel, nil
+	}
+	// 2B: Registry 委派（cfg==nil 时走默认 Profile）
+	if cfg == nil {
+		if r := GetRegistry(); r != nil {
+			chatRole, err := r.GetChat(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("registry GetChat: %w", err)
+			}
+			return chatRole, nil
+		}
 	}
 	if cfg == nil {
 		cfg = &openai.ChatModelConfig{}
@@ -59,6 +95,16 @@ func GetEmbeddingModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.
 func GetRewriteModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
 	if rewriteModel != nil {
 		return rewriteModel, nil
+	}
+	// 2B: Registry 委派（cfg==nil 时走默认 Profile）
+	if cfg == nil {
+		if r := GetRegistry(); r != nil {
+			chatRole, err := r.GetRewrite(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("registry GetRewrite: %w", err)
+			}
+			return chatRole, nil
+		}
 	}
 	if cfg == nil {
 		cfg = &qwen.ChatModelConfig{}
@@ -178,6 +224,17 @@ var qaDefaultCache = &qaModelCache{
 }
 
 // GetQAModel 公开入口，委派给生产默认实例；保留签名与成功缓存行为。
+// 2B: Registry 设置后，cfg==nil 时委派给 Registry.GetQA。
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	// 2B: Registry 委派（cfg==nil 时走默认 Profile）
+	if cfg == nil {
+		if r := GetRegistry(); r != nil {
+			chatRole, err := r.GetQA(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("registry GetQA: %w", err)
+			}
+			return chatRole, nil
+		}
+	}
 	return qaDefaultCache.get(ctx, cfg)
 }

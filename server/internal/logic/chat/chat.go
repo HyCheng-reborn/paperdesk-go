@@ -11,6 +11,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/internal/dao"
 )
 
@@ -43,6 +44,14 @@ type ChatModelFactory interface {
 type defaultChatModelFactory struct{}
 
 func (f *defaultChatModelFactory) Create(apiKey, baseURL, modelName string) (model.BaseChatModel, error) {
+	// 2B: 委派 Registry（如果已设置）
+	if r := common.GetRegistry(); r != nil {
+		chatRole, err := r.GetChat(context.Background())
+		if err == nil {
+			return chatRole, nil
+		}
+		// Registry 失败时回退到直接构建
+	}
 	return openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
 		APIKey:  apiKey,
 		BaseURL: baseURL,

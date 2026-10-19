@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -11,6 +12,17 @@ import (
 )
 
 func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedder, err error) {
+	// 2B: Registry 委派（Provider 配置存在时走 Registry）
+	if conf != nil && conf.Provider != nil {
+		if r := GetRegistry(); r != nil {
+			embedRole, err := r.GetEmbedder(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("registry GetEmbedder: %w", err)
+			}
+			return embedRole, nil
+		}
+	}
+	// 旧路径：直接从 config 构建
 	econf := &openai.EmbeddingConfig{
 		APIKey:  conf.APIKey,
 		Model:   conf.EmbeddingModel,

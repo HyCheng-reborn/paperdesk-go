@@ -44,13 +44,13 @@ type ChatModelFactory interface {
 type defaultChatModelFactory struct{}
 
 func (f *defaultChatModelFactory) Create(apiKey, baseURL, modelName string) (model.BaseChatModel, error) {
-	// 2B: 委派 Registry（如果已设置）
+	// B4: Registry 优先；失败时传播错误，不回退到旧路径
 	if r := common.GetRegistry(); r != nil {
 		chatRole, err := r.GetChat(context.Background())
-		if err == nil {
-			return chatRole, nil
+		if err != nil {
+			return nil, fmt.Errorf("registry GetChat: %w", err)
 		}
-		// Registry 失败时回退到直接构建
+		return chatRole, nil
 	}
 	return openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
 		APIKey:  apiKey,

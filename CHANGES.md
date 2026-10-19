@@ -1,5 +1,20 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-19）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：a24cb8d609e6c4580b0726cb7de0ccd21d2efdd1
+- **修复内容**：
+  1. **B1 预算接入生产链**：三适配器（Chat/Embedding/Rerank）Reserve→Commit→Finish/Abort；buildRegistry 读实际预算参数
+  2. **B2 Embedding guard**：新 Embedding profile 配置时 fail closed 返回 `ErrEmbeddingGuardNotReady`
+  3. **B3 Index 验证**：`validationTransport` 拦截原始 HTTP 响应，SDK 前验证 index presence/唯一性/范围/顺序
+  4. **B4 统一配置选择**：Registry 优先于旧 singleton；错误传播不回退；RerankRole 注入 `retrieveDoOnce`
+  5. **B5 生命周期**：先构建后发布；core.New 失败回滚；Reset 清理 Registry
+  6. **B6 同步**：`sync.RWMutex` 保护 builder maps；首次构建后冻结；拒绝 nil/重复/未知 Provider
+- **新增测试**：`builder_sync_test.go`、`bailian/integration_test.go`、`common/embedding_guard_test.go`、`common/registry_priority_test.go`
+- **验证**：gofmt/build/vet exit 0；95 providers 测试 PASS；race 压测 -count=10 PASS（200 次）；受影响包 race 通过（6 包）；全项目 go test -p 1 ./... 通过（15 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 实施完成（2026-10-19）
 
 - **类型**：新增实施（基于已通过方案）

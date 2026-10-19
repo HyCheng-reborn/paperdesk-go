@@ -218,6 +218,8 @@ func aggregateResults(results []*schema.Document, topK int) ([]*schema.Document,
 	return unique, nil
 }
 
+// retrieveDoOnce 执行单轮检索+融合+重排。
+// B4: 优先使用 Registry 的 RerankRole（如果已配置），否则回退到旧 rerank.Rerank 路径。
 func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs []*schema.Document, err error) {
 	var (
 		docs   []*schema.Document
@@ -252,14 +254,8 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 	// RRF 融合多路结果（同时完成去重）
 	docs = retriever.RRFFusion(inputs)
 
-	// 重排
-	rerankConf, err := rerank.GetConf(ctx)
-	if err != nil {
-		g.Log().Errorf(ctx, "rerank GetConf failed, err=%v", err)
-		return
-	}
-	reranker := rerank.NewRerank(rerankConf.ToRerankConfig(), nil)
-	docs, err = reranker.Rerank(ctx, req.optQuery, docs, req.TopK)
+	// B4: Rerank 优先使用 Registry 的 RerankRole
+	docs, err = x.doRerank(ctx, req.optQuery, docs, req.TopK)
 	if err != nil {
 		g.Log().Errorf(ctx, "Rerank failed, err=%v", err)
 		return
@@ -272,6 +268,25 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 		relatedDocs = append(relatedDocs, doc)
 	}
 	return
+}
+
+// doRerank 执行重排：优先使用 Registry 的 RerankRole（B4），否则回退到旧路径。
+func (x *Rag) doRerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
+	// B4: 尝试 Registry 的 RerankRole
+	if reg := common.GetRegistry(); reg != nil {
+		reranker, err := reg.GetReranker(ctx)
+		if err == nil {
+			return reranker.Rerank(ctx, query, docs, topK)
+		}
+		// Registry Rerank 未配置或失败 → 回退到旧路径
+	}
+	// 旧路径
+	rerankConf, err := rerank.GetConf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	reranker := rerank.NewRerank(rerankConf.ToRerankConfig(), nil)
+	return reranker.Rerank(ctx, query, docs, topK)
 }
 
 func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*schema.Document, err error) {

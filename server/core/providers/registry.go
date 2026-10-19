@@ -47,6 +47,8 @@ type ProviderRegistry interface {
 	GetExtract(ctx context.Context) (ChatRole, error)
 	GetEmbedder(ctx context.Context) (EmbedRole, error)
 	GetReranker(ctx context.Context) (RerankRole, error)
+	// NewRequestBudget 从绑定的 ProcessBudget 创建请求级预算（B1 接入）。
+	NewRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error)
 }
 
 // 编译期断言：默认实现满足接口。
@@ -107,6 +109,7 @@ type registry struct {
 
 // NewRegistry 构造默认 ProviderRegistry。构造过程不发起网络请求。
 // 校验：Budget 与 Credentials 必填（§3.5 缺失即报错，不延迟到首次调用）。
+// B6: 首次成功构建后冻结 builder 注册表。
 func NewRegistry(cfg RegistryConfig) (ProviderRegistry, error) {
 	if cfg.Budget == nil {
 		return nil, ErrNilBudget
@@ -134,6 +137,8 @@ func NewRegistry(cfg RegistryConfig) (ProviderRegistry, error) {
 	if cfg.Extract != nil {
 		extractProfile = cfg.Extract.Clone()
 	}
+	// B6: 冻结 builder 注册表（首次构建后拒绝新注册）
+	freezeBuilders()
 	return &registry{
 		chatCache:      map[string]ChatRole{},
 		embedCache:     map[string]EmbedRole{},
@@ -152,6 +157,11 @@ func NewRegistry(cfg RegistryConfig) (ProviderRegistry, error) {
 
 // Budget 返回绑定的进程预算（供调用方派生 RequestBudget/TaskBudget）。
 func (r *registry) Budget() *ProcessBudget { return r.budget }
+
+// NewRequestBudget 从绑定的 ProcessBudget 创建请求级预算（B1 接入）。
+func (r *registry) NewRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error) {
+	return r.budget.NewRequestBudget(ctx, opts...)
+}
 
 // Transport 返回共享传输层。
 func (r *registry) Transport() *Transport { return r.transport }
@@ -218,8 +228,8 @@ func (r *registry) buildChat(ctx context.Context, p *ProviderProfile) (ChatRole,
 		return nil, err
 	}
 	// Provider-specific builder hook (2B: bailian dispatch)
-	if b, ok := chatBuilders[p.ProviderName]; ok {
-		role, err := b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	if b, ok := lookupChatBuilder(p.ProviderName); ok {
+		role, err := b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport, Budget: r.budget})
 		if err != nil {
 			return nil, err
 		}
@@ -228,14 +238,8 @@ func (r *registry) buildChat(ctx context.Context, p *ProviderProfile) (ChatRole,
 		}
 		return role, nil
 	}
-	chat, err := BuildChatRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
-	if err != nil {
-		return nil, err
-	}
-	if chat == nil {
-		return nil, fmt.Errorf("providers: chat builder returned nil for %s", p.ModelID())
-	}
-	return chat, nil
+	// B6: 未知 Provider 返回明确错误
+	return nil, fmt.Errorf("%w: no chat builder for provider %q (known: %v)", ErrUnknownProvider, p.ProviderName, knownProviderNames())
 }
 
 // GetEmbedder 返回 Embedding 角色。
@@ -258,10 +262,11 @@ func (r *registry) GetEmbedder(ctx context.Context) (EmbedRole, error) {
 	}
 	var emb EmbedRole
 	// Provider-specific builder hook (2B: bailian dispatch)
-	if b, ok := embedBuilders[p.ProviderName]; ok {
-		emb, err = b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	if b, ok := lookupEmbedBuilder(p.ProviderName); ok {
+		emb, err = b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport, Budget: r.budget})
 	} else {
-		emb, err = BuildEmbedRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+		// B6: 未知 Provider 返回明确错误
+		return nil, fmt.Errorf("%w: no embed builder for provider %q (known: %v)", ErrUnknownProvider, p.ProviderName, knownProviderNames())
 	}
 	if err != nil {
 		return nil, err // 失败不发布缓存
@@ -293,10 +298,11 @@ func (r *registry) GetReranker(ctx context.Context) (RerankRole, error) {
 	}
 	var rk RerankRole
 	// Provider-specific builder hook (2B: bailian dispatch)
-	if b, ok := rerankBuilders[p.ProviderName]; ok {
-		rk, err = b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+	if b, ok := lookupRerankBuilder(p.ProviderName); ok {
+		rk, err = b(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport, Budget: r.budget})
 	} else {
-		rk, err = BuildRerankRole(ctx, BuildConfig{Profile: p, APIKey: apiKey, Transport: r.transport})
+		// B6: 未知 Provider 返回明确错误
+		return nil, fmt.Errorf("%w: no rerank builder for provider %q (known: %v)", ErrUnknownProvider, p.ProviderName, knownProviderNames())
 	}
 	if err != nil {
 		return nil, err // 失败不发布缓存
@@ -336,24 +342,126 @@ type EmbedBuilder func(ctx context.Context, cfg BuildConfig) (EmbedRole, error)
 // RerankBuilder 是 Provider 特有的 Rerank 角色构造函数。
 type RerankBuilder func(ctx context.Context, cfg BuildConfig) (RerankRole, error)
 
+// builderMu 保护三张 builder map 的并发读写（B6 修复）。
+// init() 注册与首次构建时读取可能并发，必须加锁。
+var builderMu sync.RWMutex
+
 var (
 	chatBuilders   = map[string]ChatBuilder{}
 	embedBuilders  = map[string]EmbedBuilder{}
 	rerankBuilders = map[string]RerankBuilder{}
+	buildersFrozen bool // 首次 Registry 构建后冻结，拒绝新注册
+)
+
+// builder 注册/读取错误。
+var (
+	ErrBuilderFrozen    = errors.New("providers: builder registry frozen after first Registry build")
+	ErrNilBuilder       = errors.New("providers: builder must not be nil")
+	ErrDuplicateBuilder = errors.New("providers: builder already registered")
+	ErrUnknownProvider  = errors.New("providers: unknown provider")
 )
 
 // RegisterChatBuilder 注册 Provider 特有的 Chat 构造函数。
 // 通常在 Provider 适配包的 init() 中调用。
-func RegisterChatBuilder(providerName string, b ChatBuilder) {
+// B6: 冻结后拒绝注册；nil builder 拒绝；重复注册拒绝。
+func RegisterChatBuilder(providerName string, b ChatBuilder) error {
+	if b == nil {
+		return ErrNilBuilder
+	}
+	builderMu.Lock()
+	defer builderMu.Unlock()
+	if buildersFrozen {
+		return ErrBuilderFrozen
+	}
+	if _, exists := chatBuilders[providerName]; exists {
+		return fmt.Errorf("%w: chat builder for %q", ErrDuplicateBuilder, providerName)
+	}
 	chatBuilders[providerName] = b
+	return nil
 }
 
 // RegisterEmbedBuilder 注册 Provider 特有的 Embed 构造函数。
-func RegisterEmbedBuilder(providerName string, b EmbedBuilder) {
+func RegisterEmbedBuilder(providerName string, b EmbedBuilder) error {
+	if b == nil {
+		return ErrNilBuilder
+	}
+	builderMu.Lock()
+	defer builderMu.Unlock()
+	if buildersFrozen {
+		return ErrBuilderFrozen
+	}
+	if _, exists := embedBuilders[providerName]; exists {
+		return fmt.Errorf("%w: embed builder for %q", ErrDuplicateBuilder, providerName)
+	}
 	embedBuilders[providerName] = b
+	return nil
 }
 
 // RegisterRerankBuilder 注册 Provider 特有的 Rerank 构造函数。
-func RegisterRerankBuilder(providerName string, b RerankBuilder) {
+func RegisterRerankBuilder(providerName string, b RerankBuilder) error {
+	if b == nil {
+		return ErrNilBuilder
+	}
+	builderMu.Lock()
+	defer builderMu.Unlock()
+	if buildersFrozen {
+		return ErrBuilderFrozen
+	}
+	if _, exists := rerankBuilders[providerName]; exists {
+		return fmt.Errorf("%w: rerank builder for %q", ErrDuplicateBuilder, providerName)
+	}
 	rerankBuilders[providerName] = b
+	return nil
+}
+
+// freezeBuilders 冻结 builder 注册表，阻止后续注册（首次 Registry 构建后调用）。
+func freezeBuilders() {
+	builderMu.Lock()
+	defer builderMu.Unlock()
+	buildersFrozen = true
+}
+
+// lookupChatBuilder 查找 Chat builder（只读，加读锁）。
+func lookupChatBuilder(providerName string) (ChatBuilder, bool) {
+	builderMu.RLock()
+	defer builderMu.RUnlock()
+	b, ok := chatBuilders[providerName]
+	return b, ok
+}
+
+// lookupEmbedBuilder 查找 Embed builder（只读，加读锁）。
+func lookupEmbedBuilder(providerName string) (EmbedBuilder, bool) {
+	builderMu.RLock()
+	defer builderMu.RUnlock()
+	b, ok := embedBuilders[providerName]
+	return b, ok
+}
+
+// lookupRerankBuilder 查找 Rerank builder（只读，加读锁）。
+func lookupRerankBuilder(providerName string) (RerankBuilder, bool) {
+	builderMu.RLock()
+	defer builderMu.RUnlock()
+	b, ok := rerankBuilders[providerName]
+	return b, ok
+}
+
+// knownProviderNames 返回已注册的 Provider 名称列表（用于错误信息）。
+func knownProviderNames() []string {
+	builderMu.RLock()
+	defer builderMu.RUnlock()
+	seen := map[string]bool{}
+	for k := range chatBuilders {
+		seen[k] = true
+	}
+	for k := range embedBuilders {
+		seen[k] = true
+	}
+	for k := range rerankBuilders {
+		seen[k] = true
+	}
+	names := make([]string, 0, len(seen))
+	for k := range seen {
+		names = append(names, k)
+	}
+	return names
 }

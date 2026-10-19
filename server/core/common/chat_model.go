@@ -45,18 +45,17 @@ func GetRegistry() providers.ProviderRegistry {
 }
 
 func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseChatModel, error) {
+	// B4: Registry 优先于旧 singleton
+	if r := GetRegistry(); r != nil {
+		chatRole, err := r.GetChat(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("registry GetChat: %w", err)
+		}
+		return chatRole, nil
+	}
+	// 旧路径
 	if chatModel != nil {
 		return chatModel, nil
-	}
-	// 2B: Registry 委派（cfg==nil 时走默认 Profile）
-	if cfg == nil {
-		if r := GetRegistry(); r != nil {
-			chatRole, err := r.GetChat(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("registry GetChat: %w", err)
-			}
-			return chatRole, nil
-		}
 	}
 	if cfg == nil {
 		cfg = &openai.ChatModelConfig{}
@@ -93,18 +92,17 @@ func GetEmbeddingModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.
 }
 
 func GetRewriteModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	// B4: Registry 优先于旧 singleton
+	if r := GetRegistry(); r != nil {
+		chatRole, err := r.GetRewrite(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("registry GetRewrite: %w", err)
+		}
+		return chatRole, nil
+	}
+	// 旧路径
 	if rewriteModel != nil {
 		return rewriteModel, nil
-	}
-	// 2B: Registry 委派（cfg==nil 时走默认 Profile）
-	if cfg == nil {
-		if r := GetRegistry(); r != nil {
-			chatRole, err := r.GetRewrite(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("registry GetRewrite: %w", err)
-			}
-			return chatRole, nil
-		}
 	}
 	if cfg == nil {
 		cfg = &qwen.ChatModelConfig{}
@@ -224,17 +222,15 @@ var qaDefaultCache = &qaModelCache{
 }
 
 // GetQAModel 公开入口，委派给生产默认实例；保留签名与成功缓存行为。
-// 2B: Registry 设置后，cfg==nil 时委派给 Registry.GetQA。
+// B4: Registry 优先于旧 singleton。
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
-	// 2B: Registry 委派（cfg==nil 时走默认 Profile）
-	if cfg == nil {
-		if r := GetRegistry(); r != nil {
-			chatRole, err := r.GetQA(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("registry GetQA: %w", err)
-			}
-			return chatRole, nil
+	// B4: Registry 优先
+	if r := GetRegistry(); r != nil {
+		chatRole, err := r.GetQA(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("registry GetQA: %w", err)
 		}
+		return chatRole, nil
 	}
 	return qaDefaultCache.get(ctx, cfg)
 }

@@ -70,16 +70,19 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		qdrantClient = qdrantStore.GetClient()
 	}
 
-	// Stage 2B: 构建 Provider Registry（如果配置了 Provider）
+	// B5: Registry 先作为构建上下文，core.New 成功后才发布。
+	// 失败回滚，不影响旧实例。
+	var reg providers.ProviderRegistry
 	if cfg.Provider != nil {
-		reg, err := buildRegistry(ctx, cfg.Provider)
+		var err error
+		reg, err = buildRegistry(ctx, cfg.Provider)
 		if err != nil {
 			return nil, fmt.Errorf("build provider registry: %w", err)
 		}
-		common.SetRegistry(reg)
+		// 不在此处 SetRegistry —— 等 core.New 成功后才发布
 	}
 
-	return core.New(ctx, &config.Config{
+	rag, err := core.New(ctx, &config.Config{
 		Client:                client,
 		QdrantClient:          qdrantClient,
 		IndexName:             cfg.VectorCfg.IndexName,
@@ -93,6 +96,17 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
 		Provider:              cfg.Provider,
 	})
+	if err != nil {
+		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
+		return nil, err
+	}
+
+	// B5: core.New 成功后才发布 Registry
+	if reg != nil {
+		common.SetRegistry(reg)
+	}
+
+	return rag, nil
 }
 
 // buildRegistry 从 ProviderConfig 构建 ProviderRegistry。
@@ -116,8 +130,8 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 		return apiKey, nil
 	}
 
-	// 构造进程级预算（不限额度，2C 配置化）
-	budget, err := providers.NewProcessBudget(0, 0, 0, 0)
+	// B1: 构造进程级预算（从配置读取实际参数，不再硬编码 (0,0,0,0)）
+	budget, err := providers.NewProcessBudget(pc.MaxRequests, pc.MaxInputTokens, pc.MaxOutputTokens, pc.MaxConcurrency)
 	if err != nil {
 		return nil, fmt.Errorf("create process budget: %w", err)
 	}
@@ -197,9 +211,10 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 	// Rerank Profile
 	var rerankProfile *providers.ProviderProfile
 	if pc.RerankModel != "" {
+		// B4: Rerank endpoint 必须显式配置，不能靠拼接
 		rerankURL := pc.RerankURL
 		if rerankURL == "" {
-			rerankURL = baseURL + "/reranks"
+			return nil, fmt.Errorf("rerank_url must be explicitly configured when rerank_model is set")
 		}
 		rerankProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
 			ProviderName: providerName,
@@ -571,8 +586,12 @@ func IsInitialized() bool {
 // 实际关闭 VectorStore 连接（如果实现了 Close 接口）。
 // 如果 Rag 实例存在，先调用 Shutdown 等待后台任务收敛，防止绕过收敛。
 // Shutdown 失败时保留依赖和引用，返回可识别错误，不继续 Close/置空。
+// B5: 同时清理 Registry 引用。
 func Reset() error {
 	ragMu.Lock()
+
+	// B5: 清理 Registry 引用
+	common.SetRegistry(nil)
 
 	// 锁内捕获实例及代次，解锁后不读全局
 	target := ragSvr

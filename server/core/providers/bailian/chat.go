@@ -23,13 +23,14 @@ var (
 	ErrNilInner     = errors.New("bailian chat: inner model is nil")
 )
 
-// chatAdapter 包装 providers.ChatRole，附加百炼特有的错误映射。
+// chatAdapter 包装 Eino model.BaseChatModel，附加预算接入（B1）与错误映射。
 //
-// Generate/Stream 签名与 ChatRole 完全一致（Eino 兼容），
-// 底层由 eino-ext openai.NewChatModel 经 OpenAI 兼容协议发送请求。
+// 直接持有 Eino 原始模型实例（非 ChatRole 包装），以便从 Generate 返回的
+// schema.Message.ResponseMeta 中提取真实 usage 进行预算结算。
 type chatAdapter struct {
-	inner   providers.ChatRole
+	inner   model.BaseChatModel // Eino 原始模型，用于直接调用并提取 usage
 	profile *providers.ProviderProfile
+	budget  *providers.ProcessBudget
 }
 
 // 编译期断言。
@@ -60,29 +61,136 @@ func BuildChat(ctx context.Context, cfg providers.BuildConfig) (providers.ChatRo
 	if cm == nil {
 		return nil, ErrNilInner
 	}
-	inner, err := providers.WrapChatModel(cm, p)
-	if err != nil {
-		return nil, fmt.Errorf("bailian chat: wrap: %w", err)
-	}
-	return &chatAdapter{inner: inner, profile: p.Clone()}, nil
+	return &chatAdapter{inner: cm, profile: p.Clone(), budget: cfg.Budget}, nil
 }
 
-// Generate 调用底层模型并映射错误。
+// Generate 调用底层模型并映射错误，附加预算结算（B1）。
 func (a *chatAdapter) Generate(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	// B1: 预算接入
+	lease, err := a.reserveBudget(ctx, estimateTokens(messages))
+	if err != nil {
+		return nil, err
+	}
+	if lease != nil {
+		lease.Commit()
+	}
+
 	msg, err := a.inner.Generate(ctx, messages, opts...)
 	if err != nil {
+		if lease != nil {
+			lease.Abort(err)
+		}
 		return nil, mapChatError(err)
+	}
+	// 提取 usage 并结算
+	if lease != nil {
+		lease.Finish(extractUsage(msg))
 	}
 	return msg, nil
 }
 
-// Stream 调用底层流式接口并映射错误。
+// Stream 调用底层流式接口并映射错误，附加预算结算（B1）。
 func (a *chatAdapter) Stream(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	// B1: 预算接入
+	lease, err := a.reserveBudget(ctx, estimateTokens(messages))
+	if err != nil {
+		return nil, err
+	}
+	if lease != nil {
+		lease.Commit()
+	}
+
 	sr, err := a.inner.Stream(ctx, messages, opts...)
 	if err != nil {
+		if lease != nil {
+			lease.Abort(err)
+		}
 		return nil, mapChatError(err)
 	}
-	return sr, nil
+	// 无预算或无 lease：直接返回
+	if lease == nil {
+		return sr, nil
+	}
+	// 包装 StreamReader：终结时结算 usage
+	return wrapStreamReader(sr, lease), nil
+}
+
+// reserveBudget 创建 RequestBudget 并 Reserve 一次尝试。
+// budget 为 nil 时返回 (nil, nil)，调用方检查 nil 跳过预算。
+func (a *chatAdapter) reserveBudget(ctx context.Context, est *providers.TokenEstimate) (*providers.AttemptLease, error) {
+	if a.budget == nil {
+		return nil, nil // 无预算：跳过
+	}
+	rb, err := a.budget.NewRequestBudget(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("bailian chat: create request budget: %w", err)
+	}
+	lease, err := rb.Reserve(est)
+	if err != nil {
+		return nil, fmt.Errorf("bailian chat: budget reserve: %w", err)
+	}
+	return lease, nil
+}
+
+// estimateTokens 从消息估算 token 数（保守估算：4 字符 ≈ 1 token）。
+func estimateTokens(messages []*schema.Message) *providers.TokenEstimate {
+	var inputChars int64
+	for _, m := range messages {
+		inputChars += int64(len(m.Content))
+	}
+	inputTokens := inputChars/4 + 1 // 保守：至少 1 token
+	return &providers.TokenEstimate{
+		InputTokens: inputTokens,
+		MaxOutput:   4096, // 保守上限
+	}
+}
+
+// extractUsage 从 schema.Message 提取 TokenUsage 并转换为 model.TokenUsage。
+// Eino OpenAI 适配层在 ResponseMeta.Usage 中填充 usage 信息。
+func extractUsage(msg *schema.Message) *model.TokenUsage {
+	if msg == nil || msg.ResponseMeta == nil || msg.ResponseMeta.Usage == nil {
+		return nil
+	}
+	u := msg.ResponseMeta.Usage
+	return &model.TokenUsage{
+		PromptTokens:     u.PromptTokens,
+		CompletionTokens: u.CompletionTokens,
+		TotalTokens:      u.TotalTokens,
+	}
+}
+
+// wrapStreamReader 包装 StreamReader，在流终结时结算预算。
+func wrapStreamReader(sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *schema.StreamReader[*schema.Message] {
+	// 使用 Copy(2) 分离：一支给调用方，一支用于消费 usage
+	branches := sr.Copy(2)
+	consumerBranch := branches[0]
+	usageBranch := branches[1]
+
+	// 后台 goroutine：消费 usage 分支，提取最后一个 chunk 的 usage
+	go func() {
+		defer usageBranch.Close()
+		var lastUsage *model.TokenUsage
+		for {
+			chunk, err := usageBranch.Recv()
+			if err != nil {
+				// EOF 或错误：终结 lease
+				lease.Finish(lastUsage) // lastUsage 可能为 nil → unknown → 保守保留预留
+				return
+			}
+			if chunk == nil {
+				continue
+			}
+			if chunk.ResponseMeta != nil && chunk.ResponseMeta.Usage != nil {
+				lastUsage = &model.TokenUsage{
+					PromptTokens:     chunk.ResponseMeta.Usage.PromptTokens,
+					CompletionTokens: chunk.ResponseMeta.Usage.CompletionTokens,
+					TotalTokens:      chunk.ResponseMeta.Usage.TotalTokens,
+				}
+			}
+		}
+	}()
+
+	return consumerBranch
 }
 
 // mapChatBuildError 映射构造期错误。

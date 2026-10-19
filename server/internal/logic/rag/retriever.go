@@ -21,6 +21,8 @@ import (
 
 	// 导入百炼适配包，触发 init() 注册 builder hooks
 	_ "github.com/wangle201210/go-rag/server/core/providers/bailian"
+	// Fix 6: 导入 OpenAI 适配包，触发 init() 注册 builder hooks
+	_ "github.com/wangle201210/go-rag/server/core/providers/openai"
 )
 
 var (
@@ -585,13 +587,10 @@ func IsInitialized() bool {
 // Reset 重置 RAG 服务状态，释放资源。用于初始化失败时的级联清理。
 // 实际关闭 VectorStore 连接（如果实现了 Close 接口）。
 // 如果 Rag 实例存在，先调用 Shutdown 等待后台任务收敛，防止绕过收敛。
-// Shutdown 失败时保留依赖和引用，返回可识别错误，不继续 Close/置空。
-// B5: 同时清理 Registry 引用。
+// Fix 4: Shutdown 失败时保留所有依赖（Registry、vectorStore、ragSvr、ragInit），
+// SetRegistry(nil) 移到成功+身份核实后。
 func Reset() error {
 	ragMu.Lock()
-
-	// B5: 清理 Registry 引用
-	common.SetRegistry(nil)
 
 	// 锁内捕获实例及代次，解锁后不读全局
 	target := ragSvr
@@ -599,7 +598,8 @@ func Reset() error {
 	targetGen := ragInit
 
 	if target == nil {
-		// 无实例，直接清理 vectorStore
+		// 无实例，直接清理 vectorStore 和 Registry
+		common.SetRegistry(nil)
 		var err error
 		if targetVS != nil {
 			err = targetVS.Close()
@@ -619,7 +619,7 @@ func Reset() error {
 	shutdownCancel()
 
 	if err != nil {
-		// Shutdown 失败：保留依赖和状态，返回可识别错误
+		// Fix 4: Shutdown 失败：保留所有依赖和状态（Registry、vectorStore、ragSvr、ragInit）
 		return fmt.Errorf("rag shutdown failed (dependencies preserved): %w", err)
 	}
 
@@ -628,7 +628,8 @@ func Reset() error {
 
 	// 核实仍为同一代
 	if ragSvr == target && ragInit == targetGen {
-		// 同一代，安全关闭
+		// Fix 4: 同一代，安全关闭 —— SetRegistry(nil) 在成功+身份核实后
+		common.SetRegistry(nil)
 		var closeErr error
 		if targetVS != nil {
 			closeErr = targetVS.Close()

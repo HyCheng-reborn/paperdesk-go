@@ -1,5 +1,21 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-20）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：be28e918f4962e88906919e6f45ce39707cb9a50
+- **修复内容**：
+  1. **补齐遗漏依赖**：`BuildConfig.Budget`、`FakeRegistry.NewRequestBudget`、`ProviderConfig` 预算字段
+  2. **预算实际接线**：入口 owner 复用；HTTP 重定向计 attempts；输出上限对齐；Embedding 已知 usage 结算；本地错误不 Commit
+  3. **流式单一包装**：删除 Copy(2)+后台消费，采用 leaseStreamReader + sync.Once 幂等终结
+  4. **Reset 生命周期**：Shutdown 失败保留 Registry；成功后按身份核实清理
+  5. **配置语义**：cfg=nil 默认路径 vs 显式配置；Rerank 错误传播不回退
+  6. **OpenAI 生产 builder**：新增 `providers/openai/register.go`
+  7. **边界处理**：nil Client.Transport→DefaultTransport；Rerank nil doc 校验前置
+- **新增/修改测试**：`integration_test.go`（flaky 修复）、`builder_sync_test.go`、`embedding_guard_test.go`、`registry_priority_test.go` 等
+- **验证**：gofmt/build/vet exit 0；93 providers 测试 PASS（107 含子测试）；race 压测 -count=10 PASS（250 次，0 DATA RACE）；受影响包 race 通过（6 包）；全项目 go test -p 1 ./... 通过（15 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-19）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

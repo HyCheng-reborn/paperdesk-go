@@ -26,10 +26,12 @@ var (
 // 设计要点（stage2-plan §3.3.1）：APIKey 明文不进入 Profile，仅在构造期经此临时传递；
 // Transport 在同一 Provider 的各角色间共享（生产共享链），复用连接池。
 // 构造过程不发起网络请求（Eino 的 NewChatModel/NewEmbedder 仅装配 client）。
+// B1: ProcessBudget 由 Registry 注入，适配器可选接入预算。
 type BuildConfig struct {
 	Profile   *ProviderProfile
 	APIKey    string
 	Transport *Transport
+	Budget    *ProcessBudget // B1: 进程预算，nil 时跳过预算接入
 }
 
 func (c BuildConfig) validate() error {

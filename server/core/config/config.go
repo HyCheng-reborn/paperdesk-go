@@ -43,6 +43,12 @@ type ProviderConfig struct {
 	EmbeddingDimensions int    `yaml:"embedding_dimensions"` // 1024
 	RerankModel         string `yaml:"rerank_model"`         // qwen3-rerank
 	RerankURL           string `yaml:"rerank_url"`           // https://dashscope.aliyuncs.com/compatible-api/v1/reranks
+
+	// B1: 预算配置（可选，<=0 表示不限）
+	MaxRequests     int64 `yaml:"max_requests"`      // 最大请求数（0=不限）
+	MaxInputTokens  int64 `yaml:"max_input_tokens"`  // 最大输入 token（0=不限）
+	MaxOutputTokens int64 `yaml:"max_output_tokens"` // 最大输出 token（0=不限）
+	MaxConcurrency  int   `yaml:"max_concurrency"`   // 最大并发（0=不限）
 }
 
 func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {

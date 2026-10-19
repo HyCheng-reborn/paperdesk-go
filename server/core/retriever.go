@@ -271,16 +271,17 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 }
 
 // doRerank 执行重排：优先使用 Registry 的 RerankRole（B4），否则回退到旧路径。
+// Fix 5: Registry 已配置时 GetReranker 错误必须传播，不静默回退。
 func (x *Rag) doRerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
-	// B4: 尝试 Registry 的 RerankRole
+	// Fix 5: Registry 已配置时，GetReranker 错误传播
 	if reg := common.GetRegistry(); reg != nil {
 		reranker, err := reg.GetReranker(ctx)
-		if err == nil {
-			return reranker.Rerank(ctx, query, docs, topK)
+		if err != nil {
+			return nil, fmt.Errorf("registry GetReranker: %w", err)
 		}
-		// Registry Rerank 未配置或失败 → 回退到旧路径
+		return reranker.Rerank(ctx, query, docs, topK)
 	}
-	// 旧路径
+	// 旧路径（Registry 未配置）
 	rerankConf, err := rerank.GetConf(ctx)
 	if err != nil {
 		return nil, err

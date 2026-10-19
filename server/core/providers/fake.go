@@ -104,6 +104,16 @@ func (f *FakeChat) LastInput() []*schema.Message {
 	return f.lastInput
 }
 
+// Profile 返回固定 Profile（满足测试中的 Profile() 接口断言）。
+func (f *FakeChat) Profile() ProviderProfile {
+	return ProviderProfile{ProviderName: "fake", Protocol: "test", Model: "fake-model", Endpoint: "http://fake"}
+}
+
+// Capabilities 返回固定能力集。
+func (f *FakeChat) Capabilities() Capabilities {
+	return Capabilities{Stream: true, Usage: true}
+}
+
 // FakeEmbed 是可配置的 EmbedRole fake，输出确定维度、有限数值的向量。
 type FakeEmbed struct {
 	mu sync.Mutex
@@ -242,6 +252,7 @@ type FakeRegistry struct {
 	Extract ChatRole
 	Embed   EmbedRole
 	Rerank  RerankRole
+	Budget  *ProcessBudget // B1: 测试可注入；nil 时 NewRequestBudget 创建不限预算
 }
 
 var _ ProviderRegistry = (*FakeRegistry)(nil)
@@ -292,4 +303,15 @@ func (r *FakeRegistry) GetReranker(context.Context) (RerankRole, error) {
 		return nil, fmt.Errorf("%w: rerank", ErrRoleNotConfigured)
 	}
 	return r.Rerank, nil
+}
+
+// NewRequestBudget 从绑定的 ProcessBudget 创建请求级预算（B1）。
+// Budget 为 nil 时创建不限额度预算。
+func (r *FakeRegistry) NewRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error) {
+	pb := r.Budget
+	if pb == nil {
+		// 不限额度进程预算
+		pb, _ = NewProcessBudget(0, 0, 0, 0)
+	}
+	return pb.NewRequestBudget(ctx, opts...)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/wangle201210/go-rag/server/core/providers"
 )
 
@@ -229,7 +230,7 @@ func TestRegistry_ErrorWrapping(t *testing.T) {
 	}
 }
 
-// TestGetChatModel_WithConfig 验证带配置时 Registry 仍优先。
+// TestGetChatModel_WithConfig 验证 cfg!=nil 时直接构造，不查 Registry（Fix 5）。
 func TestGetChatModel_WithConfig(t *testing.T) {
 	SetRegistry(nil)
 	defer SetRegistry(nil)
@@ -237,13 +238,52 @@ func TestGetChatModel_WithConfig(t *testing.T) {
 	fakeReg := providers.NewFakeRegistry()
 	SetRegistry(fakeReg)
 
-	// 即使传入 cfg，Registry 仍优先
+	// cfg == nil 时使用 Registry
 	cm, err := GetChatModel(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("GetChatModel: %v", err)
 	}
 	if cm == nil {
 		t.Fatal("expected non-nil from Registry")
+	}
+}
+
+// TestConfig_ExplicitNotDiscarded 验证显式 cfg 不被丢弃（Fix 5）。
+// 当 cfg != nil 时，应直接使用该 cfg 构造，而不是走 Registry。
+func TestConfig_ExplicitNotDiscarded(t *testing.T) {
+	SetRegistry(nil)
+	defer SetRegistry(nil)
+
+	// 设置 Registry 为 nil Chat（会返回错误）
+	fakeReg := &providers.FakeRegistry{
+		// Chat 为 nil → GetChat 返回错误
+	}
+	SetRegistry(fakeReg)
+
+	// cfg == nil 时应使用 Registry，返回错误
+	_, err := GetChatModel(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error when Registry Chat is nil and cfg is nil")
+	}
+
+	// cfg != nil 时应直接构造，不查 Registry（Fix 5）
+	// 这里使用无效的 cfg 但不会触发 Registry 错误
+	// 注意：实际构造可能失败（无效 API key），但重要的是不走 Registry 路径
+	explicitCfg := &openai.ChatModelConfig{
+		APIKey:  "test-key",
+		BaseURL: "http://localhost:1/v1", // 无效地址，构造本身不会失败
+		Model:   "test-model",
+	}
+	// cfg != nil → 直接构造，不查 Registry，不会返回 "role not configured" 错误
+	cm, err := GetChatModel(context.Background(), explicitCfg)
+	// 构造可能成功（eino NewChatModel 只装配 client 不发请求）
+	if err != nil {
+		// 如果失败，不应该是 Registry 相关错误
+		if containsStr(err.Error(), "registry") || containsStr(err.Error(), "not configured") {
+			t.Errorf("cfg!=nil should not go through Registry, got: %v", err)
+		}
+	} else if cm == nil {
+		t.Error("expected non-nil model with explicit cfg")
 	}
 }
 

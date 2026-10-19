@@ -56,6 +56,26 @@ func TestBuilder_ConcurrentRegistration(t *testing.T) {
 	}
 }
 
+// TestBuilder_OpenAIRegistered 验证 OpenAI 生产 builder 注册（Fix 6）。
+func TestBuilder_OpenAIRegistered(t *testing.T) {
+	resetBuilderState()
+	defer resetBuilderState()
+
+	// 验证 openai builder 已注册
+	_, ok := lookupChatBuilder("openai")
+	if !ok {
+		t.Error("expected openai chat builder to be registered")
+	}
+	_, ok = lookupEmbedBuilder("openai")
+	if !ok {
+		t.Error("expected openai embed builder to be registered")
+	}
+	_, ok = lookupRerankBuilder("openai")
+	if !ok {
+		t.Error("expected openai rerank builder to be registered")
+	}
+}
+
 // TestBuilder_UnknownProviderRejected 验证未知 Provider 返回错误。
 func TestBuilder_UnknownProviderRejected(t *testing.T) {
 	resetBuilderState()

@@ -45,7 +45,15 @@ func GetRegistry() providers.ProviderRegistry {
 }
 
 func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseChatModel, error) {
-	// B4: Registry 优先于旧 singleton
+	// Fix 5: cfg != nil 时直接构造，不查 Registry（显式配置不被静默忽略）
+	if cfg != nil {
+		cm, err := openai.NewChatModel(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		return cm, nil
+	}
+	// cfg == nil: 默认路径，优先使用 Registry
 	if r := GetRegistry(); r != nil {
 		chatRole, err := r.GetChat(ctx)
 		if err != nil {
@@ -57,12 +65,10 @@ func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseC
 	if chatModel != nil {
 		return chatModel, nil
 	}
-	if cfg == nil {
-		cfg = &openai.ChatModelConfig{}
-		err := g.Cfg().MustGet(ctx, "chat").Scan(cfg)
-		if err != nil {
-			return nil, err
-		}
+	cfg = &openai.ChatModelConfig{}
+	err := g.Cfg().MustGet(ctx, "chat").Scan(cfg)
+	if err != nil {
+		return nil, err
 	}
 	cm, err := openai.NewChatModel(ctx, cfg)
 	if err != nil {
@@ -92,7 +98,15 @@ func GetEmbeddingModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.
 }
 
 func GetRewriteModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
-	// B4: Registry 优先于旧 singleton
+	// Fix 5: cfg != nil 时直接构造，不查 Registry
+	if cfg != nil {
+		cm, err := qwen.NewChatModel(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		return cm, nil
+	}
+	// cfg == nil: 默认路径，优先使用 Registry
 	if r := GetRegistry(); r != nil {
 		chatRole, err := r.GetRewrite(ctx)
 		if err != nil {
@@ -104,13 +118,11 @@ func GetRewriteModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.Base
 	if rewriteModel != nil {
 		return rewriteModel, nil
 	}
-	if cfg == nil {
-		cfg = &qwen.ChatModelConfig{}
-		err := g.Cfg().MustGet(ctx, "rewrite").Scan(cfg)
-		cfg.EnableThinking = Of(false)
-		if err != nil {
-			return nil, err
-		}
+	cfg = &qwen.ChatModelConfig{}
+	err := g.Cfg().MustGet(ctx, "rewrite").Scan(cfg)
+	cfg.EnableThinking = Of(false)
+	if err != nil {
+		return nil, err
 	}
 	cm, err := qwen.NewChatModel(ctx, cfg)
 	if err != nil {
@@ -222,9 +234,13 @@ var qaDefaultCache = &qaModelCache{
 }
 
 // GetQAModel 公开入口，委派给生产默认实例；保留签名与成功缓存行为。
-// B4: Registry 优先于旧 singleton。
+// Fix 5: cfg != nil 时直接构造，不查 Registry。
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
-	// B4: Registry 优先
+	// Fix 5: cfg != nil 时直接构造，不查 Registry
+	if cfg != nil {
+		return qaDefaultCache.get(ctx, cfg)
+	}
+	// cfg == nil: 默认路径，优先使用 Registry
 	if r := GetRegistry(); r != nil {
 		chatRole, err := r.GetQA(ctx)
 		if err != nil {
@@ -232,5 +248,5 @@ func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatM
 		}
 		return chatRole, nil
 	}
-	return qaDefaultCache.get(ctx, cfg)
+	return qaDefaultCache.get(ctx, nil)
 }

@@ -41,7 +41,19 @@ func BuildRerank(ctx context.Context, cfg providers.BuildConfig) (providers.Rera
 }
 
 // Rerank 调用底层 Rerank 并附加预算结算（B1）。
+// Fix 2e: 本地校验（topK、docs、query）在 Reserve 之前完成。
 func (a *rerankAdapter) Rerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
+	// Fix 2e: 本地校验前置（在 Reserve 之前）
+	if topK <= 0 {
+		return nil, fmt.Errorf("bailian rerank: invalid topK: %d", topK)
+	}
+	if len(docs) == 0 {
+		return nil, fmt.Errorf("bailian rerank: empty docs")
+	}
+	if query == "" {
+		return nil, fmt.Errorf("bailian rerank: empty query")
+	}
+
 	// B1: 预算接入
 	lease, err := a.reserveBudget(ctx, estimateRerankTokens(query, docs))
 	if err != nil {
@@ -65,16 +77,21 @@ func (a *rerankAdapter) Rerank(ctx context.Context, query string, docs []*schema
 	return result, nil
 }
 
-// reserveBudget 创建 RequestBudget 并 Reserve 一次尝试。
+// reserveBudget 从 ctx 复用已有 RequestBudget，或创建新的。Fix 2a: owner 复用。
 func (a *rerankAdapter) reserveBudget(ctx context.Context, est *providers.TokenEstimate) (*providers.AttemptLease, error) {
 	if a.budget == nil {
 		return nil, nil
 	}
-	rb, err := a.budget.NewRequestBudget(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("bailian rerank: create request budget: %w", err)
+	// Fix 2a: 优先从 ctx 复用入口 owner 构造的 RequestBudget
+	rb := providers.RequestBudgetFromContext(ctx)
+	if rb == nil {
+		var err error
+		rb, err = a.budget.NewRequestBudget(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("bailian rerank: create request budget: %w", err)
+		}
 	}
-	lease, err := rb.Reserve(est)
+	lease, err := rb.ReserveCtx(ctx, est)
 	if err != nil {
 		return nil, fmt.Errorf("bailian rerank: budget reserve: %w", err)
 	}
@@ -82,11 +99,14 @@ func (a *rerankAdapter) reserveBudget(ctx context.Context, est *providers.TokenE
 }
 
 // estimateRerankTokens 从 query 和文档估算 token 数。
+// Fix 7: 防御性处理 nil doc。
 func estimateRerankTokens(query string, docs []*schema.Document) *providers.TokenEstimate {
 	var inputChars int64
 	inputChars += int64(len(query))
 	for _, d := range docs {
-		inputChars += int64(len(d.Content))
+		if d != nil {
+			inputChars += int64(len(d.Content))
+		}
 	}
 	return &providers.TokenEstimate{
 		InputTokens: inputChars/4 + 1,

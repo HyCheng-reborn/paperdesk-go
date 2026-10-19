@@ -30,6 +30,11 @@ var (
 	vectorStore vector.VectorStore
 	ragMu       sync.RWMutex
 	ragInit     bool
+
+	// B5: 进程级 ProcessBudget 持久化，跨 Registry 重建复用同一实例。
+	// 由进程 owner 持有，不随 Registry 重建刷新。
+	processBudget   *providers.ProcessBudget
+	processBudgetMu sync.Mutex
 )
 
 // RagConfig 完整 RAG 初始化配置
@@ -97,6 +102,7 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		MaxBackgroundTasks:    cfg.MaxBackgroundTasks,
 		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
 		Provider:              cfg.Provider,
+		Registry:              reg, // B5: 显式传入本次 Registry
 	})
 	if err != nil {
 		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
@@ -113,6 +119,7 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 
 // buildRegistry 从 ProviderConfig 构建 ProviderRegistry。
 // 构造过程不发起网络请求；凭据解析失败或 Profile 校验失败返回错误。
+// B5: ProcessBudget 跨 Registry 重建复用同一实例（进程 owner 持有）。
 func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.ProviderRegistry, error) {
 	if pc == nil {
 		return nil, fmt.Errorf("nil ProviderConfig")
@@ -132,11 +139,18 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 		return apiKey, nil
 	}
 
-	// B1: 构造进程级预算（从配置读取实际参数，不再硬编码 (0,0,0,0)）
-	budget, err := providers.NewProcessBudget(pc.MaxRequests, pc.MaxInputTokens, pc.MaxOutputTokens, pc.MaxConcurrency)
-	if err != nil {
-		return nil, fmt.Errorf("create process budget: %w", err)
+	// B5: ProcessBudget 持久化：首次创建，后续复用同一实例（不随 Registry 重建刷新）
+	processBudgetMu.Lock()
+	if processBudget == nil {
+		var err error
+		processBudget, err = providers.NewProcessBudget(pc.MaxRequests, pc.MaxInputTokens, pc.MaxOutputTokens, pc.MaxConcurrency)
+		if err != nil {
+			processBudgetMu.Unlock()
+			return nil, fmt.Errorf("create process budget: %w", err)
+		}
 	}
+	budget := processBudget
+	processBudgetMu.Unlock()
 
 	// 构造共享 Transport
 	transport := providers.NewTransport()
@@ -145,6 +159,8 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 	protocol := "openai-compatible"
 	providerName := pc.Name
 	baseURL := pc.BaseURL
+
+	var err error
 
 	// Chat Profile
 	var chatProfile *providers.ProviderProfile

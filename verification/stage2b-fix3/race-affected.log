@@ -1,0 +1,18 @@
+﻿# CMD: go test -race ./core/providers/... ./core/common/... ./core/rerank/... ./internal/logic/rag/... ./internal/logic/chat/... -count=1 -timeout=300s
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;<original PATH>, CC=gcc, CGO_ENABLED=1 (process-level only)
+# EXIT: 0
+# DATE: 2026-10-20 01:44:55
+# DURATION_SEC: 31.1
+# GCC: gcc.exe (Rev6, Built by MSYS2 project) 16.2.0
+# GIT_HEAD: 745c4433b4a99542c441b7a3d6fe958f88688caa
+# NOTE: stdout and stderr are interleaved in a single stream
+--- OUTPUT BEGIN ---
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.393s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	6.411s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.309s
+ok  	github.com/wangle201210/go-rag/server/core/common	1.281s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	2.176s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	21.518s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.274s
+--- OUTPUT END ---

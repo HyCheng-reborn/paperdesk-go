@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"sync"
 
 	"github.com/cloudwego/eino/components/embedding"
 	"github.com/cloudwego/eino/components/model"
@@ -33,16 +32,12 @@ var (
 )
 
 // validatedEmbedRole 包装 EmbedRole，附加响应验证与预算接入（B1）。
-// Fix 2d: 通过 lastUsage 字段从 validationTransport 回传真实 usage。
+// B7: usage 通过 per-call context collector 回传，不再使用角色级共享字段。
 type validatedEmbedRole struct {
 	inner       providers.EmbedRole
 	profile     *providers.ProviderProfile
 	expectedDim int
 	budget      *providers.ProcessBudget
-
-	// Fix 2d: usage 回传通道（validationTransport 写入，EmbedStrings 读取）
-	usageMu   sync.Mutex
-	lastUsage *embeddingUsage
 }
 
 // embeddingUsage 是从原始响应解析的 usage 信息。
@@ -50,6 +45,45 @@ type embeddingUsage struct {
 	PromptTokens     int
 	CompletionTokens int
 	TotalTokens      int
+}
+
+// B7: per-call usage collector，通过 context 传递，避免跨请求串账。
+type usageCollectorKey struct{}
+
+type usageCollector struct {
+	ch chan *embeddingUsage // buffer=1，transport 写入，调用方读取
+}
+
+func newUsageCollector() *usageCollector {
+	return &usageCollector{ch: make(chan *embeddingUsage, 1)}
+}
+
+func (uc *usageCollector) send(u *embeddingUsage) {
+	select {
+	case uc.ch <- u:
+	default: // 已有值，丢弃后来的（单次 HTTP 调用只产生一次）
+	}
+}
+
+func (uc *usageCollector) receive() *embeddingUsage {
+	select {
+	case u := <-uc.ch:
+		return u
+	default:
+		return nil
+	}
+}
+
+func contextWithUsageCollector(ctx context.Context, uc *usageCollector) context.Context {
+	return context.WithValue(ctx, usageCollectorKey{}, uc)
+}
+
+func usageCollectorFromContext(ctx context.Context) *usageCollector {
+	if ctx == nil {
+		return nil
+	}
+	uc, _ := ctx.Value(usageCollectorKey{}).(*usageCollector)
+	return uc
 }
 
 // 编译期断言。
@@ -61,6 +95,7 @@ var _ providers.EmbedRole = (*validatedEmbedRole)(nil)
 // 候选模型 text-embedding-v4 默认 1024 维。
 // B3: 在 SDK 丢失元数据前验证原始 index。
 // 通过 validationTransport 拦截原始 HTTP 响应，验证 index presence/唯一性/范围/顺序。
+// B7: usage 通过 per-call context collector 回传，不再使用角色级共享字段。
 func BuildEmbed(ctx context.Context, cfg providers.BuildConfig) (providers.EmbedRole, error) {
 	if cfg.Profile == nil {
 		return nil, ErrEmbedNilProfile
@@ -69,15 +104,17 @@ func BuildEmbed(ctx context.Context, cfg providers.BuildConfig) (providers.Embed
 		return nil, ErrEmbedNilTransport
 	}
 
-	// B3: 包装 Transport 以拦截原始响应并验证 index
-	// Fix 2d: 传入 owner 以便回传 usage
+	// B7: 包装 Transport 以拦截原始响应并验证 index，usage 通过 context collector 回传
 	role := &validatedEmbedRole{
 		profile:     cfg.Profile.Clone(),
 		expectedDim: cfg.Profile.Dimensions,
 		budget:      cfg.Budget,
 	}
 	validatedCfg := cfg
-	validatedCfg.Transport = wrapTransportWithValidation(cfg.Transport, role)
+	validatedCfg.Transport = wrapTransportWithValidation(cfg.Transport)
+	// B4/B7: 预算由 validatedEmbedRole 独占（通过 per-call collector 结算真实 usage），
+	// 内层基础适配器不再重复包装预算，避免双重预留/双重结算。
+	validatedCfg.Budget = nil
 
 	inner, err := providers.BuildEmbedRole(ctx, validatedCfg)
 	if err != nil {
@@ -88,20 +125,19 @@ func BuildEmbed(ctx context.Context, cfg providers.BuildConfig) (providers.Embed
 }
 
 // EmbedStrings 调用底层 Embedder 并验证响应，附加预算结算（B1）。
-// Fix 2d: 从 validationTransport 回传的 usage 结算，而非始终 Finish(nil)。
+// B7: 通过 per-call context collector 回传 usage，不再使用角色级共享字段。
 func (v *validatedEmbedRole) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float64, error) {
 	// Fix 2e: 本地校验前置（在 Reserve 之前）
 	if len(texts) == 0 {
 		return nil, fmt.Errorf("bailian embed: empty texts")
 	}
 
-	// 清除上次 usage
-	v.usageMu.Lock()
-	v.lastUsage = nil
-	v.usageMu.Unlock()
+	// B7: 创建 per-call usage collector，注入 context
+	uc := newUsageCollector()
+	callCtx := contextWithUsageCollector(ctx, uc)
 
 	// B1: 预算接入
-	lease, err := v.reserveBudget(ctx, estimateEmbedTokens(texts))
+	lease, err := v.reserveBudget(callCtx, estimateEmbedTokens(texts))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +145,7 @@ func (v *validatedEmbedRole) EmbedStrings(ctx context.Context, texts []string, o
 		lease.Commit()
 	}
 
-	result, err := v.inner.EmbedStrings(ctx, texts, opts...)
+	result, err := v.inner.EmbedStrings(callCtx, texts, opts...)
 	if err != nil {
 		if lease != nil {
 			lease.Abort(err)
@@ -122,11 +158,9 @@ func (v *validatedEmbedRole) EmbedStrings(ctx context.Context, texts []string, o
 		}
 		return nil, err
 	}
-	// Fix 2d: 从 validationTransport 回传的 usage 结算
+	// B7: 从 per-call collector 读取本次调用的 usage
 	if lease != nil {
-		v.usageMu.Lock()
-		u := v.lastUsage
-		v.usageMu.Unlock()
+		u := uc.receive()
 		if u != nil && u.PromptTokens > 0 {
 			lease.Finish(&model.TokenUsage{
 				PromptTokens:     u.PromptTokens,
@@ -216,15 +250,15 @@ func isInf(v float64) bool { return v == v && v-v != 0 }
 // ---------------------------------------------------------------------------
 
 // validationTransport 包装 http.RoundTripper，拦截 Embedding 响应并验证 index。
-// Fix 2d: 同时回传 usage 给 owner。
+// B7: 通过 per-call context collector 回传 usage，不再使用角色级共享字段。
 type validationTransport struct {
-	base  http.RoundTripper
-	owner *validatedEmbedRole // Fix 2d: 回传 usage
+	base http.RoundTripper
 }
 
 // wrapTransportWithValidation 包装 Transport 以拦截原始响应。
+// B7: 不再持有 owner 引用，usage 通过 request context 中的 collector 回传。
 // Fix 7: nil Transport 安全处理（回退到 http.DefaultTransport），浅拷贝 Client 保留策略。
-func wrapTransportWithValidation(t *providers.Transport, owner *validatedEmbedRole) *providers.Transport {
+func wrapTransportWithValidation(t *providers.Transport) *providers.Transport {
 	client := t.Client()
 	if client == nil {
 		client = &http.Client{}
@@ -235,7 +269,7 @@ func wrapTransportWithValidation(t *providers.Transport, owner *validatedEmbedRo
 	}
 	// Fix 7: 浅拷贝 Client 保留策略（Timeout, CheckRedirect 等）
 	wrapped := &http.Client{
-		Transport:     &validationTransport{base: base, owner: owner},
+		Transport:     &validationTransport{base: base},
 		Timeout:       client.Timeout,
 		CheckRedirect: client.CheckRedirect,
 		Jar:           client.Jar,
@@ -244,7 +278,7 @@ func wrapTransportWithValidation(t *providers.Transport, owner *validatedEmbedRo
 }
 
 // RoundTrip 拦截 HTTP 响应，对 Embedding 响应验证 index 后传递给上层。
-// Fix 2d: 同时提取 usage 并回传给 owner。
+// B7: 通过 request context 中的 per-call collector 回传 usage。
 func (vt *validationTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := vt.base.RoundTrip(req)
 	if err != nil {
@@ -270,11 +304,11 @@ func (vt *validationTransport) RoundTrip(req *http.Request) (*http.Response, err
 		return nil, validationErr
 	}
 
-	// Fix 2d: 回传 usage 给 owner
-	if usage != nil && vt.owner != nil {
-		vt.owner.usageMu.Lock()
-		vt.owner.lastUsage = usage
-		vt.owner.usageMu.Unlock()
+	// B7: 通过 request context 中的 per-call collector 回传 usage
+	if usage != nil {
+		if uc := usageCollectorFromContext(req.Context()); uc != nil {
+			uc.send(usage)
+		}
 	}
 
 	// 验证通过：重建响应体

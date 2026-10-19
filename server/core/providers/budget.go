@@ -454,6 +454,28 @@ func contextWithFixedDeadline(ctx context.Context, ownerDeadline time.Time) (con
 }
 
 // ---------------------------------------------------------------------------
+// Context key: RequestBudget owner reuse (Fix 2a)
+// ---------------------------------------------------------------------------
+
+// budgetCtxKey 是存储 RequestBudget 的 context key 类型（不可导出，防碰撞）。
+type budgetCtxKey struct{}
+
+// ContextWithRequestBudget 将 RequestBudget 绑定到 ctx，供下游适配器复用。
+// 入口处（如 Retrieve/Index/ChatStream）构造一次，通过 ctx 传递。
+func ContextWithRequestBudget(ctx context.Context, rb *RequestBudget) context.Context {
+	return context.WithValue(ctx, budgetCtxKey{}, rb)
+}
+
+// RequestBudgetFromContext 从 ctx 提取已绑定的 RequestBudget（nil 表示未绑定）。
+func RequestBudgetFromContext(ctx context.Context) *RequestBudget {
+	if ctx == nil {
+		return nil
+	}
+	rb, _ := ctx.Value(budgetCtxKey{}).(*RequestBudget)
+	return rb
+}
+
+// ---------------------------------------------------------------------------
 // BudgetOption
 // ---------------------------------------------------------------------------
 

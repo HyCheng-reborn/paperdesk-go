@@ -12,6 +12,51 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+// TestMain 注册测试用 builder，确保所有测试使用已注册的 provider。
+func TestMain(m *testing.M) {
+	// 注册 "openai" 和 "bailian" 的测试 builder
+	// 使用 WrapChatModel + FakeChat 作为底层，保留 Profile 信息
+	_ = RegisterChatBuilder("openai", func(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
+		return &profileChat{FakeChat: NewFakeChat(), profile: cfg.Profile.Clone()}, nil
+	})
+	_ = RegisterEmbedBuilder("openai", func(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
+		return NewFakeEmbed(1024, "openai-embed"), nil
+	})
+	_ = RegisterRerankBuilder("openai", func(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
+		return NewFakeRerank(), nil
+	})
+	_ = RegisterChatBuilder("bailian", func(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
+		return &profileChat{FakeChat: NewFakeChat(), profile: cfg.Profile.Clone()}, nil
+	})
+	_ = RegisterEmbedBuilder("bailian", func(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
+		return NewFakeEmbed(1024, "bailian-embed"), nil
+	})
+	_ = RegisterRerankBuilder("bailian", func(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
+		return NewFakeRerank(), nil
+	})
+	m.Run()
+}
+
+// profileChat 包装 FakeChat，附加 Profile 信息（测试用）。
+type profileChat struct {
+	*FakeChat
+	profile *ProviderProfile
+}
+
+func (pc *profileChat) Profile() ProviderProfile {
+	if pc.profile == nil {
+		return ProviderProfile{}
+	}
+	return pc.profile.snapshot()
+}
+
+func (pc *profileChat) Capabilities() Capabilities {
+	if pc.profile == nil {
+		return Capabilities{}
+	}
+	return pc.profile.Capabilities
+}
+
 // countingCreds 是可控的 CredentialResolver：按调用序返回预设结果，并统计调用次数。
 // 用于确定性验证“失败初始化不发布缓存”“缓存命中不重复构建”。
 type countingCreds struct {

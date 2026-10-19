@@ -1,0 +1,10 @@
+﻿# CMD: go vet ./...
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: default (PATH/CC/CGO_ENABLED unchanged from shell defaults)
+# EXIT: 0
+# DATE: 2026-10-20 01:42:44
+# DURATION_SEC: 1.6
+# GIT_HEAD: 745c4433b4a99542c441b7a3d6fe958f88688caa
+# NOTE: stdout and stderr are interleaved in a single stream
+--- OUTPUT BEGIN ---
+--- OUTPUT END ---

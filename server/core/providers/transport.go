@@ -1,10 +1,15 @@
 package providers
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"time"
 )
+
+// ErrRedirectProhibited 表示 HTTP 重定向被禁止（Fix 2b）。
+// 重定向不消耗额外 attempts，但可能被利用绕过预算，因此显式禁止。
+var ErrRedirectProhibited = errors.New("providers: HTTP redirect prohibited by budget policy")
 
 // Transport 是统一的 HTTP 传输层（stage2-plan §6.4）。
 //
@@ -73,6 +78,7 @@ const (
 
 // NewTransport 构造统一 HTTP 传输层。构造过程不发起网络请求。
 // 未注入 client 时，按选项构建带连接池与超时的 *http.Client。
+// B6: 无论是否注入 client，均强制 CheckRedirect 禁止重定向（避免绕过预算计数）。
 func NewTransport(opts ...TransportOption) *Transport {
 	cfg := &transportConfig{
 		timeout:             defaultTransportTimeout,
@@ -83,6 +89,12 @@ func NewTransport(opts ...TransportOption) *Transport {
 	for _, o := range opts {
 		o(cfg)
 	}
+
+	// 统一的重定向禁止策略
+	redirectPolicy := func(req *http.Request, via []*http.Request) error {
+		return ErrRedirectProhibited
+	}
+
 	client := cfg.client
 	if client == nil {
 		dialer := &net.Dialer{Timeout: cfg.dialTimeout, KeepAlive: 30 * time.Second}
@@ -98,7 +110,14 @@ func NewTransport(opts ...TransportOption) *Transport {
 				TLSHandshakeTimeout:   10 * time.Second,
 				ExpectContinueTimeout: 1 * time.Second,
 			},
+			CheckRedirect: redirectPolicy,
 		}
+	} else {
+		// B6: 注入 client 路径也强制 CheckRedirect。
+		// 浅拷贝保留原始 Transport/Timeout/Jar，但覆盖重定向策略。
+		wrapped := *client
+		wrapped.CheckRedirect = redirectPolicy
+		client = &wrapped
 	}
 	return &Transport{client: client, timeout: cfg.timeout}
 }

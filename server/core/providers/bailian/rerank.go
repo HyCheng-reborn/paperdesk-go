@@ -33,7 +33,10 @@ func BuildRerank(ctx context.Context, cfg providers.BuildConfig) (providers.Rera
 	}
 	// 直接使用 providers.BuildRerankRole：底层 rerank.Rerank 的 RerankConfig.URL
 	// 指向 Profile.Endpoint（百炼 /compatible-api/v1/reranks），请求体结构兼容。
-	rr, err := providers.BuildRerankRole(ctx, cfg)
+	// B4: 预算由 rerankAdapter 独占，内层基础适配器不再重复包装预算，避免双重预留。
+	innerCfg := cfg
+	innerCfg.Budget = nil
+	rr, err := providers.BuildRerankRole(ctx, innerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("bailian rerank: %w", err)
 	}

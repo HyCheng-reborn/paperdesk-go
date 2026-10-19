@@ -1,5 +1,21 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-20 第三轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：745c4433b4a99542c441b7a3d6fe958f88688caa
+- **修复内容**：
+  1. **提交完整性**：补齐 `ContextWithRequestBudget`/`RequestBudgetFromContext`/`ErrRedirectProhibited`/`profileChat`
+  2. **Eino Send 语义**：按 v0.6.0 API 修正 `if writer.Send(...) { /* closed */ }`，多 chunk 完整传递
+  3. **输出预留同源**：`resolveMaxOutput(opts)` 同源计算，真实 HTTP 验证 `max_tokens`
+  4. **OpenAI 预算接入**：`Build*Role` 在 `cfg.Budget!=nil` 时包装 budget*Role，所有 Provider 共享门禁
+  5. **Owner 生产接线**：Chat 入口注入 `RequestBudget`、Index 用 `TaskBudget`+`TransferToBackground`、`processBudget` 进程级持久化
+  6. **重定向门禁覆盖**：注入 client 浅拷贝并强制 `CheckRedirect`
+  7. **Embedding usage 隔离**：per-call context collector 回传，移除角色级共享字段
+- **新增测试**：14 个回归测试（流式完整性、输出预算、OpenAI 预算、Owner 注入、重定向、Usage 隔离）
+- **验证**：gofmt/build/vet exit 0；120 providers 测试 PASS（106 顶层 + 14 子项）；race 压测 -count=10 PASS（560 次，0 DATA RACE）；受影响包 race 通过（7 包）；全项目 go test -p 1 ./... 通过（16 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-20）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

@@ -83,6 +83,13 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 	if len(conf.IndexName) == 0 {
 		return nil, fmt.Errorf("indexName is empty")
 	}
+
+	// B5: 如果显式传入了 Registry，在初始化期间临时设置，供 GetQAModel/GetChatModel 使用。
+	// 成功后由调用方（defaultRagFactory）正式发布；失败时回滚。
+	if conf.Registry != nil {
+		common.SetRegistry(conf.Registry)
+	}
+
 	// 确保 index 存在
 	exists, err := conf.IndexExists(ctx)
 	if err != nil {

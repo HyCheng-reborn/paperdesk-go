@@ -71,6 +71,7 @@ func (a *chatAdapter) Capabilities() Capabilities { return a.profile.Capabilitie
 
 // BuildChatRole 是“现有模型 → ChatRole”的生产共享构造入口：
 // 内部使用现有 openai.NewChatModel，并注入共享 Transport 的 *http.Client。
+// B4: 当 cfg.Budget != nil 时，自动包装预算执行层（Reserve/Commit/Finish）。
 func BuildChatRole(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -88,7 +89,12 @@ func BuildChatRole(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
 	if cm == nil {
 		return nil, fmt.Errorf("providers: build chat model: %w", ErrNilInner)
 	}
-	return &chatAdapter{BaseChatModel: cm, profile: p.Clone()}, nil
+	base := &chatAdapter{BaseChatModel: cm, profile: p.Clone()}
+	// B4: 预算包装
+	if cfg.Budget != nil {
+		return &budgetChatRole{inner: base, budget: cfg.Budget, profile: base.profile}, nil
+	}
+	return base, nil
 }
 
 // WrapChatModel 将任意已构造的 Eino model.BaseChatModel 包装为 ChatRole（生产共享）。
@@ -132,6 +138,7 @@ func (a *embedAdapter) Profile() ProviderProfile { return a.profile.snapshot() }
 
 // BuildEmbedRole 是“现有模型 → EmbedRole”的生产共享构造入口：
 // 内部使用现有 openai.NewEmbedder，并注入共享 Transport 的 *http.Client。
+// B4: 当 cfg.Budget != nil 时，自动包装预算执行层。
 func BuildEmbedRole(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -154,7 +161,12 @@ func BuildEmbedRole(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
 	if eb == nil {
 		return nil, fmt.Errorf("providers: build embedder: %w", ErrNilInner)
 	}
-	return &embedAdapter{inner: eb, profile: p.Clone()}, nil
+	base := &embedAdapter{inner: eb, profile: p.Clone()}
+	// B4: 预算包装
+	if cfg.Budget != nil {
+		return &budgetEmbedRole{inner: base, budget: cfg.Budget, profile: base.profile}, nil
+	}
+	return base, nil
 }
 
 // WrapEmbedder 将任意已构造的 Eino embedding.Embedder 包装为 EmbedRole（生产共享）。
@@ -191,6 +203,7 @@ func (a *rerankAdapter) Profile() ProviderProfile { return a.profile.snapshot() 
 
 // BuildRerankRole 是“现有 rerank.Rerank → RerankRole”的生产共享构造入口：
 // 复用 core/rerank 的全部已验收校验链，并注入共享 Transport 的 *http.Client。
+// B4: 当 cfg.Budget != nil 时，自动包装预算执行层。
 func BuildRerankRole(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -205,7 +218,12 @@ func BuildRerankRole(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
 	if rr == nil {
 		return nil, fmt.Errorf("providers: build rerank: %w", ErrNilInner)
 	}
-	return &rerankAdapter{inner: rr, profile: p.Clone()}, nil
+	base := &rerankAdapter{inner: rr, profile: p.Clone()}
+	// B4: 预算包装
+	if cfg.Budget != nil {
+		return &budgetRerankRole{inner: base, budget: cfg.Budget, profile: base.profile}, nil
+	}
+	return base, nil
 }
 
 // WrapRerank 将已构造的 *rerank.Rerank 包装为 RerankRole（生产共享）。

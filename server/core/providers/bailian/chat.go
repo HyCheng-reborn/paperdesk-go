@@ -68,14 +68,18 @@ func BuildChat(ctx context.Context, cfg providers.BuildConfig) (providers.ChatRo
 
 // Generate 调用底层模型并映射错误，附加预算结算（B1）。
 // Fix 2e: 本地校验在 Reserve 之前完成。
+// B3: 从 opts 解析实际 MaxTokens，与预留同源。
 func (a *chatAdapter) Generate(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.Message, error) {
 	// Fix 2e: 本地校验前置（在 Reserve 之前）
 	if len(messages) == 0 {
 		return nil, fmt.Errorf("bailian chat: empty messages")
 	}
 
+	// B3: 从 opts 解析实际输出上限，同源计算预留
+	effectiveMaxOutput := a.resolveMaxOutput(opts)
+
 	// B1: 预算接入
-	lease, err := a.reserveBudget(ctx, a.estimateTokens(messages))
+	lease, err := a.reserveBudget(ctx, a.estimateTokensWithOutput(messages, effectiveMaxOutput))
 	if err != nil {
 		return nil, err
 	}
@@ -99,14 +103,18 @@ func (a *chatAdapter) Generate(ctx context.Context, messages []*schema.Message, 
 
 // Stream 调用底层流式接口并映射错误，附加预算结算（B1）。
 // Fix 3: 使用 leaseStreamReader 包装，单一所有权终结 lease。
+// B3: 从 opts 解析实际 MaxTokens，与预留同源。
 func (a *chatAdapter) Stream(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
 	// Fix 2e: 本地校验前置
 	if len(messages) == 0 {
 		return nil, fmt.Errorf("bailian chat: empty messages")
 	}
 
+	// B3: 从 opts 解析实际输出上限，同源计算预留
+	effectiveMaxOutput := a.resolveMaxOutput(opts)
+
 	// B1: 预算接入
-	lease, err := a.reserveBudget(ctx, a.estimateTokens(messages))
+	lease, err := a.reserveBudget(ctx, a.estimateTokensWithOutput(messages, effectiveMaxOutput))
 	if err != nil {
 		return nil, err
 	}
@@ -152,12 +160,21 @@ func (a *chatAdapter) reserveBudget(ctx context.Context, est *providers.TokenEst
 }
 
 // defaultMaxOutputTokens 是 Chat 模型的默认最大输出 token 预留。
-// Fix 2c: 与 Eino openai ChatModel 的默认 max_tokens 对齐（8192）。
+// B3: 仅作为 opts 未指定 MaxTokens 时的回退默认值。
 const defaultMaxOutputTokens int64 = 8192
 
-// estimateTokens 从消息估算 token 数（保守估算：4 字符 ≈ 1 token）。
-// Fix 2c: MaxOutput 使用 defaultMaxOutputTokens（与实际 max_tokens 同源）。
-func (a *chatAdapter) estimateTokens(messages []*schema.Message) *providers.TokenEstimate {
+// resolveMaxOutput 从 opts 解析实际 MaxTokens，与预算预留同源计算（B3）。
+// opts 中有 MaxTokens 则使用该值；否则使用 defaultMaxOutputTokens。
+func (a *chatAdapter) resolveMaxOutput(opts []model.Option) int64 {
+	resolved := model.GetCommonOptions(&model.Options{}, opts...)
+	if resolved != nil && resolved.MaxTokens != nil && *resolved.MaxTokens > 0 {
+		return int64(*resolved.MaxTokens)
+	}
+	return defaultMaxOutputTokens
+}
+
+// estimateTokensWithOutput 从消息估算 token 数，使用实际输出上限（B3 同源）。
+func (a *chatAdapter) estimateTokensWithOutput(messages []*schema.Message, maxOutput int64) *providers.TokenEstimate {
 	var inputChars int64
 	for _, m := range messages {
 		if m != nil {
@@ -167,7 +184,7 @@ func (a *chatAdapter) estimateTokens(messages []*schema.Message) *providers.Toke
 	inputTokens := inputChars/4 + 1 // 保守：至少 1 token
 	return &providers.TokenEstimate{
 		InputTokens: inputTokens,
-		MaxOutput:   defaultMaxOutputTokens,
+		MaxOutput:   maxOutput,
 	}
 }
 
@@ -240,10 +257,9 @@ func (w *leaseStreamReader) finalize(err error) {
 }
 
 // wrapLeaseStreamReader 包装 StreamReader，使用 leaseStreamReader 单一所有权终结。
+// 内部启动一个转发 goroutine：从源 Recv → 向 pipe writer Send。
+// 所有权链：下游 Close/取消 → writer.Send 返回 true（closed）→ 源 Close → lease 终结 → goroutine 退出。
 func wrapLeaseStreamReader(sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *schema.StreamReader[*schema.Message] {
-	// 使用 schema.Pipe 创建可包装的流：
-	// 由于 eino schema.StreamReader 是 final struct，我们通过代理模式包装。
-	// 实际方案：直接返回 leaseStreamReader 包装的 pipe reader。
 	reader, writer := schema.Pipe[*schema.Message](1)
 	lsw := &leaseStreamReader{inner: sr, lease: lease}
 
@@ -253,12 +269,15 @@ func wrapLeaseStreamReader(sr *schema.StreamReader[*schema.Message], lease *prov
 			chunk, err := lsw.Recv()
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
+					// 非 EOF 错误：传播给下游，然后终结
 					writer.Send(nil, err)
 				}
+				// EOF 或错误：lease 已由 finalize 终结
 				return
 			}
-			if !writer.Send(chunk, nil) {
-				// 下游关闭：终结 lease
+			// Eino v0.6.0: Send 返回 true 表示 pipe 已关闭（下游 Close/取消）
+			if writer.Send(chunk, nil) {
+				// 下游已关闭：终结源 reader 与 lease
 				lsw.Close()
 				return
 			}

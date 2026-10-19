@@ -153,10 +153,17 @@ func TestBudget_RetryNoRefresh(t *testing.T) {
 }
 
 // TestBudget_RedirectCountsAttempts 验证 307 重定向返回错误（Fix 2b: CheckRedirect 禁止）。
+// B6: 重定向目标改为本机 httptest，不联网。
 func TestBudget_RedirectCountsAttempts(t *testing.T) {
-	// 创建重定向服务器
+	// 本机重定向目标（替代外部域名，全部 httptest 不联网）
+	targetSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer targetSrv.Close()
+
+	// 创建重定向服务器：307 指向本机目标
 	redirectSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "http://evil.example.com/steal", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, targetSrv.URL+"/steal", http.StatusTemporaryRedirect)
 	}))
 	defer redirectSrv.Close()
 
@@ -190,7 +197,9 @@ func TestBudget_OutputCapMatches(t *testing.T) {
 	}
 
 	msgs := []*schema.Message{{Role: schema.User, Content: "test"}}
-	est := adapter.estimateTokens(msgs)
+	// B3: 同源计算 —— opts 为 nil 时 resolveMaxOutput 返回默认上限
+	effectiveMaxOutput := adapter.resolveMaxOutput(nil)
+	est := adapter.estimateTokensWithOutput(msgs, effectiveMaxOutput)
 
 	if est.MaxOutput != defaultMaxOutputTokens {
 		t.Errorf("expected MaxOutput=%d, got %d", defaultMaxOutputTokens, est.MaxOutput)

@@ -1,8 +1,8 @@
 # Stage 2 细化实施方案
 
-> **状态**：2A 剩余阻塞修复完成（2026-10-19），待再次复核；2B 阻塞修复完成（2026-10-20），待再次复核；2C/2D 待实施
+> **状态**：2A 剩余阻塞修复完成（2026-10-19），待再次复核；2B 阻塞修复完成（2026-10-20 第三轮），待再次复核；2C/2D 待实施
 > **日期**：2026-10-20
-> **基线**：实施 `212ccd8`；修复 `2780e39`；2B 实施 `df260dd`；2B 阻塞修复（一轮）`a24cb8d`；2B 阻塞修复（二轮）`be28e91`（`review/stage1a` 分支）
+> **基线**：实施 `212ccd8`；修复 `2780e39`；2B 实施 `df260dd`；2B 阻塞修复（一轮）`a24cb8d`；2B 阻塞修复（二轮）`be28e91`；2B 阻塞修复（三轮）`745c443`（`review/stage1a` 分支）
 > **约束**：本轮只修订方案文档，不改业务代码；不启动服务；不调用模型 API；不操作 Codex 独立审查 worktree
 
 ---
@@ -730,7 +730,7 @@ PROBE_MAX_TOKENS=1000                     # 探针最大 token
 | 批次 | 验收条件 | 回滚边界 | 状态 |
 |---|---|---|---|
 | **2A** | 不可变 ProviderProfile/角色+capabilities；锁定 Eino 的可编译 Stream/Embedding 适配；共享预算执行核心（attempt lease、deadline/并发、一次性结算）；生产共享链；fake 覆盖所有角色；预算并发争用 race 通过；预算不足返回错误；取消传播；usage 缺失保守预留；`MaxRequests=1` 并发实际发送计数为 1；请求足够/进程不足或反之均零发送且完全回退；重试/子步骤/后台接管不刷新累计额度；发送后网络失败不返还尝试计数；重复 Finish/Abort/Close 不重复退款；httptest 阻塞 body 时下个请求不越过并发上限；非流式读失败/stream 提前 Close/取消/错误均最终释放 slot；Close 与 EOF 并发只 finalize 一次；unknown usage 不退款 token 但下一请求能用释放的 slot；预留阶段溢出拦截；resolver 隔离内部 Profile；`go test -race ./core/providers/...` exit 0 | 删除 `providers/` 目录 | **2A 剩余阻塞修复完成（2026-10-19）** |
-| **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；预算入口 owner 复用与重定向计 attempts；流式 leaseStreamReader 幂等终结；Reset 失败保留 Registry；cfg=nil 默认路径 vs 显式配置；OpenAI 生产 builder；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 | **2B 阻塞修复完成（2026-10-20）** |
+| **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；预算入口 owner 复用与重定向计 attempts；流式 leaseStreamReader 幂等终结；Reset 失败保留 Registry；cfg=nil 默认路径 vs 显式配置；OpenAI 生产 builder；Send 语义修正 + 输出预留同源 + Embedding usage 隔离；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 | **2B 阻塞修复完成（2026-10-20 第三轮）** |
 | **2C** | 维度 fingerprint 匹配/不匹配逻辑正确；ES/Qdrant CreateIndex 使用配置维度；维度不匹配阻断写入/检索；同维度不等于同模型 | `git revert` 2C 提交 | |
 | **2D** | 探针在授权预算内执行；所有候选模型最小调用通过；脱敏证据完整；A-4 QA 向量行为记录 | 不影响离线代码（探针为只读验证） | |
 

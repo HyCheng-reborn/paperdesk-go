@@ -1,0 +1,10 @@
+﻿# CMD: gofmt -l core/providers/ core/common/ core/config/ internal/logic/rag/ internal/logic/chat/ core/
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: default (gofmt needs no CGO toolchain)
+# EXIT: 0
+# DATE: 2026-10-20 01:42:24
+# DURATION_SEC: 0
+# GIT_HEAD: 745c4433b4a99542c441b7a3d6fe958f88688caa
+# NOTE: stdout and stderr are interleaved in a single stream
+--- OUTPUT BEGIN ---
+--- OUTPUT END ---

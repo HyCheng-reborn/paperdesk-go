@@ -45,6 +45,7 @@ type RetrieveReq struct {
 }
 
 // Retrieve 检索
+// B5: 入口创建 RequestBudget 并注入 ctx，使下游所有模型调用共享同一累计 owner。
 func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
 	// 输入校验
 	if req == nil {
@@ -58,6 +59,9 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+
+	// B5: 注入请求级预算 owner
+	ctx = common.WithRequestBudget(ctx)
 
 	// 创建本次调用的局部请求副本，不修改输入
 	localReq := *req

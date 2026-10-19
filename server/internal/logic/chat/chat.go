@@ -193,6 +193,8 @@ func Reset() {
 }
 
 func (x *Chat) GetAnswer(ctx context.Context, convID string, docs []*schema.Document, question string) (answer string, err error) {
+	// B5: 请求入口注入 RequestBudget，使下游 Chat 适配器共享同一累计 owner
+	ctx = common.WithRequestBudget(ctx)
 	messages, err := x.docsMessages(ctx, convID, docs, question)
 	if err != nil {
 		return "", err
@@ -275,11 +277,13 @@ func (c *streamCoordinator) cleanupOK() {
 // History 保存不接受 context 的边界如实保留：等待保存可能受数据库调用阻塞，
 // 不宣称有界。
 func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schema.Document, question string) (answer *schema.StreamReader[*schema.Message], cleanup func(StreamResult), err error) {
+	// B5: 请求入口注入 RequestBudget，子步骤（模型调用/流式消费）共享同一累计 owner
+	ctx = common.WithRequestBudget(ctx)
 	messages, err := x.docsMessages(ctx, convID, docs, question)
 	if err != nil {
 		return
 	}
-	// 创建派生 context，传递给模型；cleanup 内部释放
+	// 创建派生 context，传递给模型；cleanup 内部释放（保留注入的预算 value）
 	derivedCtx, cancel := context.WithCancel(ctx)
 	streamData, streamErr := stream(derivedCtx, x.cm, messages)
 	if streamErr != nil {

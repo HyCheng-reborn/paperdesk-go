@@ -1,0 +1,226 @@
+﻿# ANALYSIS for stage2b-fix3 verification run
+# DATE: 2026-10-20 01:46:47
+# GIT_HEAD: 745c4433b4a99542c441b7a3d6fe958f88688caa (working tree has uncommitted Stage 2B fix changes)
+
+== A. HARD FAILURE SCAN (strict patterns, all 7 logs) ==
+  gofmt.log                HARD_FAILURE_LINES=0
+  build.log                HARD_FAILURE_LINES=0
+  vet.log                  HARD_FAILURE_LINES=0
+  test-providers.log       HARD_FAILURE_LINES=0
+  race-key-stress.log      HARD_FAILURE_LINES=0
+  race-affected.log        HARD_FAILURE_LINES=0
+  test-full.log            HARD_FAILURE_LINES=0
+  NOTE: loose token scan (FAIL|WARNING|exit status) matched only test NAMES containing
+        'failure'/'Failed' (TestBudget_DualScope_PartialFailure, TestRegistry_FailedInit,
+        TestBudget_SlotRelease_StreamPaths/nonstream-read-failure) - all reported PASS.
+
+== B. test-providers.log : per-package ==
+  ok  	github.com/wangle201210/go-rag/server/core/providers	0.234s
+  ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	5.203s
+  ok  	github.com/wangle201210/go-rag/server/core/providers/openai	0.143s
+
+== C. test-providers.log : actual test inventory (Step 4, -count=1 -v) ==
+  [core/providers]  RUN=59  PASS_TOP=45  PASS_SUB=14  FAIL=0
+      TOP  TestAdapter_ChatRole
+      TOP  TestAdapter_EmbedRole
+      TOP  TestBudget_CommittedNoRefund
+      TOP  TestBudget_ConcurrentFinalize
+      TOP  TestBudget_ConcurrentReserve_MaxRequests
+      TOP  TestBudget_DeadlineNotRefreshedByRetry
+      TOP  TestBudget_DualScope_PartialFailure
+      TOP  TestBudget_IdempotentFinalize
+      TOP  TestBudget_LeaseLifecycle
+      TOP  TestBudget_NegativeProcessLimit
+      TOP  TestBudget_NegativeUsageConservative
+      TOP  TestBudget_OverflowSlotRelease
+      TOP  TestBudget_OwnerCancelPropagates
+      TOP  TestBudget_ReservationOverflow_CrossScope
+      TOP  TestBudget_ReservationOverflow_Input
+      TOP  TestBudget_ReservationOverflow_Output
+      TOP  TestBudget_RetryNoRefresh
+      TOP  TestBudget_SettlementOverflow
+      TOP  TestBudget_SlotRelease_NonStream
+      TOP  TestBudget_SlotRelease_StreamPaths
+      TOP  TestBudget_TotalOnlyUsage
+      TOP  TestBudget_TransferKeepsAbsoluteDeadline
+      TOP  TestBudget_TransferToBackground
+      TOP  TestBudget_UnknownUsage
+      TOP  TestBuilder_ConcurrentRegistration
+      TOP  TestBuilder_DuplicateRegistrationRejected
+      TOP  TestBuilder_FrozenAfterRegistryBuild
+      TOP  TestBuilder_NilBuilderRejected
+      TOP  TestBuilder_OpenAIRegistered
+      TOP  TestBuilder_UnknownProviderRejected
+      TOP  TestFake_AllRoles
+      TOP  TestOwner_IndexBackgroundTransfer
+      TOP  TestProfile_CacheKey_NoCollision
+      TOP  TestProfile_CacheKeyNormalization
+      TOP  TestProfile_KeyOptionsCopy
+      TOP  TestProfile_ModelID
+      TOP  TestProfile_Validation
+      TOP  TestRedirect_AttemptsCounted
+      TOP  TestRedirect_InjectedClientProhibited
+      TOP  TestRegistry_FailedInit
+      TOP  TestRegistry_ProfileIsolation
+      TOP  TestRegistry_ResolverCannotMutateKeyOptions
+      TOP  TestRegistry_ResolverCannotMutateProfile
+      TOP  TestRegistry_ResolverHoldsCopy
+      TOP  TestRegistry_SnapshotIsolated
+      SUB  TestBudget_NegativeProcessLimit/all-negative
+      SUB  TestBudget_NegativeProcessLimit/negative-concurrency
+      SUB  TestBudget_NegativeProcessLimit/negative-input
+      SUB  TestBudget_NegativeProcessLimit/negative-output
+      SUB  TestBudget_NegativeProcessLimit/negative-requests
+      SUB  TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+      SUB  TestBudget_SlotRelease_StreamPaths/stream-cancel
+      SUB  TestBudget_SlotRelease_StreamPaths/stream-early-close
+      SUB  TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+      SUB  TestProfile_Validation/bad-dimensions
+      SUB  TestProfile_Validation/empty-endpoint
+      SUB  TestProfile_Validation/empty-model
+      SUB  TestProfile_Validation/empty-protocol
+      SUB  TestProfile_Validation/empty-provider
+  [core/providers/bailian]  RUN=59  PASS_TOP=59  PASS_SUB=0  FAIL=0
+      TOP  TestBailian_InitRegistered
+      TOP  TestBudget_EmbeddingSettlesUsage
+      TOP  TestBudget_LocalErrorNoCommit
+      TOP  TestBudget_OutputCapMatches
+      TOP  TestBudget_OutputOptsMatchReservation
+      TOP  TestBudget_OutputOptsRejected
+      TOP  TestBudget_OwnerReuseViaCtx
+      TOP  TestBudget_RealHTTPSend
+      TOP  TestBudget_RedirectCountsAttempts
+      TOP  TestBudget_RetryNoRefresh
+      TOP  TestBudget_StreamFinish
+      TOP  TestBuildChat_ErrorCode401
+      TOP  TestBuildChat_ErrorCode500
+      TOP  TestBuildChat_MalformedJSON
+      TOP  TestBuildChat_NilProfile
+      TOP  TestBuildChat_NilTransport
+      TOP  TestBuildChat_NormalResponse
+      TOP  TestBuildChat_StreamInterrupted
+      TOP  TestBuildChat_StreamNormal
+      TOP  TestBuildChat_UsageMissing
+      TOP  TestBuildEmbed_CountMismatch
+      TOP  TestBuildEmbed_DimensionMismatch
+      TOP  TestBuildEmbed_Inf
+      TOP  TestBuildEmbed_NaN
+      TOP  TestBuildEmbed_NilProfile
+      TOP  TestBuildEmbed_NilTransport
+      TOP  TestBuildEmbed_NormalResponse
+      TOP  TestBuildEmbed_UsageMissing
+      TOP  TestBuildRerank_DuplicateIndex
+      TOP  TestBuildRerank_IndexOutOfBounds
+      TOP  TestBuildRerank_InfScore
+      TOP  TestBuildRerank_MissingIndex
+      TOP  TestBuildRerank_MissingScore
+      TOP  TestBuildRerank_NaNScore
+      TOP  TestBuildRerank_NilProfile
+      TOP  TestBuildRerank_NilTransport
+      TOP  TestBuildRerank_NormalResponse
+      TOP  TestBuildRerank_ServerError
+      TOP  TestBuildRerank_Timeout30s
+      TOP  TestEmbedding_ConcurrentUsageIsolated
+      TOP  TestEmbedding_NilTransport
+      TOP  TestEmbedding_RawIndices_Duplicate
+      TOP  TestEmbedding_RawIndices_Missing
+      TOP  TestEmbedding_RawIndices_OutOfOrder
+      TOP  TestEmbedding_RawIndices_Valid
+      TOP  TestEmbedRole_Dimensions
+      TOP  TestOwner_ChatStreamShared
+      TOP  TestRerank_LocalValidationBeforeReserve
+      TOP  TestRerank_NilDocPreservesError
+      TOP  TestStream_BlockedSourceClose
+      TOP  TestStream_CancelFinalizes
+      TOP  TestStream_CancelNotEOF
+      TOP  TestStream_ConcurrentClose
+      TOP  TestStream_ConcurrentCloseFinalizes
+      TOP  TestStream_EarlyCloseFinalizes
+      TOP  TestStream_ErrorFinalizes
+      TOP  TestStream_MultiChunkComplete
+      TOP  TestValidateEmbeddingResponse_NegativeInf
+      TOP  TestValidateEmbeddingResponse_OK
+  [core/providers/openai]  RUN=2  PASS_TOP=2  PASS_SUB=0  FAIL=0
+      TOP  TestOpenAI_BudgetCoversHTTP
+      TOP  TestOpenAI_StreamBudget
+  TOTAL: RUN=120  PASS_TOP=106  PASS_SUB=14  (TOP+SUB=120)  FAIL=0  SKIP=0  PANIC=0  DATA_RACE=0
+
+== D. race-key-stress.log : -run regex hit matrix (Step 5, -count=10 -race -v) ==
+  regex TestStream_                  TOP_PASS_LINES=  80  DISTINCT_TESTS=  8  DISTINCT_NAMES: TestStream_BlockedSourceClose, TestStream_CancelFinalizes, TestStream_CancelNotEOF, TestStream_ConcurrentClose, TestStream_ConcurrentCloseFinalizes, TestStream_EarlyCloseFinalizes, TestStream_ErrorFinalizes, TestStream_MultiChunkComplete
+  regex TestBudget_                  TOP_PASS_LINES= 320  DISTINCT_TESTS= 31  DISTINCT_NAMES: TestBudget_CommittedNoRefund, TestBudget_ConcurrentFinalize, TestBudget_ConcurrentReserve_MaxRequests, TestBudget_DeadlineNotRefreshedByRetry, TestBudget_DualScope_PartialFailure, TestBudget_EmbeddingSettlesUsage, TestBudget_IdempotentFinalize, TestBudget_LeaseLifecycle, TestBudget_LocalErrorNoCommit, TestBudget_NegativeProcessLimit, TestBudget_NegativeUsageConservative, TestBudget_OutputCapMatches, TestBudget_OutputOptsMatchReservation, TestBudget_OutputOptsRejected, TestBudget_OverflowSlotRelease, TestBudget_OwnerCancelPropagates, TestBudget_OwnerReuseViaCtx, TestBudget_RealHTTPSend, TestBudget_RedirectCountsAttempts, TestBudget_ReservationOverflow_CrossScope, TestBudget_ReservationOverflow_Input, TestBudget_ReservationOverflow_Output, TestBudget_RetryNoRefresh, TestBudget_SettlementOverflow, TestBudget_SlotRelease_NonStream, TestBudget_SlotRelease_StreamPaths, TestBudget_StreamFinish, TestBudget_TotalOnlyUsage, TestBudget_TransferKeepsAbsoluteDeadline, TestBudget_TransferToBackground, TestBudget_UnknownUsage
+  regex TestOpenAI_                  TOP_PASS_LINES=  20  DISTINCT_TESTS=  2  DISTINCT_NAMES: TestOpenAI_BudgetCoversHTTP, TestOpenAI_StreamBudget
+  regex TestOwner_                   TOP_PASS_LINES=  20  DISTINCT_TESTS=  2  DISTINCT_NAMES: TestOwner_ChatStreamShared, TestOwner_IndexBackgroundTransfer
+  regex TestRedirect_                TOP_PASS_LINES=  20  DISTINCT_TESTS=  2  DISTINCT_NAMES: TestRedirect_AttemptsCounted, TestRedirect_InjectedClientProhibited
+  regex TestEmbedding_Concurrent     TOP_PASS_LINES=  10  DISTINCT_TESTS=  1  DISTINCT_NAMES: TestEmbedding_ConcurrentUsageIsolated
+  TOP_PASS_LINES_TOTAL=470  SUB_PASS_LINES_TOTAL=90  RUN_TOTAL=560
+  TOP_PASS_LINES_NOT_MATCHING_ANY_REGEX=0
+  DISTINCT_TOP_TEST_NAMES=46   TOP_PASS_LINES=470   (expected 46 x 10 runs = 460; delta explained by names present in more than one package)
+  NAMES_WITH_MORE_THAN_10_PASS_LINES=1: TestBudget_RetryNoRefresh
+  SUB breakdown (distinct subtests x 10 runs):
+        10 x  TestBudget_NegativeProcessLimit/all-negative
+        10 x  TestBudget_NegativeProcessLimit/negative-concurrency
+        10 x  TestBudget_NegativeProcessLimit/negative-input
+        10 x  TestBudget_NegativeProcessLimit/negative-output
+        10 x  TestBudget_NegativeProcessLimit/negative-requests
+        10 x  TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+        10 x  TestBudget_SlotRelease_StreamPaths/stream-cancel
+        10 x  TestBudget_SlotRelease_StreamPaths/stream-early-close
+        10 x  TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+  per-package result:
+      ok  	github.com/wangle201210/go-rag/server/core/providers	1.919s
+      ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.454s
+      ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.263s
+  DATA_RACE=0  FAIL=0  SKIP=0  panic=0  "no tests to run"=0  0xc0000139=0
+
+== E. race-affected.log : packages under -race (Step 6, -count=1 -timeout=300s) ==
+  PASS  ok  	github.com/wangle201210/go-rag/server/core/providers	1.393s
+  PASS  ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	6.411s
+  PASS  ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.309s
+  PASS  ok  	github.com/wangle201210/go-rag/server/core/common	1.281s
+  PASS  ok  	github.com/wangle201210/go-rag/server/core/rerank	2.176s
+  PASS  ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	21.518s
+  PASS  ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.274s
+  PACKAGES_OK=7  FAIL=0  DATA_RACE=0  (race detector actually engaged: cgo gcc 16.2.0 MSYS2 UCRT64)
+
+== F. test-full.log : all packages (Step 7, -p 1 ./... -count=1) ==
+  no test files .
+  no test files ./api/rag
+  no test files ./api/rag/v1
+  ok            ./core  4.048s
+  ok            ./core/common  0.128s
+  no test files ./core/config
+  no test files ./core/grader
+  ok            ./core/indexer  0.480s
+  ok            ./core/providers  0.171s
+  ok            ./core/providers/bailian  5.140s
+  ok            ./core/providers/openai  0.113s
+  ok            ./core/rerank  0.756s
+  ok            ./core/retriever  0.140s
+  no test files ./core/types
+  ok            ./core/vector  0.153s
+  ok            ./core/websearch  0.270s
+  ok            ./internal/cmd  2.200s
+  ok            ./internal/controller/rag  0.193s
+  ok            ./internal/dao  0.113s
+  no test files ./internal/dao/db
+  no test files ./internal/dao/internal
+  ok            ./internal/logic/chat  0.158s
+  ok            ./internal/logic/knowledge  0.132s
+  ok            ./internal/logic/rag  20.385s
+  no test files ./internal/logic/websearch
+  no test files ./internal/mcp
+  no test files ./internal/model/do
+  no test files ./internal/model/entity
+  no test files ./internal/model/gorm
+  no test files ./server
+  PACKAGES_TOTAL=30  OK=16  NO_TEST_FILES=14  FAIL=0
+
+== G. EXIT CODE SUMMARY ==
+  EXIT=0  DUR=     0s  Step 1 gofmt                                                     [gofmt.log]  2026-10-20 01:42:24
+  EXIT=0  DUR=   5.8s  Step 2 go build ./...                                            [build.log]  2026-10-20 01:42:35
+  EXIT=0  DUR=   1.6s  Step 3 go vet ./...                                              [vet.log]  2026-10-20 01:42:44
+  EXIT=0  DUR=   6.5s  Step 4 go test ./core/providers/... -count=1 -v                  [test-providers.log]  2026-10-20 01:42:56
+  EXIT=0  DUR=   4.5s  Step 5 go test -race ./core/providers/... -count=10 -v -run <6 regex> [race-key-stress.log]  2026-10-20 01:43:48
+  EXIT=0  DUR=  31.1s  Step 6 go test -race <5 affected pkg patterns> -count=1 -timeout=300s [race-affected.log]  2026-10-20 01:44:55
+  EXIT=0  DUR=  57.7s  Step 7 go test -p 1 ./... -count=1                               [test-full.log]  2026-10-20 01:46:09
+  ALL SEVEN STEPS EXIT 0.

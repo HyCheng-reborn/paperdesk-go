@@ -1,5 +1,16 @@
 # 变更记录
 
+### Stage 2B 验收记录 + Stage 2C 实施交接（2026-10-21，仅文档）
+
+- **类型**：验收记录 + 交接提取；仅改文档，不改业务代码、不运行在线探针、不调模型 API。
+- **基线**：交付提交 `c15287a71a61f2b3c0d619c071265d08c76d3555`；修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`。在现有本地 go-rag 仓、review/stage1a 分支，不重新 clone。
+- **2B 验收**（读自 `verification/independent-2b-c15287a/REPORT.md`）：报告实际审查完整 SHA = `c15287a…`（经核实，非假定），增量基线 `91ab52d` 为目标祖先，完整差异 18 文件。结论：**通过，未发现剩余阻塞，既定离线边界内 2B 可验收；不宣布整个 Stage 2 完成**。本地 Codex 在干净树（MSYS2 UCRT64 GCC 16.2.0/Binutils 2.47、离线 httptest）独立实测 ordinary/race-providers/race-wiring/race-key-stress/race-chat-key/串行全量/vet/build 均 EXIT 0、0 DATA RACE，另有独立复现层。据此将 PROJECT_PROGRESS/CHANGES/stage2-plan 状态更新为“Stage 2B 已在既定离线范围内通过独立复核”；保留在线协议/真实 usage/设施验证及 2C/2D 门禁；不写整个 Stage 2 完成。
+- **2C 交接**（提取已批准规则并核对源码，见 PROJECT_PROGRESS 与 stage2-plan §5/§7.3）：目标/范围/不含；实际维度硬编码位置（修正为约 13 处+回退默认，不止“六处”；区分真向量维与巧合 1024）；Embedding 配置→模型→ES/Qdrant schema→索引/检索入口流向与缺口；已批准维度/模型身份/索引 fingerprint 契约（建索引记录、读写前校验、不匹配拒绝、同维≠同模型、旧索引身份未知不默认放行）；新 profile 禁用于 common/embedding.go fail-closed guard 及 2C 解除验收条件；修改文件/依赖顺序/最小离线矩阵/设施边界；保留 2A/2B 预算 owner/lease/取消/资源释放契约；首批建议 2C-1 维度单一来源。
+- **待决策/待验证**：fingerprint 具体格式与存储位置、旧索引身份未知处理策略、实际生效的 schema builder、真实 Embedding 返回维度——方案未定/源码不能证明的均标待决策/待验证，不自行创造格式或默认放行。
+- **证据**：未重复审计 2A/2B、未重跑 build/test/race、不清理/移动历史日志、不改他人文件及行尾差异；不开始 2C 编码。
+
+---
+
 ## Stage 2B 第十轮：百炼父取消背压（2026-10-21）
 
 ### 修复

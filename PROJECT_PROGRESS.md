@@ -3,9 +3,9 @@
 ## 当前状态
 
 **日期**：2026-10-21
-**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2B 百炼父取消背压修复完成（2026-10-21 第十一轮）待再次复核**（修复基线 `91ab52d`；百炼 `wrapLeaseStreamReader` 丢弃传入 ctx 导致父取消时无法解除输出 Send 背压，Registry 直接返回 bailian builder role 使 budget_adapter 的 watcher 不覆盖百炼流；导出 `WrapBudgetStreamReader`，百炼改用 `providers.WrapBudgetStreamReader(ctx, ...)` 传入原始父 ctx，删除 `wrapLeaseStreamReader` 和 `leaseStreamReader` 约 90 行，百炼和 OpenAI 走同一生命周期验收路径；新增 6 个百炼父取消测试，更新现有测试签名；百炼父取消背压 `-race -count=10` PASS、providers 全量 PASS 无 DATA RACE、全项目 16 包 PASS）。
+**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2A 已闭合 race 验收（E1）；Stage 2B 已在既定离线范围内通过独立复核**（被验收完整 SHA `c15287a71a61f2b3c0d619c071265d08c76d3555`，修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`，未发现剩余阻塞）。2C/2D 待实施；**不宣布整个 Stage 2 完成**。
 **复核方式**：1-Pre/1A/1B/1C/1D-1/1D-2 为源码及提交日志复核，复核方未独立重跑测试；**1D-3 由本地 Codex 在干净工作树独立重跑**（普通/race/关键用例十轮/串行全量/build/vet，见 1D-3 验收记录）
-**验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；**Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`**（本轮审查范围 `3e24a533f99aaa8578b848ae550dfd2e10292723..71c4c81`）
+**验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`；**Stage 2A 目标 `df260ddfb12694e7064d74fb63cc1c228f8ebbfe`（E1 race 已闭合，见 verification/stage2a-race-evidence-r2/）**；**Stage 2B 已验收 `c15287a71a61f2b3c0d619c071265d08c76d3555`（修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`）**
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
 
 ## Stage 0：事实基线与只读核对
@@ -681,17 +681,38 @@
 
 ## Stage 2：模型角色契约 + Provider 能力 + 预算 + 维度契约
 
-**状态**：**2B 两组 P1 修复完成（2026-10-20 第十轮）待再次复核**（修复基线 `fbbaeb4`；P1-1 去 `Copy(2)` + 单一前台 Pipe + `closeFG()` 关 reader、`SetAutomaticClose` CAS 幂等；P1-2 `parentCtx` watcher + 临时 goroutine 登记 WG + `cancel()` 内 `reader.Close()`；新增 4 个测试 + 3 份失败条件复现取证；chat/providers race ×10 通过；全项目 17 包 ok）
+**状态**：**2A 已闭合（含 E1 race）；2B 已在既定离线范围内通过独立复核**（被验收 SHA `c15287a71a61f2b3c0d619c071265d08c76d3555`，修复基线 `91ab52dd…`；报告 `verification/independent-2b-c15287a/REPORT.md`）。2C/2D 待实施。不宣布整个 Stage 2 完成
 **详细方案**：[design/stage2-plan.md](design/stage2-plan.md)
 
 ### 批次计划
 
 | 批次 | 内容 | 可离线 | 状态 |
 |---|---|---|---|
-| 2A | 角色接口 + 共享预算核心 + 生产共享链 | ✅ | ✅ 剩余阻塞修复完成待再次复核 |
-| 2B | 百炼适配 + 错误映射 + 预算 + 默认工厂与业务接线 | ✅（httptest） | ✅ 2B 两组 P1 修复完成（2026-10-20 第十轮）待再次复核 |
-| 2C | 维度/索引 fingerprint | ✅（httptest + fake） | ⬜ 待实施 |
+| 2A | 角色接口 + 共享预算核心 + 生产共享链 | ✅ | ✅ 已闭合（目标 `df260dd`；E1 race 已补齐，见 stage2a-race-evidence-r2） |
+| 2B | 百炼适配 + 错误映射 + 预算 + 默认工厂与业务接线 | ✅（httptest） | ✅ 已在既定离线范围内通过独立复核（被验收 SHA `c15287a`） |
+| 2C | 维度/索引 fingerprint + 不匹配阻断 | ✅（httptest + fake） | ⬜ 待实施（交接见下及 stage2-plan §5/§7.3） |
 | 2D | 在线探针（仅制定方案，不执行） | ❌ | ⬜ 待实施 |
+
+### Stage 2B 验收记录（本地 Codex 独立复核，2026-10-21）
+
+- **被验收完整 SHA**：`c15287a71a61f2b3c0d619c071265d08c76d3555`（= 当前 HEAD/交付提交）；修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`（已核实为祖先）。报告：`verification/independent-2b-c15287a/REPORT.md`。**注**：报告实际审查对象经核实为 `c15287a`（非假定）；修复基线 `91ab52d` 不等同 2B 累计起点。
+- **结论**：通过。在既定离线边界内 2B 可验收，未发现剩余阻塞；不宣布整个 Stage 2 完成。
+- **本轮修复**：百炼父取消背压——Registry 直返 bailian builder role、旧 `wrapLeaseStreamReader` 丢弃传入 ctx；导出 `WrapBudgetStreamReader`，百炼 `chatAdapter.StreamSession` 传入原始父 ctx，删除旧包装（约 90 行），百炼与 OpenAI 同一生命周期验收路径。R1（预留溢出）/R2（resolver Profile 隔离）保持闭合。
+- **Codex 干净树独立实测**（`C:/Zhy/code/go-rag-review-1d3/server`，MSYS2 UCRT64 GCC 16.2.0/Binutils 2.47，离线 httptest only，全 EXIT 0）：ordinary 305/330、race-providers 138/152、race-wiring 188/199、race-key-stress 580/580、race-chat-key 70/70、`-p 1 ./...`、vet、build；另独立复现 managed-review/race-managed-review（百炼/OpenAI 父取消、nil-budget）。均 0 DATA RACE；未把 no-tests/普通测试当 race。
+- **保留边界**（未验证，不写成通过）：真实协议/usage/模型可用性→2D 在线探针；2C 维度配置/fingerprint/模型身份 guard；新 Embedding profile 生产启用继续等待 guard；A-4、真实 ES/Qdrant、SQL driver 取消、持久化恢复不变；受控会话 Close ≠ 原始 Eino reader.Close 可中断任意阻塞 Recv（继续用已批准 StreamSession 契约）。实现者日志 `verification/stage2b-fix11/` 与独立结果分开。
+
+### Stage 2C 实施交接（精简；详见 design/stage2-plan.md §5/§7.3）
+
+1. **目标/范围/不含**：维度从配置/Provider 声明单源、索引 fingerprint `{model_id, dimensions}` 存取+校验、维度不匹配阻断写入/检索、旧索引身份未知策略。**明确不含**：不重做 2B 百炼适配/预算、不执行 2D 在线探针、不改 rerank 已验收校验链、不升级依赖、不实际迁移旧索引数据。
+2. **实际维度硬编码位置**：不止“六处”。真实向量维度字面量约 13 处 +1 回退默认，完整清单见 stage2-plan §5.5（common/embedding.go:53 请求维、common/es.go:28/33、config/helpers.go:40/45/57/61、vector/es.go:56/61、vector/qdrant.go:46/50、indexer/indexer.go:73、indexer_async.go:52、retriever.go:213-215 回退）。**不得把巧合 1024 当向量维度**（rerank.go:113 MaxChunksPerDoc、knowledge_chunks.go:13 Ext varchar(1024)、fake.go:269 fake 默认）。待验证：哪些 ES/Qdrant schema builder 在实际 CreateIndex 生效。
+3. **配置→模型→schema 流向**：`Provider{EmbeddingModel,EmbeddingDimensions}`→retriever `readRagConfig`/`buildRegistry`→`ProviderProfile{Model,Dimensions,ModelID}`→`Registry.GetEmbedder`。**缺口**：profile 维度尚未传到 ES/Qdrant CreateIndex 与 indexer VectorDim 及各 ES schema builder（仍写死 1024）。
+4. **已批准契约**（§5.3/5.4/§7.3/§10.2）：建索引时记录 fingerprint `{model_id,dimensions}`；写入/检索前校验；维度不匹配拒绝并明确错误；**同维度≠同模型**（fingerprint 必含 model_id）；旧索引身份未知不得静默放行。Profile 已提供 `Dimensions()/ModelID()`、CacheKey 已写 dims。
+5. **新 profile 当前禁用点与解除条件**：`common.NewEmbedding`（embedding.go:25-29）当 `conf.Provider.EmbeddingModel` 非空即 fail-closed 返回 `ErrEmbeddingGuardNotReady`。2C 完成后解除门禁验收条件：fingerprint 校验+不匹配阻断已实现且离线测试通过，才放行新 profile 走 `Registry.GetEmbedder`。
+6. **修改文件/依赖顺序/最小离线矩阵/设施边界**：vector/{es,qdrant,interface}.go、rag.go、indexer/{indexer,indexer_async}.go、config/helpers.go、common/es.go、common/embedding.go。顺序：先维度单源贯通 CreateIndex→fingerprint 存取→校验阻断→解除 guard。离线矩阵（fake VectorStore）：维度匹配/不匹配、fingerprint 记录与校验、CreateIndex 用配置维度。真实 ES/Qdrant mapping/维度往返与真实 Embedding 返回维一致→留 0C/启动 + 2D，不离线断言。
+7. **保留 2A/2B 契约**（不得回归）：ProcessBudget owner 不可重置、三层 owner、AttemptLease Reserve→Commit→Finish/Abort 幂等 finalize、取消传播、StreamSession 生命周期、Registry 发布顺序/Reset 失败保留。
+8. **Codex 首批可执行范围**：2C-1 先做“维度单一来源”——vector Config 增维度字段、CreateIndex/indexer VectorDim 从配置读取（暂不改 fingerprint），可离线验证；后续 2C-2 fingerprint+阻断、2C-3 guard 解除。
+
+**待决策/待验证（方案未定，不自行创造）**：fingerprint 具体格式与存储位置（ES index settings/mapping 字段 vs 外部元数据）——待决策；旧索引 fingerprint 缺失/身份未知的处理策略（拒绝 vs 人工重建）——待决策，不得默认放行；实际生效的 ES/Qdrant schema builder——待验证；`text-embedding-v4` 实际返回维度与声明一致——待 2D 探针。
 
 ### 百炼 API 核实（2026-10-19）
 

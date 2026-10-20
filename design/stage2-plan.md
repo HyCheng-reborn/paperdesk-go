@@ -1,8 +1,8 @@
 # Stage 2 细化实施方案
 
-> **状态**：2A 剩余阻塞修复完成（2026-10-19），待再次复核；2B 两组 P1 修复完成（2026-10-20 第十轮），待再次复核；2C/2D 待实施
-> **日期**：2026-10-20
-> **基线**：实施 `212ccd8`；修复 `2780e39`；2B 实施 `df260dd`；2B 阻塞修复（一轮）`a24cb8d`；2B 阻塞修复（二轮）`be28e91`；2B 阻塞修复（三轮）`745c443`；2B 阻塞修复（四轮）`64aac44`；2B 阻塞修复（五轮）`06ef59c`；2B 阻塞修复（六轮）`02d6bae`；2B 阻塞修复（七轮）`4356f65`；2B 受控流会话方案（八轮）`db8ceed`；2B 受控流会话三组修复（九轮）`cd1a7ac`；2B 两组 P1 修复（十轮）`fbbaeb4`（`review/stage1a` 分支）
+> **状态**：2A 已闭合（含 E1 race，目标 `df260dd`）；**2B 已在既定离线范围内通过独立复核**（被验收 `c15287a`，报告 `verification/independent-2b-c15287a/REPORT.md`）；2C/2D 待实施
+> **日期**：2026-10-21
+> **基线**：实施 `212ccd8`；2A `df260dd`；2B 实施 `a24cb8d` → 阻塞/修复递增至第十一轮 `c15287a`（修复基线 `91ab52d`）（`review/stage1a` 分支）
 > **约束**：本轮只修订方案文档，不改业务代码；不启动服务；不调用模型 API；不操作 Codex 独立审查 worktree
 
 ---
@@ -391,20 +391,24 @@ type RequestBudget struct {
 - **设计决定**：如果现有索引的维度与当前 Embedding 配置的维度不一致，拒绝写入/检索操作并返回明确错误。
 - **已确认**：当前 ES 和 Qdrant 均硬编码 1024 维。
 
-### 5.5 ES/Qdrant 两条实际路径与当前写死维度位置
+### 5.5 实际写死维度位置全清单（修正：不止“六处”）
 
-> **已确认**：以下列出所有维度硬编码位置，Stage 2 必须全部改为从 Embedding 配置/Provider 声明读取。
+> 源码核对（非测试）。以下为真实向量维度字面量；之前仅记“六处”不完整，实为约 13 处 +1 回退默认。**待验证**：哪些 ES/Qdrant schema builder 在当前生产 `CreateIndex` 路径实际生效（config/helpers vs common/es vs vector/es 可能为新旧双路径）。
 
-| 向量存储 | 写死维度位置 | 当前值 |
-|---|---|---|
-| **ES mapping** | `config/helpers.go:40`（`FieldContentVector`） | `Dims: Of(1024)` |
-| **ES mapping** | `config/helpers.go:45`（`FieldQAContentVector`） | `Dims: Of(1024)` |
-| **Qdrant mapping** | `config/helpers.go:57`（`FieldContentVector`） | `Size: 1024` |
-| **Qdrant mapping** | `config/helpers.go:61`（`FieldQAContentVector`） | `Size: 1024` |
-| **Qdrant indexer** | `indexer/indexer.go:73` | `VectorDim: 1024` |
-| **Qdrant indexer (async)** | `indexer/indexer_async.go:52` | `VectorDim: 1024` |
+| 类别 | 位置 | 当前值 | 用途 |
+|---|---|---|---|
+| Embedding 请求维 | `common/embedding.go:53` | `Dimensions=Of(1024)`（前缀条件） | 旧路径向 Provider 请求维度 |
+| ES mapping | `config/helpers.go:40/45` | `Dims: Of(1024)` | content/qa 向量字段 |
+| ES mapping | `common/es.go:28/33` | `Dims: Of(1024)` | content/qa 向量字段 |
+| ES schema | `vector/es.go:56/61` | `Dims: of(1024)` | content/qa 向量字段 |
+| Qdrant mapping | `config/helpers.go:57/61` | `Size: 1024` | content/qa |
+| Qdrant schema | `vector/qdrant.go:46/50` | `Size: 1024` | content/qa |
+| Qdrant indexer | `indexer/indexer.go:73`、`indexer/indexer_async.go:52` | `VectorDim: 1024` | 写入维度 |
+| 回退默认 | `internal/logic/rag/retriever.go:213-215` | `dims=1024`（读 `pc.EmbeddingDimensions` 缺失时） | Profile 维度 |
 
-- 六处均需改为从 Embedding 配置/Provider 声明读取维度。
+**不得当作向量维度的巧合 1024**：`rerank/rerank.go:113` `MaxChunksPerDoc=1024`；`model/gorm/knowledge_chunks.go:13` `Ext varchar(1024)`；`providers/fake.go:269` fake 默认维；`common/embedding.go:50-51` 关于 BGE-M3 的注释。上述不纳入 2C 维度改造。
+
+- 以上真实维度位置均改为从 Embedding 配置/Provider 声明（`ProviderProfile.Dimensions`）单源读取。
 
 ### 5.6 无真实向量库时能验证什么
 
@@ -620,18 +624,22 @@ type TokenEstimate struct {
 - guard 的依赖（维度不匹配阻断写入/检索）
 
 **修改文件**：
-- `server/core/vector/es.go`（修改：维度从配置读取）
-- `server/core/vector/qdrant.go`（修改：维度从配置读取）
-- `server/core/vector/interface.go`（修改：Config 增加维度字段）
+- `server/core/vector/es.go`、`server/core/vector/qdrant.go`（修改：维度从配置/ProviderProfile 读取）
+- `server/core/vector/interface.go`（修改：`Config` 增加维度字段）
+- `server/core/common/es.go`、`server/core/config/helpers.go`、`server/core/indexer/indexer.go`、`server/core/indexer/indexer_async.go`（修改：维度单源；待验证哪些 schema builder 在生产 CreateIndex 生效）
 - `server/core/rag.go`（修改：传递维度到向量存储）
+- `server/core/common/embedding.go`（修改：解除 2C guard、移除前缀硬编码维，改走 Registry.GetEmbedder）
 - `server/core/vector/fingerprint_test.go`（新增）
 
-**依赖**：无新外部依赖。
+**依赖顺序**：先“维度单一来源”贯通 CreateIndex/indexer VectorDim → 再 fingerprint 存取 → 再不匹配阻断 → 最后解除 `ErrEmbeddingGuardNotReady` 门禁。
 
-**验收测试**：
-- 维度匹配/不匹配（fake VectorStore）
-- fingerprint 记录与校验
-- ES/Qdrant CreateIndex 使用配置维度
+**解除门禁的验收条件**：fingerprint 校验 + 维度不匹配阻断已实现且离线测试通过，才允许新 Embedding profile 走 `Registry.GetEmbedder`；此前 `common.NewEmbedding` 对显式 `Provider.EmbeddingModel` 保持 fail-closed。
+
+**首批建议**：2C-1 = `vector.Config` 增维度字段 + ES/Qdrant CreateIndex 与 indexer VectorDim 从 `ProviderProfile.Dimensions` 读取（暂不改 fingerprint），完全可离线验证；2C-2 = fingerprint 存取+校验+阻断；2C-3 = guard 解除。
+
+**待决策/待验证**：fingerprint 具体格式与存储位置（ES index settings/mapping 字段 vs 外部元数据）、旧索引 fingerprint 缺失/身份未知的处理策略（拒绝 vs 人工重建，不得默认放行）、实际生效的 ES/Qdrant schema builder、真实 Embedding 返回维度与声明一致——均不自行创造，留待决策/2D 探针。
+
+**保留 2A/2B 契约**（不得回归）：ProcessBudget owner 不可重置、三层 owner、AttemptLease Reserve→Commit→Finish/Abort 幂等 finalize、取消传播、StreamSession 生命周期、Registry 发布顺序/Reset 失败保留。
 
 **回滚边界**：2C 修改 `vector/` 和 `rag.go`，需回退维度硬编码。回滚 = `git revert` 2C 提交。
 
@@ -748,8 +756,8 @@ PROBE_MAX_TOKENS=1000                     # 探针最大 token
 
 | 批次 | 验收条件 | 回滚边界 | 状态 |
 |---|---|---|---|
-| **2A** | 不可变 ProviderProfile/角色+capabilities；锁定 Eino 的可编译 Stream/Embedding 适配；共享预算执行核心（attempt lease、deadline/并发、一次性结算）；生产共享链；fake 覆盖所有角色；预算并发争用 race 通过；预算不足返回错误；取消传播；usage 缺失保守预留；`MaxRequests=1` 并发实际发送计数为 1；请求足够/进程不足或反之均零发送且完全回退；重试/子步骤/后台接管不刷新累计额度；发送后网络失败不返还尝试计数；重复 Finish/Abort/Close 不重复退款；httptest 阻塞 body 时下个请求不越过并发上限；非流式读失败/stream 提前 Close/取消/错误均最终释放 slot；Close 与 EOF 并发只 finalize 一次；unknown usage 不退款 token 但下一请求能用释放的 slot；预留阶段溢出拦截；resolver 隔离内部 Profile；`go test -race ./core/providers/...` exit 0 | 删除 `providers/` 目录 | **2A 剩余阻塞修复完成（2026-10-19）** |
-| **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；预算入口 owner 复用与重定向计 attempts；流式 leaseStreamReader 幂等终结；Reset 失败保留 Registry；cfg=nil 默认路径 vs 显式配置；OpenAI 生产 builder；Send 语义修正 + 输出预留同源 + Embedding usage 隔离；Index 后台预算共享 scope + Stream 提前 Close 传播 + Owner 嵌套传递 + 初始化回滚；流消费者 Close 接线 + ChatStream owner 注入；流关闭三层防御机制（L1 Pipe Send 检测 Close / L2 defer streamCancel ctx 安全网 / L3 SetFinalizer GC cancel）+ derivedCtx 传递；**受控流会话方案（第八轮）**：StreamSession 显式拥有、Close 确定链路（cancel derivedCtx → 中断 HTTP → 等待转发退出 → 终结 lease）、recv/转发 goroutine 分离、移除 finalizer 作为正确性机制、移除 lease==nil 后台抢读 goroutine 统一 Pipe 转发；**受控流会话三组修复（第九轮）**：Chat session 双 Pipe 独立关闭避免 double-close、StreamSession Done WaitGroup 覆盖 recv+forward、测试签名更新；**两组 P1 修复（第十轮）**：P1-1 Session 路径去掉 `Copy(2)` 改为单一前台 Pipe + `closeFG()`（关 reader 而非 writer，`SetAutomaticClose` CAS 幂等）使前台满队列时 `cleanupFail` 有界完成；P1-2 `wrapBudgetStreamReader` 接收 `parentCtx` + watcher 主动 cancel、临时 Recv goroutine 登记 WaitGroup、`cancel()` 内 `reader.Close()` 解除 forward 背压；4 个新测试 + 3 份失败条件复现取证；**百炼父取消背压修复（第十一轮）**：导出 `WrapBudgetStreamReader`，百炼改用 `providers.WrapBudgetStreamReader(ctx, ...)` 传入原始父 ctx，删除 `wrapLeaseStreamReader` 和 `leaseStreamReader` 约 90 行，百炼和 OpenAI 走同一生命周期验收路径；6 个新百炼父取消测试；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 | **2B 百炼父取消背压修复完成（2026-10-21 第十一轮）待再次复核** |
+| **2A** | 不可变 ProviderProfile/角色+capabilities；锁定 Eino 的可编译 Stream/Embedding 适配；共享预算执行核心（attempt lease、deadline/并发、一次性结算）；生产共享链；fake 覆盖所有角色；预算并发争用 race 通过；预算不足返回错误；取消传播；usage 缺失保守预留；`MaxRequests=1` 并发实际发送计数为 1；请求足够/进程不足或反之均零发送且完全回退；重试/子步骤/后台接管不刷新累计额度；发送后网络失败不返还尝试计数；重复 Finish/Abort/Close 不重复退款；httptest 阻塞 body 时下个请求不越过并发上限；非流式读失败/stream 提前 Close/取消/错误均最终释放 slot；Close 与 EOF 并发只 finalize 一次；unknown usage 不退款 token 但下一请求能用释放的 slot；预留阶段溢出拦截；resolver 隔离内部 Profile；`go test -race ./core/providers/...` exit 0 | 删除 `providers/` 目录 | **2A 已闭合（含 E1 race，目标 `df260dd`；见 stage2a-race-evidence-r2）** |
+| **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；预算入口 owner 复用与重定向计 attempts；流式 leaseStreamReader 幂等终结；Reset 失败保留 Registry；cfg=nil 默认路径 vs 显式配置；OpenAI 生产 builder；Send 语义修正 + 输出预留同源 + Embedding usage 隔离；Index 后台预算共享 scope + Stream 提前 Close 传播 + Owner 嵌套传递 + 初始化回滚；流消费者 Close 接线 + ChatStream owner 注入；流关闭三层防御机制（L1 Pipe Send 检测 Close / L2 defer streamCancel ctx 安全网 / L3 SetFinalizer GC cancel）+ derivedCtx 传递；**受控流会话方案（第八轮）**：StreamSession 显式拥有、Close 确定链路（cancel derivedCtx → 中断 HTTP → 等待转发退出 → 终结 lease）、recv/转发 goroutine 分离、移除 finalizer 作为正确性机制、移除 lease==nil 后台抢读 goroutine 统一 Pipe 转发；**受控流会话三组修复（第九轮）**：Chat session 双 Pipe 独立关闭避免 double-close、StreamSession Done WaitGroup 覆盖 recv+forward、测试签名更新；**两组 P1 修复（第十轮）**：P1-1 Session 路径去掉 `Copy(2)` 改为单一前台 Pipe + `closeFG()`（关 reader 而非 writer，`SetAutomaticClose` CAS 幂等）使前台满队列时 `cleanupFail` 有界完成；P1-2 `wrapBudgetStreamReader` 接收 `parentCtx` + watcher 主动 cancel、临时 Recv goroutine 登记 WaitGroup、`cancel()` 内 `reader.Close()` 解除 forward 背压；4 个新测试 + 3 份失败条件复现取证；**百炼父取消背压修复（第十一轮）**：导出 `WrapBudgetStreamReader`，百炼改用 `providers.WrapBudgetStreamReader(ctx, ...)` 传入原始父 ctx，删除 `wrapLeaseStreamReader` 和 `leaseStreamReader` 约 90 行，百炼和 OpenAI 走同一生命周期验收路径；6 个新百炼父取消测试；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 | **2B 已在既定离线范围内通过独立复核（被验收 `c15287a`，报告 `verification/independent-2b-c15287a/REPORT.md`）** |
 | **2C** | 维度 fingerprint 匹配/不匹配逻辑正确；ES/Qdrant CreateIndex 使用配置维度；维度不匹配阻断写入/检索；同维度不等于同模型 | `git revert` 2C 提交 | |
 | **2D** | 探针在授权预算内执行；所有候选模型最小调用通过；脱敏证据完整；A-4 QA 向量行为记录 | 不影响离线代码（探针为只读验证） | |
 

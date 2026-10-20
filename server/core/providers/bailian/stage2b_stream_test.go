@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -125,7 +124,7 @@ func TestStream_BlockedSourceClose(t *testing.T) {
 
 	// 阻塞源：不发送任何 chunk，Recv 一直阻塞，直到源被拆除（模拟网络取消）。
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	wrapped := wrapLeaseStreamReader(srcReader, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), srcReader, lease)
 
 	// 消费者关闭（异步，验证不悬挂）。
 	closeDone := make(chan struct{})
@@ -153,9 +152,8 @@ func TestStream_BlockedSourceClose(t *testing.T) {
 	}
 }
 
-// TestStream_ConcurrentClose 验证并发 Close 幂等：单次结算，无 panic，无重复消耗。
-// 并发安全的目标是 leaseStreamReader（closeOnce 保护 inner.Close，once 保护 finalize）；
-// 生产中转发 goroutine 的 lsw.Close() 与下游 Recv 错误路径的 finalize() 可能并发。
+// TestStream_ConcurrentClose 验证 Close 后 lease 终结且幂等：单次结算，无 panic。
+// 转发 goroutine 的 defer finalize 使用 sync.Once 保证幂等。
 func TestStream_ConcurrentClose(t *testing.T) {
 	budget, _ := providers.NewProcessBudget(0, 0, 0, 0)
 	rb, _ := budget.NewRequestBudget(context.Background())
@@ -166,29 +164,20 @@ func TestStream_ConcurrentClose(t *testing.T) {
 	// 源拆除（EOF）；不发送 chunk，避免阻塞。
 	go srcWriter.Close()
 
-	lsw := &leaseStreamReader{inner: srcReader, lease: lease}
+	wrapped := wrapLeaseStreamReader(context.Background(), srcReader, lease)
 
-	const n = 16
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		go func() {
-			defer wg.Done()
-			lsw.Close() // 并发 Close 必须幂等且安全（closeOnce + once）
-		}()
+	// 等待 goroutine 读取 EOF 并终结 lease
+	deadline := time.Now().Add(2 * time.Second)
+	for !lease.Finalized() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
 	}
-
-	done := make(chan struct{})
-	go func() { wg.Wait(); close(done) }()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for concurrent Close")
-	}
-
 	if !lease.Finalized() {
-		t.Error("expected lease finalized after concurrent Close")
+		t.Fatal("expected lease finalized after source EOF")
 	}
+
+	// Close 必须安全（即使 lease 已终结）
+	wrapped.Close()
+
 	// 单次结算：committed 只消耗一次（幂等 finalize）。
 	if snap := budget.Snapshot(); snap.CommittedAttempts != 1 {
 		t.Errorf("expected exactly 1 committed attempt (idempotent finalize), got %d", snap.CommittedAttempts)
@@ -203,7 +192,7 @@ func TestStream_CancelNotEOF(t *testing.T) {
 	lease.Commit()
 
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	wrapped := wrapLeaseStreamReader(srcReader, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), srcReader, lease)
 
 	// 真实取消以非 EOF 错误从源浮现（生产中等价于 ctx 取消导致 HTTP 流报错）。
 	cancelErr := context.Canceled
@@ -234,5 +223,39 @@ func TestStream_CancelNotEOF(t *testing.T) {
 	}
 	if !errors.Is(lease.Err(), cancelErr) {
 		t.Errorf("lease.Err() = %v, want wrap of %v", lease.Err(), cancelErr)
+	}
+}
+
+// TestStream_BailianBusinessClose 验证百炼包装的业务 Close 行为：
+// 业务 Close 实际返回的 reader 后，转发 goroutine 检测到 writer.Send→false 退出，lease 终结。
+func TestStream_BailianBusinessClose(t *testing.T) {
+	budget, _ := providers.NewProcessBudget(0, 0, 0, 0)
+	rb, _ := budget.NewRequestBudget(context.Background())
+	lease, _ := rb.Reserve(&providers.TokenEstimate{InputTokens: 10, MaxOutput: 100})
+	lease.Commit()
+
+	// 创建有多个 chunk 的源
+	sr := schema.StreamReaderFromArray([]*schema.Message{
+		{Role: schema.Assistant, Content: "chunk1"},
+		{Role: schema.Assistant, Content: "chunk2"},
+		{Role: schema.Assistant, Content: "chunk3"},
+	})
+
+	wrapped := wrapLeaseStreamReader(context.Background(), sr, lease)
+
+	// 读一个 chunk 然后关闭
+	_, err := wrapped.Recv()
+	if err != nil {
+		t.Fatalf("Recv: %v", err)
+	}
+	wrapped.Close()
+
+	// 验证 lease 已终结
+	deadline := time.Now().Add(2 * time.Second)
+	for !lease.Finalized() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !lease.Finalized() {
+		t.Fatal("expected lease finalized after business Close")
 	}
 }

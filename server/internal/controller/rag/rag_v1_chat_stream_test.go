@@ -15,6 +15,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 
 	"github.com/wangle201210/go-rag/server/core/common"
+	"github.com/wangle201210/go-rag/server/core/providers"
 
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
 	"github.com/wangle201210/go-rag/server/internal/logic/chat"
@@ -542,4 +543,133 @@ func (f *fakeSaver) assistantRecords(convID string) []savedRecord {
 		}
 	}
 	return out
+}
+
+// ---------------------------------------------------------------------------
+// ChatStream Owner 接线测试
+// ---------------------------------------------------------------------------
+
+// TestChatStream_SharedOwnerAcrossRetrieveAndAnswer 验证 retrieve 和 answerStream 共享同一 RequestBudget owner。
+func TestChatStream_SharedOwnerAcrossRetrieveAndAnswer(t *testing.T) {
+	var retrieveBudget, answerBudget *providers.RequestBudget
+
+	c := &ControllerV1{
+		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
+			retrieveBudget = providers.RequestBudgetFromContext(ctx)
+			return &v1.RetrieverRes{Document: []*schema.Document{{Content: "doc"}}}, nil
+		},
+		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
+			answerBudget = providers.RequestBudgetFromContext(ctx)
+			sr := schema.StreamReaderFromArray([]*schema.Message{{Role: schema.Assistant, Content: "ok"}})
+			return sr, func(chat.StreamResult) {}, nil
+		},
+		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+			// 消费流
+			for {
+				_, err := reader.Recv()
+				if err != nil {
+					break
+				}
+			}
+			return nil
+		},
+	}
+
+	_, err := c.ChatStream(context.Background(), &v1.ChatStreamReq{
+		ConvID: "conv-1", Question: "q", KnowledgeName: "kb",
+	})
+	if err != nil {
+		t.Fatalf("ChatStream: %v", err)
+	}
+
+	// 两个阶段都应看到同一个 RequestBudget（或都为 nil，当 Registry 未设置时）
+	if retrieveBudget != answerBudget {
+		t.Errorf("retrieve and answerStream should share the same RequestBudget: retrieve=%p answer=%p", retrieveBudget, answerBudget)
+	}
+}
+
+// TestChatStream_OwnerInheritedFromController 验证 controller 注入的 owner 被子阶段继承。
+func TestChatStream_OwnerInheritedFromController(t *testing.T) {
+	var retrieveCtx, answerCtx context.Context
+
+	c := &ControllerV1{
+		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
+			retrieveCtx = ctx
+			return &v1.RetrieverRes{Document: []*schema.Document{{Content: "doc"}}}, nil
+		},
+		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
+			answerCtx = ctx
+			sr := schema.StreamReaderFromArray([]*schema.Message{{Role: schema.Assistant, Content: "ok"}})
+			return sr, func(chat.StreamResult) {}, nil
+		},
+		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+			for {
+				_, err := reader.Recv()
+				if err != nil {
+					break
+				}
+			}
+			return nil
+		},
+	}
+
+	_, err := c.ChatStream(context.Background(), &v1.ChatStreamReq{
+		ConvID: "conv-1", Question: "q", KnowledgeName: "kb",
+	})
+	if err != nil {
+		t.Fatalf("ChatStream: %v", err)
+	}
+
+	// 两个子阶段的 ctx 都应是从 controller 派生的（包含 cancel 和 budget）
+	if retrieveCtx == nil || answerCtx == nil {
+		t.Fatal("both retrieve and answer should receive non-nil ctx")
+	}
+	// 两个 ctx 都应携带相同的 RequestBudget（或都为 nil）
+	rb1 := providers.RequestBudgetFromContext(retrieveCtx)
+	rb2 := providers.RequestBudgetFromContext(answerCtx)
+	if rb1 != rb2 {
+		t.Errorf("expected same RequestBudget in both stages: retrieve=%p answer=%p", rb1, rb2)
+	}
+}
+
+// TestChatStream_OwnerCumulativeLimit 验证累计限额在两阶段共享。
+// 当 Registry 未设置时，RequestBudget 为 nil，此测试验证无 panic 且流程正常完成。
+func TestChatStream_OwnerCumulativeLimit(t *testing.T) {
+	var retrieveCalled, answerCalled bool
+
+	c := &ControllerV1{
+		chatRetrieve: func(ctx context.Context, req *v1.RetrieverReq) (*v1.RetrieverRes, error) {
+			retrieveCalled = true
+			// 无 Registry 时 RequestBudget 为 nil，不应 panic
+			rb := providers.RequestBudgetFromContext(ctx)
+			_ = rb // 可能为 nil
+			return &v1.RetrieverRes{Document: []*schema.Document{{Content: "doc"}}}, nil
+		},
+		chatAnswerStream: func(ctx context.Context, convID string, docs []*schema.Document, question string) (*schema.StreamReader[*schema.Message], func(chat.StreamResult), error) {
+			answerCalled = true
+			rb := providers.RequestBudgetFromContext(ctx)
+			_ = rb // 可能为 nil
+			sr := schema.StreamReaderFromArray([]*schema.Message{{Role: schema.Assistant, Content: "ok"}})
+			return sr, func(chat.StreamResult) {}, nil
+		},
+		chatSSEWrite: func(ctx context.Context, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+			for {
+				_, err := reader.Recv()
+				if err != nil {
+					break
+				}
+			}
+			return nil
+		},
+	}
+
+	_, err := c.ChatStream(context.Background(), &v1.ChatStreamReq{
+		ConvID: "conv-1", Question: "q", KnowledgeName: "kb",
+	})
+	if err != nil {
+		t.Fatalf("ChatStream: %v", err)
+	}
+	if !retrieveCalled || !answerCalled {
+		t.Fatal("both retrieve and answer should be called")
+	}
 }

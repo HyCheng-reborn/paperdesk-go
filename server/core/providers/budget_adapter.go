@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/cloudwego/eino/components/embedding"
 	"github.com/cloudwego/eino/components/model"
@@ -89,7 +88,7 @@ func (b *budgetChatRole) Stream(ctx context.Context, messages []*schema.Message,
 	if lease == nil {
 		return sr, nil
 	}
-	return wrapBudgetStreamReader(sr, lease), nil
+	return wrapBudgetStreamReader(ctx, sr, lease), nil
 }
 
 func (b *budgetChatRole) reserveBudget(ctx context.Context, est *TokenEstimate) (*AttemptLease, error) {
@@ -333,15 +332,13 @@ func extractUsageFromMessage(msg *schema.Message) *model.TokenUsage {
 // ---------------------------------------------------------------------------
 
 // budgetStreamReader 包装 StreamReader，通过 Recv/Close 单一所有权终结 lease。
-// Fix 4: Close 时直接关闭 inner 以打断可能阻塞的 Recv，确保 goroutine 退出。
+// 用于内部 lease 追踪；不直接返回给业务。
 type budgetStreamReader struct {
 	inner     *schema.StreamReader[*schema.Message]
 	lease     *AttemptLease
 	once      sync.Once
-	closeOnce sync.Once
 	lastUsage *model.TokenUsage
 	mu        sync.Mutex
-	done      chan struct{} // 信号：goroutine 已退出
 }
 
 func (w *budgetStreamReader) Recv() (*schema.Message, error) {
@@ -362,20 +359,6 @@ func (w *budgetStreamReader) Recv() (*schema.Message, error) {
 	return chunk, nil
 }
 
-func (w *budgetStreamReader) Close() {
-	w.closeOnce.Do(func() {
-		// Fix 4: 直接关闭 inner 以打断可能阻塞的 Recv，确保 goroutine 退出
-		w.inner.Close()
-	})
-	// 等待 goroutine 退出（有限等待，避免无限阻塞）
-	select {
-	case <-w.done:
-	case <-time.After(100 * time.Millisecond):
-		// 超时：goroutine 可能仍在阻塞，但 lease 仍需终结
-	}
-	w.finalize(nil)
-}
-
 func (w *budgetStreamReader) finalize(err error) {
 	w.once.Do(func() {
 		w.mu.Lock()
@@ -389,17 +372,18 @@ func (w *budgetStreamReader) finalize(err error) {
 	})
 }
 
-// wrapBudgetStreamReader 包装 StreamReader，使用 budgetStreamReader 单一所有权终结。
-// Fix 4: goroutine 退出时终结 lease，不依赖消费者调用 Close。
-func wrapBudgetStreamReader(sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
+// wrapBudgetStreamReader 包装 StreamReader，返回 pipe reader 供业务消费。
+// 转发 goroutine 在后台从 bsr.Recv() 读取数据并写入 pipe writer；
+// 当 writer.Send 返回 false（消费者已关闭）或源 EOF 时退出。
+// lease 终结由转发 goroutine 的 defer 保证，不依赖消费者调用 Close。
+func wrapBudgetStreamReader(ctx context.Context, sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
-	bsr := &budgetStreamReader{inner: sr, lease: lease, done: make(chan struct{})}
+	bsr := &budgetStreamReader{inner: sr, lease: lease}
 
 	go func() {
-		defer close(bsr.done)
 		defer writer.Close()
 		defer bsr.inner.Close()
-		defer bsr.finalize(nil) // Fix 4: goroutine 退出时终结 lease
+		defer bsr.finalize(nil)
 		for {
 			chunk, err := bsr.Recv()
 			if err != nil {

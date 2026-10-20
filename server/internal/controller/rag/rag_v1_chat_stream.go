@@ -16,6 +16,9 @@ func (c *ControllerV1) ChatStream(ctx context.Context, req *v1.ChatStreamReq) (r
 	// 派生 context，可主动取消模型和后台消费
 	ctx, cancel := context.WithCancel(ctx)
 
+	// B5: 在最外层注入 RequestBudget，使 retrieve 和 answerStream 共享同一累计 owner
+	ctx = common.WithRequestBudget(ctx)
+
 	// 解析注入边界，nil 时回退生产默认（运行期间只读）
 	retrieve := c.chatRetrieve
 	if retrieve == nil {

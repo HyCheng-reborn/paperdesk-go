@@ -1,5 +1,17 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-20 第六轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：02d6bae0ce75f7f6207d9bf37d672dc6033285c8
+- **修复内容**：
+  1. **流消费者 Close 接线**：wrap 函数新增 ctx 参数，转发 goroutine defer 链保证 lease 终结；业务 Close pipe reader 后 goroutine 退出并终结 lease
+  2. **ChatStream 最外层 owner 接线**：controller 入口调用 `common.WithRequestBudget(ctx)` 注入 RequestBudget，retrieve 和 answer 共享同一 owner
+  3. **测试交付**：重写 `stream_close_test.go`（5 项新测试），新增 ChatStream owner 测试到 `rag_v1_chat_stream_test.go`
+- **新增测试**：Stream Close 接线（5 项）、ChatStream owner（3 项）
+- **验证**：gofmt/build/vet exit 0；providers 测试 PASS；race 压测 -count=10 PASS（50 次，0 DATA RACE）；controller race 通过；受影响包 race 通过（8 包）；全项目 go test -p 1 ./... 通过（19 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-20 第五轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

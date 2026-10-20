@@ -1,0 +1,8 @@
+# CMD: go test -race ./internal/controller/rag/... -count=1
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 14:54:51
+
+ok	github.com/wangle201210/go-rag/server/internal/controller/rag	1.272s
+

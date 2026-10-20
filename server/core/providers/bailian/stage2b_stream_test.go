@@ -124,7 +124,7 @@ func TestStream_BlockedSourceClose(t *testing.T) {
 
 	// 阻塞源：不发送任何 chunk，Recv 一直阻塞，直到源被拆除（模拟网络取消）。
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	wrapped := wrapLeaseStreamReader(context.Background(), srcReader, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
 
 	// 消费者关闭（异步，验证不悬挂）。
 	closeDone := make(chan struct{})
@@ -164,7 +164,7 @@ func TestStream_ConcurrentClose(t *testing.T) {
 	// 源拆除（EOF）；不发送 chunk，避免阻塞。
 	go srcWriter.Close()
 
-	wrapped := wrapLeaseStreamReader(context.Background(), srcReader, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
 
 	// 等待 goroutine 读取 EOF 并终结 lease
 	deadline := time.Now().Add(2 * time.Second)
@@ -192,7 +192,7 @@ func TestStream_CancelNotEOF(t *testing.T) {
 	lease.Commit()
 
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	wrapped := wrapLeaseStreamReader(context.Background(), srcReader, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
 
 	// 真实取消以非 EOF 错误从源浮现（生产中等价于 ctx 取消导致 HTTP 流报错）。
 	cancelErr := context.Canceled
@@ -241,7 +241,7 @@ func TestStream_BailianBusinessClose(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk3"},
 	})
 
-	wrapped := wrapLeaseStreamReader(context.Background(), sr, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
 
 	// 读一个 chunk 然后关闭
 	_, err := wrapped.Recv()

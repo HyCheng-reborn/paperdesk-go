@@ -1,0 +1,21 @@
+﻿# CMD: go test -race ./core/providers/openai/... -count=10 -v -run "TestIndependentStreamEarlyClose"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 17:25:03
+
+=== RUN   TestIndependentStreamEarlyClose (x10)
+--- PASS: TestIndependentStreamEarlyClose (3.01s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+PASS
+ok      github.com/wangle201210/go-rag/server/core/providers/openai     31.255s
+
+# Summary: TestIndependentStreamEarlyClose 10/10 PASS, no DATA RACE

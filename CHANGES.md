@@ -1,5 +1,20 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-20 第七轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：4356f6547142de470c13b7af1368f6ccaa3bd4bc
+- **修复内容**：
+  1. **流关闭三层防御机制**：
+     - L1: Pipe `writer.Send()` 检测 consumer Close
+     - L2: `defer streamCancel()` 取消 ctx 中断底层 HTTP 请求（安全网）
+     - L3: `runtime.SetFinalizer(reader, cancel)` GC 触发 cancel 支持 ctx 的源及时中断
+  2. **derivedCtx 传递**：`Stream()` 创建 `derivedCtx` 传给 `inner.Stream()`，确保 HTTP 请求可被取消
+  3. **测试签名修正**：`integration_test.go:327/361/392` 更新调用签名
+- **新增测试**：`TestIndependentStreamEarlyClose`（bailian + openai）、`TestSupplementStreamEarlyCloseFinalizes`
+- **验证**：gofmt/build/vet exit 0；原关闭条件复现 bailian 10/10 PASS、openai 10/10 PASS；受影响包 race 通过（8 包）；全项目 go test -p 1 ./... 通过（15 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-20 第六轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

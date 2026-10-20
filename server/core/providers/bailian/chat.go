@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -104,6 +105,8 @@ func (a *chatAdapter) Generate(ctx context.Context, messages []*schema.Message, 
 // Stream 调用底层流式接口并映射错误，附加预算结算（B1）。
 // Fix 3: 使用 leaseStreamReader 包装，单一所有权终结 lease。
 // B3: 从 opts 解析实际 MaxTokens，与预留同源。
+// Fix 7: 使用 derivedCtx 传递给 inner Stream，使得转发 goroutine 退出时
+// cancel 可中断底层 HTTP 请求（安全网）。
 func (a *chatAdapter) Stream(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
 	// Fix 2e: 本地校验前置
 	if len(messages) == 0 {
@@ -122,19 +125,34 @@ func (a *chatAdapter) Stream(ctx context.Context, messages []*schema.Message, op
 		lease.Commit()
 	}
 
-	sr, err := a.inner.Stream(ctx, messages, opts...)
+	// Fix 7: 派生可取消 ctx，传递给 inner Stream。
+	// 转发 goroutine 退出时 cancel()，中断底层 HTTP 请求（安全网）。
+	streamCtx, streamCancel := context.WithCancel(ctx)
+	sr, err := a.inner.Stream(streamCtx, messages, opts...)
 	if err != nil {
+		streamCancel() // 创建失败，立即释放
 		if lease != nil {
 			lease.Abort(err)
 		}
 		return nil, mapChatError(err)
 	}
-	// 无预算或无 lease：直接返回
+	// 无预算或无 lease：直接返回（仍需保留 cancel 防止泄漏）
 	if lease == nil {
+		// 无 lease 时仍需保证 goroutine 退出后 cancel
+		go func() {
+			defer streamCancel()
+			// 等待 sr 耗尽（EOF/error）后取消
+			for {
+				_, recvErr := sr.Recv()
+				if recvErr != nil {
+					return
+				}
+			}
+		}()
 		return sr, nil
 	}
 	// Fix 3: 使用 leaseStreamReader 包装，单一所有权终结
-	return wrapLeaseStreamReader(ctx, sr, lease), nil
+	return wrapLeaseStreamReader(streamCtx, streamCancel, sr, lease), nil
 }
 
 // reserveBudget 从 ctx 复用已有 RequestBudget，或创建新的。Fix 2a: owner 复用。
@@ -251,12 +269,18 @@ func (w *leaseStreamReader) finalize(err error) {
 // 转发 goroutine 在后台从 lsw.Recv() 读取数据并写入 pipe writer；
 // 当 writer.Send 返回 false（消费者已关闭）或源 EOF 时退出。
 // lease 终结由转发 goroutine 的 defer 保证，不依赖消费者调用 Close。
-func wrapLeaseStreamReader(ctx context.Context, sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *schema.StreamReader[*schema.Message] {
+//
+// streamCancel 是派生 ctx 的取消函数；转发 goroutine 退出时调用，
+// 中断底层 HTTP 请求（安全网：确保 body read 不悬挂）。
+// 生产关闭链：consumer Close → adapter 检测 Send→false → adapter 退出 →
+// inner writer 关闭 → inner receive 返回 → 转发 goroutine 退出 → cancel → lease 终结。
+func wrapLeaseStreamReader(_ context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	lsw := &leaseStreamReader{inner: sr, lease: lease}
 
 	go func() {
-		defer writer.Close()
+		defer streamCancel() // 安全网：goroutine 退出时取消 ctx，中断底层 HTTP 请求
+		defer writer.Close() // 关闭 pipe writer，通知消费者流结束
 		defer lsw.inner.Close()
 		defer lsw.finalize(nil)
 		for {
@@ -272,6 +296,14 @@ func wrapLeaseStreamReader(ctx context.Context, sr *schema.StreamReader[*schema.
 			}
 		}
 	}()
+
+	// Finalizer: 当 consumer 调用 Close 后释放 reader 引用，GC 回收时触发 streamCancel。
+	// 这使得支持 ctx 的源（如 Eino adapter 监控 ctx.Done）能及时中断阻塞的 body read。
+	// reader 仅被 consumer 持有（goroutine 持有 writer，不持有 reader），
+	// consumer Close 后 reader 不可达 → finalizer 运行 → cancel → 源中断。
+	runtime.SetFinalizer(reader, func(_ *schema.StreamReader[*schema.Message]) {
+		streamCancel()
+	})
 
 	return reader
 }

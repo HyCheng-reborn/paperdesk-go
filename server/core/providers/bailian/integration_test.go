@@ -324,7 +324,7 @@ func TestStream_EarlyCloseFinalizes(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk3"},
 	})
 
-	wrapped := wrapLeaseStreamReader(sr, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
 
 	// 只读一个 chunk 然后提前关闭
 	_, err := wrapped.Recv()
@@ -358,7 +358,7 @@ func TestStream_CancelFinalizes(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk1"},
 	})
 
-	wrapped := wrapLeaseStreamReader(sr, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
 
 	// 读取所有（EOF 终结）
 	for {
@@ -389,7 +389,7 @@ func TestStream_ErrorFinalizes(t *testing.T) {
 		writer.Send(nil, fmt.Errorf("connection reset"))
 	}()
 
-	wrapped := wrapLeaseStreamReader(reader, lease)
+	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, reader, lease)
 
 	// 读取直到错误
 	for {
@@ -761,3 +761,92 @@ var (
 	_ = io.EOF
 	_ = model.TokenUsage{}
 )
+
+// ---------------------------------------------------------------------------
+// Fix 7: 独立流关闭测试（真实 httptest 阻塞服务器）
+// ---------------------------------------------------------------------------
+
+// newBlockingStreamServer 创建发送首条后阻塞 3s 再关闭连接的 SSE 服务器。
+// 模拟生产环境中服务器发送缓慢或网络连接保持的场景。
+func newBlockingStreamServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Error("expected http.Flusher")
+			return
+		}
+		// 发送首条 chunk
+		chunk := `{"id":"1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"role":"assistant","content":"first"},"finish_reason":null}]}`
+		fmt.Fprintf(w, "data: %s\n\n", chunk)
+		flusher.Flush()
+
+		// 阻塞 3s 后关闭连接（模拟慢速服务器）
+		select {
+		case <-time.After(3 * time.Second):
+		case <-r.Context().Done():
+		}
+	}))
+}
+
+// TestIndependentStreamEarlyClose 验证真实 HTTP 流式路径：
+// 服务器发送首条后阻塞，消费者读首条后提前 Close，
+// lease 应在合理时间内终结（adapter 检测 Send→false → 退出 → inner writer 关闭 → goroutine 收敛）。
+func TestIndependentStreamEarlyClose(t *testing.T) {
+	srv := newBlockingStreamServer(t)
+	defer srv.Close()
+
+	budget, _ := providers.NewProcessBudget(0, 0, 0, 0)
+	transport := providers.NewTransport(providers.WithHTTPClient(srv.Client()))
+	profile := mustProfile(t, providers.ProviderProfile{
+		ProviderName: ProviderBailian,
+		Protocol:     "openai-compatible",
+		Endpoint:     srv.URL + "/v1",
+		Model:        "test-model",
+		Capabilities: providers.Capabilities{Stream: true, Usage: true},
+	})
+
+	reg, err := providers.NewRegistry(providers.RegistryConfig{
+		Chat:        profile,
+		Budget:      budget,
+		Transport:   transport,
+		Credentials: fakeCredResolver,
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	chat, err := reg.GetChat(context.Background())
+	if err != nil {
+		t.Fatalf("GetChat: %v", err)
+	}
+
+	sr, err := chat.Stream(context.Background(), []*schema.Message{{Role: schema.User, Content: "hi"}})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+
+	// 读首条
+	_, err = sr.Recv()
+	if err != nil {
+		sr.Close()
+		t.Fatalf("Recv: %v", err)
+	}
+
+	// 消费者提前关闭
+	sr.Close()
+
+	// lease 应在 5s 内终结（服务器阻塞 3s + 裕量）
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		snap := budget.Snapshot()
+		if snap.CommittedAttempts >= 1 && snap.InFlight == 0 {
+			return // 成功
+		}
+		time.Sleep(time.Millisecond)
+	}
+	snap := budget.Snapshot()
+	t.Fatalf("expected lease finalized after early close: committed=%d inFlight=%d", snap.CommittedAttempts, snap.InFlight)
+}

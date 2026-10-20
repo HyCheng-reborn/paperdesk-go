@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"sync"
 
 	"github.com/cloudwego/eino/components/embedding"
@@ -78,17 +79,31 @@ func (b *budgetChatRole) Stream(ctx context.Context, messages []*schema.Message,
 		lease.Commit()
 	}
 
-	sr, err := b.inner.Stream(ctx, messages, opts...)
+	// Fix 7: 派生可取消 ctx，传递给 inner Stream。
+	// 转发 goroutine 退出时 cancel()，中断底层 HTTP 请求（安全网）。
+	streamCtx, streamCancel := context.WithCancel(ctx)
+	sr, err := b.inner.Stream(streamCtx, messages, opts...)
 	if err != nil {
+		streamCancel()
 		if lease != nil {
 			lease.Abort(err)
 		}
 		return nil, err
 	}
 	if lease == nil {
+		// 无 lease 时仍需保证 goroutine 退出后 cancel
+		go func() {
+			defer streamCancel()
+			for {
+				_, recvErr := sr.Recv()
+				if recvErr != nil {
+					return
+				}
+			}
+		}()
 		return sr, nil
 	}
-	return wrapBudgetStreamReader(ctx, sr, lease), nil
+	return wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease), nil
 }
 
 func (b *budgetChatRole) reserveBudget(ctx context.Context, est *TokenEstimate) (*AttemptLease, error) {
@@ -376,11 +391,15 @@ func (w *budgetStreamReader) finalize(err error) {
 // 转发 goroutine 在后台从 bsr.Recv() 读取数据并写入 pipe writer；
 // 当 writer.Send 返回 false（消费者已关闭）或源 EOF 时退出。
 // lease 终结由转发 goroutine 的 defer 保证，不依赖消费者调用 Close。
-func wrapBudgetStreamReader(ctx context.Context, sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
+//
+// streamCancel 是派生 ctx 的取消函数；转发 goroutine 退出时调用，
+// 中断底层 HTTP 请求（安全网：确保 body read 不悬挂）。
+func wrapBudgetStreamReader(_ context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	bsr := &budgetStreamReader{inner: sr, lease: lease}
 
 	go func() {
+		defer streamCancel() // 安全网：goroutine 退出时取消 ctx，中断底层 HTTP 请求
 		defer writer.Close()
 		defer bsr.inner.Close()
 		defer bsr.finalize(nil)
@@ -397,6 +416,13 @@ func wrapBudgetStreamReader(ctx context.Context, sr *schema.StreamReader[*schema
 			}
 		}
 	}()
+
+	// Finalizer: 当 consumer 调用 Close 后释放 reader 引用，GC 回收时触发 streamCancel。
+	// reader 仅被 consumer 持有（goroutine 持有 writer，不持有 reader），
+	// consumer Close 后 reader 不可达 → finalizer 运行 → cancel → 源中断。
+	runtime.SetFinalizer(reader, func(_ *schema.StreamReader[*schema.Message]) {
+		streamCancel()
+	})
 
 	return reader
 }

@@ -2,9 +2,11 @@ package providers
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -27,7 +29,7 @@ func TestStream_BusinessCloseWakesSource(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk3"},
 	})
 
-	wrapped := wrapBudgetStreamReader(context.Background(), sr, lease)
+	wrapped := wrapBudgetStreamReader(context.Background(), func() {}, sr, lease)
 
 	// 读一个 chunk 然后关闭
 	_, err := wrapped.Recv()
@@ -58,7 +60,7 @@ func TestStream_BusinessCloseFinalizesLease(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk2"},
 	})
 
-	wrapped := wrapBudgetStreamReader(context.Background(), sr, lease)
+	wrapped := wrapBudgetStreamReader(context.Background(), func() {}, sr, lease)
 
 	// 读一个 chunk 然后关闭
 	_, err := wrapped.Recv()
@@ -91,7 +93,7 @@ func TestStream_BusinessCloseWaitsGoroutine(t *testing.T) {
 		{Role: schema.Assistant, Content: "c"},
 	})
 
-	wrapped := wrapBudgetStreamReader(context.Background(), sr, lease)
+	wrapped := wrapBudgetStreamReader(context.Background(), func() {}, sr, lease)
 	_, _ = wrapped.Recv()
 	wrapped.Close()
 
@@ -116,7 +118,7 @@ func TestStream_CtxCancelWakesSource(t *testing.T) {
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	wrapped := wrapBudgetStreamReader(ctx, srcReader, lease)
+	wrapped := wrapBudgetStreamReader(ctx, cancel, srcReader, lease)
 
 	// 取消 ctx
 	cancel()
@@ -145,6 +147,63 @@ func TestStream_CtxCancelWakesSource(t *testing.T) {
 	if !lease.Finalized() {
 		t.Fatal("expected lease finalized after ctx cancel")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Fix 7: Supplement Stream Close 测试（budgetChatRole 路径）
+// ---------------------------------------------------------------------------
+
+// TestSupplementStreamEarlyCloseFinalizes 验证 budgetChatRole 包装的 Stream 在消费者提前 Close 后
+// lease 终结。使用 FakeChat 模拟阻塞源（发送首条后阻塞），验证 budgetStreamReader 转发 goroutine
+// 在 writer.Send→false 后退出并终结 lease。
+func TestSupplementStreamEarlyCloseFinalizes(t *testing.T) {
+	budget, _ := NewProcessBudget(0, 0, 0, 0)
+
+	// 构造 FakeChat：发送首条后阻塞，监控 ctx 取消后关闭 writer
+	// （模拟 Eino adapter 监控 ctx.Done 后关闭流的行为）
+	fake := NewFakeChat()
+	fake.SetStream(func(ctx context.Context, msgs []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+		reader, writer := schema.Pipe[*schema.Message](1)
+		go func() {
+			defer writer.Close()
+			writer.Send(&schema.Message{Role: schema.Assistant, Content: "first"}, nil)
+			// 等待 ctx 取消（模拟 Eino adapter 监控 ctx.Done 后关闭流）
+			<-ctx.Done()
+		}()
+		return reader, nil
+	})
+
+	// 通过 budgetChatRole 包装（与生产一致）
+	role := &budgetChatRole{inner: fake, budget: budget}
+
+	sr, err := role.Stream(context.Background(), []*schema.Message{{Role: schema.User, Content: "hi"}})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+
+	// 读首条
+	_, err = sr.Recv()
+	if err != nil {
+		t.Fatalf("Recv: %v", err)
+	}
+
+	// 消费者提前关闭
+	sr.Close()
+
+	// 触发 GC 使 finalizer 运行（consumer 已释放 reader 引用 → reader 不可达 → finalizer 触发 streamCancel）
+	runtime.GC()
+
+	// lease 应在 2s 内终结
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snap := budget.Snapshot()
+		if snap.CommittedAttempts >= 1 && snap.InFlight == 0 {
+			return // 成功
+		}
+		time.Sleep(time.Millisecond)
+	}
+	snap := budget.Snapshot()
+	t.Fatalf("expected lease finalized after early close: committed=%d inFlight=%d", snap.CommittedAttempts, snap.InFlight)
 }
 
 // ---------------------------------------------------------------------------

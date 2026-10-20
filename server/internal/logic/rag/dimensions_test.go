@@ -1,0 +1,161 @@
+package rag
+
+import (
+	"context"
+	"errors"
+	"github.com/gogf/gf/v2/container/gvar"
+	"github.com/wangle201210/go-rag/server/core"
+	"github.com/wangle201210/go-rag/server/core/common"
+	"github.com/wangle201210/go-rag/server/core/config"
+	"github.com/wangle201210/go-rag/server/core/providers"
+	"github.com/wangle201210/go-rag/server/core/vector"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+)
+
+type dimensionGetter map[string]any
+
+func (g dimensionGetter) Get(_ context.Context, k string) (*gvar.Var, error) {
+	return gvar.New(g[k]), nil
+}
+func TestDimensions_ConfigReader(t *testing.T) {
+	a, b, e := readEmbeddingDimensions(context.Background(), dimensionGetter{"embedding.dimensions": 768, "provider.embedding_dimensions": 768})
+	if e != nil || a != 768 || b != 768 {
+		t.Fatal(a, b, e)
+	}
+	for _, v := range []any{0, -1, "768", 1.5, true} {
+		if _, _, e = readEmbeddingDimensions(context.Background(), dimensionGetter{"provider.embedding_dimensions": v}); !errors.Is(e, config.ErrEmbeddingDimensions) {
+			t.Fatal(v, e)
+		}
+	}
+}
+
+type dimensionVSFactory struct {
+	got int
+	vs  *fakeVectorStore
+}
+
+func (f *dimensionVSFactory) Create(c *vector.Config) (vector.VectorStore, error) {
+	f.got = c.EmbeddingDimensions
+	return f.vs, nil
+}
+
+type dimensionRagFactory struct {
+	got  int
+	fail error
+}
+
+func (f *dimensionRagFactory) Create(c RagConfig, v vector.VectorStore) (*core.Rag, error) {
+	f.got = c.EmbeddingDimensions
+	return &core.Rag{}, f.fail
+}
+func TestDimensions_InitFactoryPropagation(t *testing.T) {
+	resetState()
+	defer resetState()
+	cfg := validRagConfig()
+	cfg.EmbeddingDimensions = 768
+	vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
+	rf := &dimensionRagFactory{}
+	if e := InitWith(cfg, vf, rf); e != nil {
+		t.Fatal(e)
+	}
+	if vf.got != 768 || rf.got != 768 {
+		t.Fatal(vf.got, rf.got)
+	}
+	if cfg.VectorCfg.EmbeddingDimensions != 0 {
+		t.Fatal("mutated caller")
+	}
+}
+func TestDimensions_InitFailClosed(t *testing.T) {
+	for _, scenario := range []string{"conflict", "negative", "guard"} {
+		t.Run(scenario, func(t *testing.T) {
+			resetState()
+			defer resetState()
+			c := validRagConfig()
+			c.EmbeddingDimensions = 768
+			want := config.ErrEmbeddingDimensionConflict
+			switch scenario {
+			case "conflict":
+				c.VectorCfg.EmbeddingDimensions = 512
+			case "negative":
+				c.EmbeddingDimensions = -1
+				want = config.ErrEmbeddingDimensions
+			case "guard":
+				c.Provider = &config.ProviderConfig{EmbeddingModel: "m", EmbeddingDimensions: 768}
+				want = common.ErrEmbeddingGuardNotReady
+			}
+			vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
+			rf := &dimensionRagFactory{}
+			if e := InitWith(c, vf, rf); !errors.Is(e, want) {
+				t.Fatal(e)
+			}
+			if vf.got != 0 || rf.got != 0 {
+				t.Fatal("factory called on invalid config")
+			}
+		})
+	}
+}
+
+func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		if r.Method != "HEAD" {
+			t.Errorf("unexpected facility call %s", r.Method)
+		}
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+	cfg := validRagConfig()
+	cfg.VectorCfg = vector.Config{Type: "es", IndexName: "test", ES: &vector.ESConfig{Address: srv.URL}, EmbeddingDimensions: 768}
+	cfg.EmbeddingDimensions = 768
+	disabled := false
+	cfg.QAEnabled = &disabled
+	cfg.EmbeddingModel = "text-embedding-3-large"
+	cfg.Provider = &config.ProviderConfig{Name: "openai", BaseURL: srv.URL, APIKey: "offline", ChatModel: "offline"}
+	oldRegistry := common.GetRegistry()
+	defer common.SetRegistry(oldRegistry)
+	processBudgetMu.Lock()
+	oldBudget := processBudget
+	processBudget = nil
+	processBudgetMu.Unlock()
+	defer func() { processBudgetMu.Lock(); processBudget = oldBudget; processBudgetMu.Unlock() }()
+	vs, e := vector.NewVectorStore(&cfg.VectorCfg)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer vs.Close()
+	r, e := (&defaultRagFactory{}).Create(cfg, vs)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = r.Shutdown(context.Background()); e != nil {
+		t.Fatal(e)
+	}
+	if requests.Load() != 1 {
+		t.Fatal(requests.Load())
+	}
+	if common.GetRegistry() == nil {
+		t.Fatal("factory did not publish registry")
+	}
+}
+func TestDimensions_NormalizeProviderSnapshot(t *testing.T) {
+	p := &config.ProviderConfig{Name: "openai", EmbeddingModel: "m"}
+	c := validRagConfig()
+	c.EmbeddingDimensions = 768
+	c.Provider = p
+	n, e := normalizeDimensions(c)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if n.Provider.EmbeddingDimensions != 768 || p.EmbeddingDimensions != 0 || n.VectorCfg.EmbeddingDimensions != 768 {
+		t.Fatal("profile fallback not snapshotted")
+	}
+	profile, e := providers.NewProviderProfile(providers.ProviderProfile{ProviderName: n.Provider.Name, Protocol: providers.ProtocolOpenAICompat, Endpoint: "http://offline", Model: n.Provider.EmbeddingModel, Dimensions: n.Provider.EmbeddingDimensions})
+	if e != nil || profile.Dimensions != 768 {
+		t.Fatal(profile, e)
+	}
+}

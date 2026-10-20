@@ -28,44 +28,25 @@ func (c *Config) IndexExists(ctx context.Context) (bool, error) {
 
 // CreateIndex 创建索引/集合
 func (c *Config) CreateIndex(ctx context.Context) error {
+	dimensions, err := c.ResolveDimensions()
+	if err != nil {
+		return err
+	}
 	if c.Client != nil {
 		// ES
-		_, err := create.NewCreateFunc(c.Client)(c.IndexName).Request(&create.Request{
-			Mappings: &types.TypeMapping{
-				Properties: map[string]types.Property{
-					coretypes.FieldContent:  types.NewTextProperty(),
-					coretypes.FieldExtra:    types.NewTextProperty(),
-					coretypes.KnowledgeName: types.NewKeywordProperty(),
-					coretypes.FieldContentVector: &types.DenseVectorProperty{
-						Dims:       Of(1024),
-						Index:      Of(true),
-						Similarity: Of("cosine"),
-					},
-					coretypes.FieldQAContentVector: &types.DenseVectorProperty{
-						Dims:       Of(1024),
-						Index:      Of(true),
-						Similarity: Of("cosine"),
-					},
-				},
-			},
-		}).Do(ctx)
+		mapping, err := ESMapping(dimensions)
+		if err != nil {
+			return err
+		}
+		_, err = create.NewCreateFunc(c.Client)(c.IndexName).Request(&create.Request{Mappings: mapping}).Do(ctx)
 		return err
 	} else if c.QdrantClient != nil {
 		// Qdrant - 创建集合，支持命名向量
-		vectorsMap := map[string]*qdrant.VectorParams{
-			coretypes.FieldContentVector: {
-				Size:     1024,
-				Distance: qdrant.Distance_Cosine,
-			},
-			coretypes.FieldQAContentVector: {
-				Size:     1024,
-				Distance: qdrant.Distance_Cosine,
-			},
+		req, err := QdrantCollection(c.IndexName, dimensions)
+		if err != nil {
+			return err
 		}
-		err := c.QdrantClient.CreateCollection(ctx, &qdrant.CreateCollection{
-			CollectionName: c.IndexName,
-			VectorsConfig:  qdrant.NewVectorsConfigMap(vectorsMap),
-		})
+		err = c.QdrantClient.CreateCollection(ctx, req)
 		if err != nil {
 			return fmt.Errorf("failed to create collection: %w", err)
 		}

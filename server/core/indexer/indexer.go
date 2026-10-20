@@ -16,6 +16,10 @@ import (
 
 // newIndexer component initialization function of node 'Indexer2' in graph 'rag'
 func newIndexer(ctx context.Context, conf *config.Config) (idr indexer.Indexer, err error) {
+	dimensions, err := conf.ResolveDimensions()
+	if err != nil {
+		return nil, err
+	}
 	embeddingIns11, err := common.NewEmbedding(ctx, conf)
 	if err != nil {
 		return nil, err
@@ -70,8 +74,8 @@ func newIndexer(ctx context.Context, conf *config.Config) (idr indexer.Indexer, 
 		idr, err = NewQdrantIndexer(ctx, &QdrantIndexerConfig{
 			Client:     conf.QdrantClient,
 			Collection: conf.IndexName,
-			VectorDim:  1024, // 根据你的 embedding 模型调整
-			Distance:   0,    // 使用默认 Cosine
+			VectorDim:  dimensions,
+			Distance:   0, // 使用默认 Cosine
 			Embedding:  embeddingIns11,
 			BatchSize:  10,
 			IsAsync:    false,

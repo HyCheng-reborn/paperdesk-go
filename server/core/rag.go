@@ -80,6 +80,15 @@ type Rag struct {
 }
 
 func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
+	dimensions, err := conf.ResolveDimensions()
+	if err != nil {
+		return nil, err
+	}
+	conf = conf.Copy()
+	conf.EmbeddingDimensions = dimensions
+	if conf.Provider != nil && conf.Provider.EmbeddingModel != "" {
+		return nil, common.ErrEmbeddingGuardNotReady
+	}
 	if len(conf.IndexName) == 0 {
 		return nil, fmt.Errorf("indexName is empty")
 	}

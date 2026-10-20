@@ -15,16 +15,25 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/indices/exists"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/wangle201210/go-rag/server/core/config"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 )
 
 // ESVectorStore Elasticsearch 向量存储实现
 type ESVectorStore struct {
-	client *elasticsearch.Client
+	dimensions int
+	client     *elasticsearch.Client
 }
 
 // NewESVectorStore 创建 ES 向量存储实例
-func NewESVectorStore(cfg *ESConfig) (*ESVectorStore, error) {
+func NewESVectorStore(cfg *ESConfig, dimensions ...int) (*ESVectorStore, error) {
+	d, err := storeDimensions(dimensions)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("nil vector configuration")
+	}
 	client, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: []string{cfg.Address},
 		Username:  cfg.Username,
@@ -35,7 +44,8 @@ func NewESVectorStore(cfg *ESConfig) (*ESVectorStore, error) {
 	}
 
 	return &ESVectorStore{
-		client: client,
+		client:     client,
+		dimensions: d,
 	}, nil
 }
 
@@ -46,26 +56,11 @@ func (s *ESVectorStore) GetClient() *elasticsearch.Client {
 
 // CreateIndex 创建索引
 func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string) error {
-	_, err := create.NewCreateFunc(s.client)(indexName).Request(&create.Request{
-		Mappings: &types.TypeMapping{
-			Properties: map[string]types.Property{
-				coretypes.FieldContent:  types.NewTextProperty(),
-				coretypes.FieldExtra:    types.NewTextProperty(),
-				coretypes.KnowledgeName: types.NewKeywordProperty(),
-				coretypes.FieldContentVector: &types.DenseVectorProperty{
-					Dims:       of(1024),
-					Index:      of(true),
-					Similarity: of("cosine"),
-				},
-				coretypes.FieldQAContentVector: &types.DenseVectorProperty{
-					Dims:       of(1024),
-					Index:      of(true),
-					Similarity: of("cosine"),
-				},
-			},
-		},
-	}).Do(ctx)
-
+	mapping, err := config.ESMapping(s.dimensions)
+	if err != nil {
+		return err
+	}
+	_, err = create.NewCreateFunc(s.client)(indexName).Request(&create.Request{Mappings: mapping}).Do(ctx)
 	return err
 }
 

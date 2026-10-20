@@ -7,16 +7,25 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/qdrant/go-client/qdrant"
+	"github.com/wangle201210/go-rag/server/core/config"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 )
 
 // QdrantVectorStore Qdrant 向量存储实现
 type QdrantVectorStore struct {
-	client *qdrant.Client
+	dimensions int
+	client     *qdrant.Client
 }
 
 // NewQdrantVectorStore 创建 Qdrant 向量存储实例
-func NewQdrantVectorStore(cfg *QdrantConfig) (*QdrantVectorStore, error) {
+func NewQdrantVectorStore(cfg *QdrantConfig, dimensions ...int) (*QdrantVectorStore, error) {
+	d, err := storeDimensions(dimensions)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("nil vector configuration")
+	}
 	client, err := qdrant.NewClient(&qdrant.Config{
 		Host:   cfg.Address,
 		Port:   cfg.Port,
@@ -27,7 +36,8 @@ func NewQdrantVectorStore(cfg *QdrantConfig) (*QdrantVectorStore, error) {
 	}
 
 	return &QdrantVectorStore{
-		client: client,
+		client:     client,
+		dimensions: d,
 	}, nil
 }
 
@@ -39,19 +49,11 @@ func (s *QdrantVectorStore) GetClient() *qdrant.Client {
 // CreateIndex 创建集合
 func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) error {
 	// 创建集合，使用命名向量配置以支持多向量
-	err := s.client.CreateCollection(ctx, &qdrant.CreateCollection{
-		CollectionName: indexName,
-		VectorsConfig: qdrant.NewVectorsConfigMap(map[string]*qdrant.VectorParams{
-			coretypes.FieldContentVector: {
-				Size:     1024,
-				Distance: qdrant.Distance_Cosine,
-			},
-			coretypes.FieldQAContentVector: {
-				Size:     1024,
-				Distance: qdrant.Distance_Cosine,
-			},
-		}),
-	})
+	req, err := config.QdrantCollection(indexName, s.dimensions)
+	if err != nil {
+		return err
+	}
+	err = s.client.CreateCollection(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to create collection: %w", err)
 	}

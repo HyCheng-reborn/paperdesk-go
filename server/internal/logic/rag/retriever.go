@@ -39,13 +39,14 @@ var (
 
 // RagConfig 完整 RAG 初始化配置
 type RagConfig struct {
-	VectorCfg       vector.Config
-	EmbeddingAPIKey string
-	BaseURL         string
-	EmbeddingModel  string
-	ChatModel       string
-	QAEnabled       *bool // nil = 默认启用
-	QAMaxConcurrent int   // 0 或负数 = 默认 4
+	VectorCfg           vector.Config
+	EmbeddingAPIKey     string
+	BaseURL             string
+	EmbeddingDimensions int
+	EmbeddingModel      string
+	ChatModel           string
+	QAEnabled           *bool // nil = 默认启用
+	QAMaxConcurrent     int   // 0 或负数 = 默认 4
 
 	// 后台任务生命周期配置
 	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>256 钳位到 256
@@ -65,6 +66,11 @@ type RagFactory interface {
 type defaultRagFactory struct{}
 
 func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.Rag, error) {
+	var err error
+	cfg, err = normalizeDimensions(cfg)
+	if err != nil {
+		return nil, err
+	}
 	ctx := context.Background()
 
 	// 根据 VectorStore 类型提取客户端
@@ -96,6 +102,7 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		APIKey:                cfg.EmbeddingAPIKey,
 		BaseURL:               cfg.BaseURL,
 		EmbeddingModel:        cfg.EmbeddingModel,
+		EmbeddingDimensions:   cfg.EmbeddingDimensions,
 		ChatModel:             cfg.ChatModel,
 		QAEnabled:             cfg.QAEnabled,
 		QAMaxConcurrent:       cfg.QAMaxConcurrent,
@@ -125,6 +132,9 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 		return nil, fmt.Errorf("nil ProviderConfig")
 	}
 
+	if _, err := config.ResolveEmbeddingDimensions(0, pc); err != nil {
+		return nil, err
+	}
 	// 解析 API Key：优先配置值，其次环境变量
 	apiKey := pc.APIKey
 	if apiKey == "" {
@@ -210,9 +220,9 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 	// Embed Profile
 	var embedProfile *providers.ProviderProfile
 	if pc.EmbeddingModel != "" {
-		dims := pc.EmbeddingDimensions
-		if dims <= 0 {
-			dims = 1024
+		dims, dimErr := config.ResolveEmbeddingDimensions(0, pc)
+		if dimErr != nil {
+			return nil, dimErr
 		}
 		embedProfile, err = providers.NewProviderProfile(providers.ProviderProfile{
 			ProviderName: providerName,
@@ -426,11 +436,22 @@ func readRagConfig() (RagConfig, error) {
 	// Stage 2B: Provider 配置块（可选，缺失时 nil）
 	var providerCfg *config.ProviderConfig
 	v, err := g.Cfg().Get(ctx, "provider")
-	if err == nil && !v.IsNil() {
+	if err != nil {
+		return RagConfig{}, fmt.Errorf("read provider config: %w", err)
+	}
+	if !v.IsNil() {
 		providerCfg = &config.ProviderConfig{}
 		if scanErr := v.Scan(providerCfg); scanErr != nil {
 			return RagConfig{}, fmt.Errorf("scan provider config: %w", scanErr)
 		}
+	}
+
+	legacyDims, providerDims, err := readEmbeddingDimensions(ctx, &defaultConfigGetter{})
+	if err != nil {
+		return RagConfig{}, err
+	}
+	if providerCfg != nil {
+		providerCfg.EmbeddingDimensions = providerDims
 	}
 
 	return RagConfig{
@@ -438,6 +459,7 @@ func readRagConfig() (RagConfig, error) {
 		EmbeddingAPIKey:       apiKey,
 		BaseURL:               baseURL,
 		EmbeddingModel:        embeddingModel,
+		EmbeddingDimensions:   legacyDims,
 		ChatModel:             chatModel,
 		QAEnabled:             qaEnabled,
 		QAMaxConcurrent:       qaMaxConcurrent,
@@ -475,6 +497,14 @@ func InitWith(cfg RagConfig, vsFactory VectorStoreFactory, ragFactory RagFactory
 		return fmt.Errorf("rag: Init already called")
 	}
 
+	var err error
+	cfg, err = normalizeDimensions(cfg)
+	if err != nil {
+		return err
+	}
+	if cfg.Provider != nil && cfg.Provider.EmbeddingModel != "" {
+		return common.ErrEmbeddingGuardNotReady
+	}
 	// 验证配置（在工厂调用之前）
 	if cfg.VectorCfg.Type == "" {
 		return fmt.Errorf("rag: vector.type not configured")
@@ -660,4 +690,47 @@ func Reset() error {
 	// 换代：另一调用已完成 Reset+Init，不触碰新对象
 	ragMu.Unlock()
 	return nil
+}
+
+// normalizeDimensions resolves once before factories, never mutating caller-owned config.
+func normalizeDimensions(cfg RagConfig) (RagConfig, error) {
+	d, err := config.ResolveEmbeddingDimensions(cfg.EmbeddingDimensions, cfg.Provider)
+	if err != nil {
+		return cfg, err
+	}
+	if cfg.VectorCfg.EmbeddingDimensions < 0 {
+		return cfg, config.ErrEmbeddingDimensions
+	}
+	if cfg.VectorCfg.EmbeddingDimensions > 0 && cfg.VectorCfg.EmbeddingDimensions != d {
+		return cfg, config.ErrEmbeddingDimensionConflict
+	}
+	cfg.EmbeddingDimensions = d
+	cfg.VectorCfg.EmbeddingDimensions = d
+	if cfg.Provider != nil {
+		p := *cfg.Provider
+		cfg.Provider = &p
+		if p.EmbeddingModel != "" {
+			cfg.Provider.EmbeddingDimensions = d
+		}
+	}
+	return cfg, nil
+}
+
+func readEmbeddingDimensions(ctx context.Context, getter configGetter) (int, int, error) {
+	values := [2]int{}
+	for i, key := range []string{"embedding.dimensions", "provider.embedding_dimensions"} {
+		v, err := getter.Get(ctx, key)
+		if err != nil {
+			return 0, 0, fmt.Errorf("read %s: %w", key, err)
+		}
+		var raw any
+		if v != nil && !v.IsNil() {
+			raw = v.Val()
+		}
+		values[i], err = config.ParseEmbeddingDimensions(raw)
+		if err != nil {
+			return 0, 0, fmt.Errorf("%s: %w", key, err)
+		}
+	}
+	return values[0], values[1], nil
 }

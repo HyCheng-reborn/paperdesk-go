@@ -14,10 +14,11 @@ type Config struct {
 	QdrantClient *qdrant.Client        // Qdrant 客户端
 	IndexName    string                // index name / collection name
 	// embedding 时使用
-	APIKey         string
-	BaseURL        string
-	EmbeddingModel string
-	ChatModel      string
+	APIKey              string
+	BaseURL             string
+	EmbeddingDimensions int
+	EmbeddingModel      string
+	ChatModel           string
 
 	// QA 生成配置
 	QAEnabled       *bool // nil = 默认启用（向后兼容）
@@ -76,6 +77,7 @@ func (x *Config) Copy() *Config {
 		APIKey:                x.APIKey,
 		BaseURL:               x.BaseURL,
 		EmbeddingModel:        x.EmbeddingModel,
+		EmbeddingDimensions:   x.EmbeddingDimensions,
 		ChatModel:             x.ChatModel,
 		QAEnabled:             x.QAEnabled,
 		QAMaxConcurrent:       x.QAMaxConcurrent,

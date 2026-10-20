@@ -415,6 +415,35 @@ type RequestBudget struct {
 - **可离线验证**：维度 fingerprint 匹配/不匹配逻辑（使用 fake VectorStore）；维度不匹配时的错误路径；Embedding 响应校验（数量/index/维度/NaN/Inf）。
 - **不可离线验证**：ES/Qdrant 实际 mapping 与维度往返兼容；真实 Embedding API 返回维度与声明一致。
 
+### 5.7 Stage 2C-1：维度单源实施（2026-10-21，实施完成，待独立复核）
+
+权威解析入口为 `config.ResolveEmbeddingDimensions`：旧模式 `embedding.dimensions`；Provider Embedding 模式优先 `provider.embedding_dimensions`，缺失时仅接受显式 legacy 维度作为 fallback。两处显式值不同拒绝；新 Provider 模型两处都缺失拒绝，不借用旧模型默认。仅旧模式缺失时在此边界默认 1024。YAML 显式零、负数、浮点、字符串和布尔拒绝；Go 配置结构的零表示未指定。Provider 只有 Chat 等角色而没有 Embedding 时不改变旧 Embedding 来源；孤立的 provider embedding_dimensions 报错。
+
+解析结果 → RagConfig → VectorCfg / core.Config（Copy 保留）→ Profile 声明、Embedding 请求、同步/异步 Qdrant VectorDim、query/document embedder、共享 ESMapping/QdrantCollection。InitWith 在任何工厂调用前拒绝下游 VectorCfg 显式冲突。模型不支持可选 dimensions 参数时保留旧请求协议，返回长度必须符合声明，否则在写入/检索前失败；这不证明模型身份兼容。
+
+实际创建主链为 `defaultRagFactory → core.New → Config.IndexExists/CreateIndex`。`vector.*.CreateIndex` 是另一公开路径；`common.CreateIndexIfNotExists` 是仓内未被生产调用的 deprecated 入口。三者都调用配置包共享 schema，不再各自选择 1024。Qdrant SDK 在 indexer 构造时还有 ensureCollection 路径，其 VectorDim 也已贯通。同步、异步、检索当前分别构造 embedder，但使用同一已解析配置；不是假定全程只有一个 embedder 对象。
+
+本批不读取既有真实 mapping、不实施 fingerprint 或迁移。`common.NewEmbedding` 的 ErrEmbeddingGuardNotReady 保持；InitWith/core.New 额外提前阻止新 profile 在创建索引前产生副作用。维度不代表模型身份，不允许生产启用新 profile。
+
+### 5.8 Stage 2C-2 fingerprint 决策建议（待确认；未实施/未验收）
+
+**已批准依据**：§5.2–5.4、§7.3 要求 query/document 同源、建索引记录身份、读写校验、不匹配拒绝；同维度不等于同模型；旧身份未知不可默认放行；先 fingerprint 和阻断，后解除 guard。以下格式、存储及并发细节是建议，尚待确认，不是本批代码。
+
+**推荐方案**：ES 使用 mapping `_meta.paperdesk_embedding`；锁定 Qdrant 客户端下使用现有关系库中的独立 manifest 表，绑定受控创建的唯一物理 collection 名称与 generation。不给业务向量混入哨兵 point，不升级依赖；保留以后原生 collection metadata 的替换空间。两后端共享 fingerprint 比较规则，但不假装有跨设施原子事务。
+
+1. **规范化与比较**：`fingerprint_version=1`；保存规范化原文与 SHA-256。身份字段建议包含 provider、protocol、endpoint（scheme/host 小写、默认端口消歧；模型/路径大小写不改，不移除有意义路径）、region、model ID、immutable revision/deployment ID、dimensions、distance、content/QA vector 名称及影响向量语义的 options（如输入前缀/归一化/池化策略，白名单、排序）。凭据原文、API key/hash、预算、并发不进入模型指纹；凭据对应私有部署时用显式非秘密 deployment namespace。不能直接复用包含凭据身份的 Profile.CacheKey。未知版本、缺字段、维度/语义/身份任一不符都拒绝；允许列表与空 revision 的处理需确认，漂移 alias 不能仅凭名称认作已证明身份。
+2. **存储取舍**：ES `_meta` 随索引保存且可在同一 CreateIndex 请求写入，读 mapping 获取；优于自造 index settings 或字段级 meta。Qdrant 当前锁定 `CreateCollection/CollectionConfig` 源码无 Metadata；官方 collection metadata 标为服务端 v1.16 起，不能假定本仓客户端或部署支持。外部 manifest 避免升级和污染检索，但需处理 DB/collection 双写、备份一致性与外部重建。可选 sidecar collection 同样是跨 collection 非原子且增加保留名称和查询规则，不推荐首版。
+3. **未知/缺失/不匹配**：返回可识别的 Missing/UnknownVersion/Mismatch/Initializing 错误并拒绝索引、后台写入及查询；禁止按当前配置“认领”来源不明的旧索引。仅在 PaperDesk 控制下新建的物理索引才能首次记录身份，不能看到空库/同维就自动写入身份。
+4. **新建与并发**：ES CreateIndex 携带完整 `_meta`，遇 already_exists 只读回验明身份，不能覆盖胜出者。Qdrant manifest 以 backend/store-namespace/唯一物理名建立唯一约束，事务/CAS 状态 Creating→Ready；固定初始化 owner/generation，其他进程遇 Creating 有限等待或返回 initializing。创建成功后读回两个 named vector 的真实参数，再 CAS Ready；失败保留 Failed/Creating 可诊断记录，不发布服务，不自动删已存在资源。存在但无 Ready 证明的 collection 拒绝。进程锁不冒充跨进程锁。
+5. **旧索引及外部变更**：人工选择新物理名，从原始论文/chunks 重新 Embedding，校验身份与数量后人工切配置/alias；保留旧索引供回退，不改旧向量、不自动删除。Qdrant 无通用物理 generation 可验证字段，外部同名删除重建可能使 manifest 失真：首版要求独占管理、不可复用随机 generation 物理名、人工恢复必须连同 manifest；若部署不能保证这一点，Qdrant guard 不得解除，需另行确认服务升级/原生 metadata 方案。此限制不能写成已解决。
+6. **guard 入口与解除**：未来集中在 core.New 的 exists/create/read-back 发布前、vector 公开 CreateIndex、同步/异步 Store 前及两个 Retriever 查询前。Qdrant SDK.ensureCollection 是隐式第二创建点，2C-2 必须去掉/约束其自动创建，不能在指纹检查后悄悄造无身份集合。后台任务复用同一身份但仍检查目标，不刷新预算或吞取消。只有两后端共享比较、并发创建/失败、不匹配/缺失阻断、真实装配离线测试及所选存储约束通过独立复核后，才讨论 2C-3 guard 解除；在线可用性由 2D 独立授权。
+
+**需要确认的最小决策**：接受上述 ES/Qdrant 存储分流；接受 Qdrant 唯一物理名/独占管理约束（否则保持禁用）；确认 fingerprint v1 字段与 revision/alias 人工证明规则。任何决定不自动授权迁移真实数据或付费探针。
+
+资料核实日期 2026-10-21：
+- [Elasticsearch 官方 `_meta`](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/mapping-meta-field)；本地 elastic/go-elasticsearch v8.16.0 `typedapi/types/type_mapping.go` 提供 Meta_。
+- [Qdrant 官方 Collection Metadata](https://qdrant.tech/documentation/manage-data/collections/#collection-metadata)，注明 available as of v1.16.0；本地 go-client v1.15.2 `qdrant/collections.pb.go` 的创建/配置消息无该字段。资料与锁定 API 能力分开，不据此推断真实服务器已验证。
+
 ---
 
 ## §6 Provider 与 HTTP 契约
@@ -635,7 +664,9 @@ type TokenEstimate struct {
 
 **解除门禁的验收条件**：fingerprint 校验 + 维度不匹配阻断已实现且离线测试通过，才允许新 Embedding profile 走 `Registry.GetEmbedder`；此前 `common.NewEmbedding` 对显式 `Provider.EmbeddingModel` 保持 fail-closed。
 
-**首批建议**：2C-1 = `vector.Config` 增维度字段 + ES/Qdrant CreateIndex 与 indexer VectorDim 从 `ProviderProfile.Dimensions` 读取（暂不改 fingerprint），完全可离线验证；2C-2 = fingerprint 存取+校验+阻断；2C-3 = guard 解除。
+**2C-1 状态**：实施完成，待独立复核；2C-2 设计建议待确认（§5.8），2C/Stage 2 未整体完成。
+
+**首批范围**：2C-1 = `vector.Config` 增维度字段 + ES/Qdrant CreateIndex 与 indexer VectorDim 从 `ProviderProfile.Dimensions` 读取（暂不改 fingerprint），完全可离线验证；2C-2 = fingerprint 存取+校验+阻断；2C-3 = guard 解除。
 
 **待决策/待验证**：fingerprint 具体格式与存储位置（ES index settings/mapping 字段 vs 外部元数据）、旧索引 fingerprint 缺失/身份未知的处理策略（拒绝 vs 人工重建，不得默认放行）、实际生效的 ES/Qdrant schema builder、真实 Embedding 返回维度与声明一致——均不自行创造，留待决策/2D 探针。
 

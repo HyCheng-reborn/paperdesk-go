@@ -1,5 +1,15 @@
 # 变更记录
 
+### Stage 2C-1 维度单源贯通（2026-10-21，实施完成，待独立复核）
+
+- 基线 `8d2c21225d4627a2668cad788cc254f78f2e04e4`，独立实现分支 `codex/stage2c1-dimensions`，保护主仓 retriever_test.go 等未提交文件。
+- 新增集中维度解析/严格类型与冲突错误；RagConfig、Config.Copy、Provider 声明与 vector.Config 贯通。
+- Config.CreateIndex、vector ES/Qdrant、deprecated common ES 共享 schema；两个 Qdrant indexer 使用解析结果。legacy Embedding 的请求维度与响应长度校验供文档/查询共用。
+- 新 profile 保持 fail-closed，并在初始化设施请求前提前拒绝；未实施 fingerprint、真实索引操作或数据迁移。
+- 2C-2 推荐/待确认事项见方案 §5.8：ES mapping _meta；锁定 Qdrant SDK 下关系库 manifest + 不复用的唯一物理名，明确外部重建限制与失败关闭。未把建议写成已实施/已验收。
+- 验证记录见 verification/stage2c1/；2C-1 待独立复核，2C/Stage 2 均未整体完成。
+
+
 ### Stage 2B 验收记录 + Stage 2C 实施交接（2026-10-21，仅文档）
 
 - **类型**：验收记录 + 交接提取；仅改文档，不改业务代码、不运行在线探针、不调模型 API。

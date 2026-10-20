@@ -32,6 +32,10 @@ func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedd
 	// 仅当 Provider 配置存在且 EmbeddingModel 非空时才尝试 Registry（上方已拒绝）
 
 	// 旧路径：直接从 config 构建
+	dimensions, err := conf.ResolveDimensions()
+	if err != nil {
+		return nil, err
+	}
 	econf := &openai.EmbeddingConfig{
 		APIKey:  conf.APIKey,
 		Model:   conf.EmbeddingModel,
@@ -50,11 +54,33 @@ func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedd
 	// Only request dimensions for models that support it. BGE-M3 already
 	// returns 1024 dimensions and SiliconFlow rejects this optional parameter.
 	if strings.HasPrefix(econf.Model, "text-embedding-3-") || strings.HasPrefix(econf.Model, "Qwen/Qwen3-Embedding-") {
-		econf.Dimensions = Of(1024)
+		econf.Dimensions = Of(dimensions)
 	}
 	eb, err = openai.NewEmbedder(ctx, econf)
 	if err != nil {
 		return nil, err
 	}
-	return eb, nil
+	return &dimensionEmbedder{Embedder: eb, dimensions: dimensions}, nil
+}
+
+// dimensionEmbedder checks legacy responses before vector write/search.
+type dimensionEmbedder struct {
+	embedding.Embedder
+	dimensions int
+}
+
+func (e *dimensionEmbedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float64, error) {
+	vectors, err := e.Embedder.EmbedStrings(ctx, texts, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if len(vectors) != len(texts) {
+		return nil, fmt.Errorf("%w: response count", config.ErrEmbeddingDimensions)
+	}
+	for _, v := range vectors {
+		if len(v) != e.dimensions {
+			return nil, fmt.Errorf("%w: response=%d configured=%d", config.ErrEmbeddingDimensions, len(v), e.dimensions)
+		}
+	}
+	return vectors, nil
 }

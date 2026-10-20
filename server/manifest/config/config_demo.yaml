@@ -38,6 +38,7 @@ vector:
 #    apiKey: ""
 
 embedding:
+  # dimensions: 768 # 可选正整数；缺失旧模式默认 1024；不同模型需核实支持
   apiKey: "sk-****"
   baseURL: "https://api.siliconflow.cn/v1"
   model: "BAAI/bge-m3"

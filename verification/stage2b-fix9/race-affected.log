@@ -1,0 +1,14 @@
+# CMD: go test -race ./core/providers/... ./core/common/... ./core/rerank/... ./internal/logic/rag/... ./internal/logic/chat/... ./internal/controller/rag/... -count=1 -timeout=300s
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 21:08:59
+
+ok  	github.com/wangle201210/go-rag/server/core/providers	2.178s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	10.092s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	4.832s
+ok  	github.com/wangle201210/go-rag/server/core/common	1.656s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	2.783s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	21.668s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.358s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	1.430s

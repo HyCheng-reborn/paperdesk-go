@@ -409,60 +409,88 @@ func (w *budgetStreamReader) finalize(err error) {
 
 // wrapBudgetStreamReader 包装 StreamReader，返回 *StreamSession 供业务消费。
 //
-// 架构：recv goroutine + 转发 goroutine 分离模式。
-//   - recv goroutine：阻塞在 inner Recv，将结果发送到 dataCh（buffer=1，永不阻塞）。
-//     当 inner 返回 EOF/错误时退出。
-//   - 转发 goroutine：select { dataCh → budgetWriter; done → return }。
-//     当 cancel 关闭 done 时立即退出，不阻塞在 inner Recv。
+// 架构：recv goroutine + 转发 goroutine + WaitGroup 跟踪。
+//   - recv goroutine：阻塞在 inner Recv，将结果发送到 dataCh（buffer=1）。
+//     当 inner 返回 EOF/错误时退出，或 cancelSig 关闭时退出。
+//   - 转发 goroutine：select { dataCh → writer; cancelSig → return }。
+//     负责关闭内层 session/reader 和终结 lease。
+//   - waiter goroutine：等待两个 goroutine 都退出后关闭 done channel。
 //
-// 这解决了 Eino StreamReader.Recv() 只响应 writer 关闭（closeSend），
-// 不响应 reader 关闭（closeRecv）或 ctx 取消的问题。
+// done channel 覆盖所有任务（recv + forward + waiter），确保：
+//   - StreamSession.Close() 等待所有 goroutine 退出
+//   - 父 ctx 取消 + 背压也能收敛
+//   - 终结者和终态唯一
 //
 // streamCancel 是派生 ctx 的取消函数。cancel 时：
 //  1. streamCancel → 取消内层 ctx（生产环境中断 HTTP body read）
-//  2. 关闭内层 session（若有）释放底层 HTTP 连接
-//  3. 关闭 done → 转发 goroutine 立即退出
+//  2. close(cancelSig) → 解除 recv/forward goroutine 的阻塞
+//  3. 等待 waiter goroutine 确认所有任务退出
 //
-// recv goroutine 在 inner producer 响应 ctx 取消后自然退出。
 // 不使用 runtime.SetFinalizer，正确性由 StreamSession.Close/Drain 保证。
 func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease, innerSession *StreamSession) *StreamSession {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	bsr := &budgetStreamReader{inner: sr, lease: lease}
-	done := make(chan struct{})      // 转发 goroutine 退出信号
-	cancelSig := make(chan struct{}) // cancel 信号，独立于 done
+	done := make(chan struct{})      // 所有 goroutine 退出信号
+	cancelSig := make(chan struct{}) // cancel 信号
 
-	// closeInnerOnce 保护内层 reader 幂等关闭（innerSession.Close 和转发 goroutine defer 均可调用）。
-	var closeInnerOnce sync.Once
-	closeInner := func() {
-		closeInnerOnce.Do(func() { sr.Close() })
+	// closeSrcOnce protects source close idempotency.
+	// Both cancel() and forward goroutine defer call this.
+	// Eino StreamReader.Close() is NOT idempotent (close(s.closed) panics on double-close).
+	var closeSrcOnce sync.Once
+	closeSrc := func() {
+		closeSrcOnce.Do(func() {
+			if innerSession != nil {
+				innerSession.Close()
+			} else {
+				sr.Close()
+			}
+		})
 	}
 
-	// cancel：仅取消派生 ctx + 关闭 cancelSig 解除转发 goroutine。
-	// 内层 session 由转发 goroutine 的 defer 关闭（避免与 closeInner 双重关闭同一 reader）。
+	// cancelOnce protects close(cancelSig) idempotency (concurrent cancel safe)
+	var cancelOnce sync.Once
 	cancel := func() {
-		streamCancel()
-		select {
-		case <-cancelSig:
-		default:
-			close(cancelSig)
-		}
+		streamCancel() // 1. cancel derived ctx
+		closeSrc()     // 2. Close source reader to unblock recv goroutine
+		cancelOnce.Do(func() {
+			close(cancelSig) // 3. Signal cancel
+		})
 	}
+
+	// WaitGroup tracks recv and forward goroutines
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	// recv goroutine：桥接阻塞 Recv 到 dataCh。
+	// 将阻塞的 bsr.Recv() 放入临时 goroutine，外层 select 监听结果和 cancelSig。
+	// 当 cancelSig 关闭时，recv goroutine 立即退出（临时 goroutine 可能在 bsr.Recv
+	// 中短暂泄漏，直到源 writer 关闭或 ctx 取消使其返回）。
 	type recvItem struct {
 		chunk *schema.Message
 		err   error
 	}
 	dataCh := make(chan recvItem, 1)
 	go func() {
+		defer wg.Done()
 		for {
-			chunk, err := bsr.Recv()
+			// 临时 goroutine 执行阻塞 Recv
+			recvDone := make(chan recvItem, 1)
+			go func() {
+				chunk, err := bsr.Recv()
+				recvDone <- recvItem{chunk, err}
+			}()
+			// 等待 Recv 结果或 cancel 信号
 			select {
-			case dataCh <- recvItem{chunk, err}:
+			case item := <-recvDone:
+				select {
+				case dataCh <- item:
+				case <-cancelSig:
+					return
+				}
+				if item.err != nil {
+					return
+				}
 			case <-cancelSig:
-				return
-			}
-			if err != nil {
 				return
 			}
 		}
@@ -470,17 +498,10 @@ func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamRe
 
 	// 转发 goroutine：select 监听数据和 cancelSig。
 	go func() {
-		defer close(done)    // 通知 StreamSession 转发已完成
+		defer wg.Done()
 		defer writer.Close() // 关闭 pipe writer，通知消费者流结束
-		// 关闭内层 session（级联取消 HTTP ctx + 关闭内层 reader + 等待内层 goroutine）。
-		// 若 innerSession 为 nil，则直接关闭内层 reader。
-		defer func() {
-			if innerSession != nil {
-				innerSession.Close() // 内部已包含 reader 关闭，不重复调用 closeInner
-			} else {
-				closeInner() // 无 session 时直接关闭 reader
-			}
-		}()
+		// Close source: closeSrc is idempotent via sync.Once (safe even if cancel already closed it).
+		defer closeSrc()
 		defer bsr.finalize(nil) // 终结 lease（nil lease 时为 no-op）
 		for {
 			select {
@@ -498,6 +519,13 @@ func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamRe
 				return
 			}
 		}
+	}()
+
+	// waiter goroutine：等待 recv 和 forward 都退出后关闭 done。
+	// 这确保 done 覆盖所有任务，而非仅 forward。
+	go func() {
+		wg.Wait()
+		close(done)
 	}()
 
 	return NewStreamSession(reader, cancel, done, lease)

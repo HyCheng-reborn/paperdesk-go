@@ -124,12 +124,12 @@ func TestStream_BlockedSourceClose(t *testing.T) {
 
 	// 阻塞源：不发送任何 chunk，Recv 一直阻塞，直到源被拆除（模拟网络取消）。
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
+	session := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
 
 	// 消费者关闭（异步，验证不悬挂）。
 	closeDone := make(chan struct{})
 	go func() {
-		wrapped.Close()
+		session.Close()
 		close(closeDone)
 	}()
 
@@ -139,7 +139,7 @@ func TestStream_BlockedSourceClose(t *testing.T) {
 	select {
 	case <-closeDone:
 	case <-time.After(3 * time.Second):
-		t.Fatal("wrapped.Close() hung on blocked source")
+		t.Fatal("session.Close() hung on blocked source")
 	}
 
 	// lease 必须收敛（终结）——无 goroutine 泄漏、无悬挂。
@@ -164,7 +164,7 @@ func TestStream_ConcurrentClose(t *testing.T) {
 	// 源拆除（EOF）；不发送 chunk，避免阻塞。
 	go srcWriter.Close()
 
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
+	session := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
 
 	// 等待 goroutine 读取 EOF 并终结 lease
 	deadline := time.Now().Add(2 * time.Second)
@@ -176,7 +176,7 @@ func TestStream_ConcurrentClose(t *testing.T) {
 	}
 
 	// Close 必须安全（即使 lease 已终结）
-	wrapped.Close()
+	session.Close()
 
 	// 单次结算：committed 只消耗一次（幂等 finalize）。
 	if snap := budget.Snapshot(); snap.CommittedAttempts != 1 {
@@ -192,7 +192,7 @@ func TestStream_CancelNotEOF(t *testing.T) {
 	lease.Commit()
 
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
+	session := wrapLeaseStreamReader(context.Background(), func() {}, srcReader, lease)
 
 	// 真实取消以非 EOF 错误从源浮现（生产中等价于 ctx 取消导致 HTTP 流报错）。
 	cancelErr := context.Canceled
@@ -202,13 +202,14 @@ func TestStream_CancelNotEOF(t *testing.T) {
 	}()
 
 	// 消费者读取直到错误。
+	reader := session.Reader()
 	for {
-		_, err := wrapped.Recv()
+		_, err := reader.Recv()
 		if err != nil {
 			break
 		}
 	}
-	wrapped.Close()
+	session.Close()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for !lease.Finalized() && time.Now().Before(deadline) {
@@ -241,14 +242,15 @@ func TestStream_BailianBusinessClose(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk3"},
 	})
 
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
+	session := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
 
 	// 读一个 chunk 然后关闭
-	_, err := wrapped.Recv()
+	reader := session.Reader()
+	_, err := reader.Recv()
 	if err != nil {
 		t.Fatalf("Recv: %v", err)
 	}
-	wrapped.Close()
+	session.Close()
 
 	// 验证 lease 已终结
 	deadline := time.Now().Add(2 * time.Second)

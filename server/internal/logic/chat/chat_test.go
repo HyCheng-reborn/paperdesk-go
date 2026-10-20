@@ -13,6 +13,7 @@ import (
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
+	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/internal/dao"
 	database "github.com/wangle201210/go-rag/server/internal/dao/db"
 	"gorm.io/driver/sqlite"
@@ -1376,5 +1377,208 @@ func TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch(t *testing.T) {
 	}
 	if !strings.Contains(saver.getSavedContent(), "hello world") {
 		t.Errorf("saved content should contain 'hello world', got %q", saver.getSavedContent())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// fakeSessionModel: implements both BaseChatModel and StreamSessioner
+// Uses Pipe-based forwarding (production-like, not just returning a raw reader).
+// ---------------------------------------------------------------------------
+
+type fakeSessionModel struct {
+	chunks []*schema.Message
+}
+
+func (m *fakeSessionModel) Generate(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return &schema.Message{Role: "assistant", Content: "test"}, nil
+}
+
+func (m *fakeSessionModel) Stream(ctx context.Context, in []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	session, err := m.StreamSession(ctx, in, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return session.Reader(), nil
+}
+
+func (m *fakeSessionModel) StreamSession(ctx context.Context, in []*schema.Message, opts ...model.Option) (*providers.StreamSession, error) {
+	inner, innerW := schema.Pipe[*schema.Message](len(m.chunks) + 1)
+	streamCtx, streamCancel := context.WithCancel(ctx)
+	_ = streamCtx
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer innerW.Close()
+		defer streamCancel()
+		for _, chunk := range m.chunks {
+			if innerW.Send(chunk, nil) {
+				return
+			}
+		}
+	}()
+	return providers.NewStreamSession(inner, streamCancel, done, nil), nil
+}
+
+// ---------------------------------------------------------------------------
+// Session path tests (use fakeSessionModel → StreamSessioner)
+// ---------------------------------------------------------------------------
+
+// TestChatStream_SessionSuccessEOF verifies successful EOF saves exactly once via session path.
+func TestChatStream_SessionSuccessEOF(t *testing.T) {
+	fm := &fakeSessionModel{chunks: []*schema.Message{
+		{Role: schema.Assistant, Content: "hello"},
+		{Role: schema.Assistant, Content: " world"},
+	}}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content := drainStreamContent(t, sr)
+	if content != "hello world" {
+		t.Errorf("expected 'hello world', got: %q", content)
+	}
+
+	waitFn := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
+
+	if saver.getSaveCount() != 2 {
+		t.Errorf("expected 2 saves (user + assistant), got %d", saver.getSaveCount())
+	}
+	if !strings.Contains(saver.getSavedContent(), "hello world") {
+		t.Errorf("saved content should contain 'hello world', got: %q", saver.getSavedContent())
+	}
+}
+
+// TestChatStream_SessionFailNoSave verifies failure does not save via session path.
+func TestChatStream_SessionFailNoSave(t *testing.T) {
+	fm := &fakeSessionModel{chunks: []*schema.Message{
+		{Role: schema.Assistant, Content: "partial"},
+	}}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Consume partial content
+	drainStreamContent(t, sr)
+
+	// Report failure
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
+
+	// Only user message saved (from docsMessages), no assistant
+	if saver.getSaveCount() != 1 {
+		t.Errorf("expected 1 save (user only), got %d", saver.getSaveCount())
+	}
+}
+
+// TestChatStream_SessionEarlyCloseThenCleanup verifies foreground early Close then cleanup doesn't panic.
+func TestChatStream_SessionEarlyCloseThenCleanup(t *testing.T) {
+	fm := &fakeSessionModel{chunks: []*schema.Message{
+		{Role: schema.Assistant, Content: "a"},
+		{Role: schema.Assistant, Content: "b"},
+		{Role: schema.Assistant, Content: "c"},
+	}}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Read one chunk then close foreground early
+	_, recvErr := sr.Recv()
+	if recvErr != nil {
+		t.Fatalf("first Recv: %v", recvErr)
+	}
+	sr.Close() // early close foreground branch
+
+	// Cleanup must not panic or block
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup after early close")
+	}
+}
+
+// TestChatStream_SessionRepeatCleanup verifies repeated cleanup is safe via session path.
+func TestChatStream_SessionRepeatCleanup(t *testing.T) {
+	fm := &fakeSessionModel{chunks: []*schema.Message{
+		{Role: schema.Assistant, Content: "hello"},
+	}}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	drainStreamContent(t, sr)
+
+	// First cleanup: success
+	waitFn := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for first cleanup")
+	}
+
+	// Second cleanup: should not block or panic
+	waitFn2 := callCleanup(cleanup, StreamResult{})
+	if !waitFn2(2 * time.Second) {
+		t.Fatal("repeated cleanup blocked")
+	}
+
+	// Third cleanup: same
+	waitFn3 := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn3(2 * time.Second) {
+		t.Fatal("third cleanup blocked")
+	}
+
+	if saver.getSaveCount() != 2 {
+		t.Errorf("expected 2 saves (user + assistant), got %d", saver.getSaveCount())
+	}
+}
+
+// TestChatStream_SessionBranchesRecycled verifies both foreground and background branches are recycled.
+func TestChatStream_SessionBranchesRecycled(t *testing.T) {
+	fm := &fakeSessionModel{chunks: []*schema.Message{
+		{Role: schema.Assistant, Content: "data"},
+	}}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-1", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Drain foreground
+	drainStreamContent(t, sr)
+
+	// Success cleanup
+	waitFn := callCleanup(cleanup, StreamResult{Success: true})
+	if !waitFn(5 * time.Second) {
+		t.Fatal("timeout waiting for cleanup")
+	}
+
+	// Foreground branch must be terminal: Recv returns EOF (writer closed by forwarding goroutine)
+	// or ErrRecvAfterClosed (child explicitly closed). Both prove the branch is recycled.
+	_, recvErr := sr.Recv()
+	if recvErr == nil {
+		t.Error("foreground branch not recycled: Recv returned nil after cleanup")
+	}
+	if !errors.Is(recvErr, io.EOF) && !errors.Is(recvErr, schema.ErrRecvAfterClosed) {
+		t.Errorf("foreground branch unexpected error: got %v, want EOF or ErrRecvAfterClosed", recvErr)
 	}
 }

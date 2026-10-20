@@ -325,9 +325,10 @@ func TestStream_EarlyCloseFinalizes(t *testing.T) {
 	})
 
 	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
+	reader := wrapped.Reader()
 
 	// 只读一个 chunk 然后提前关闭
-	_, err := wrapped.Recv()
+	_, err := reader.Recv()
 	if err != nil {
 		t.Fatalf("Recv: %v", err)
 	}
@@ -359,10 +360,11 @@ func TestStream_CancelFinalizes(t *testing.T) {
 	})
 
 	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
+	reader := wrapped.Reader()
 
 	// 读取所有（EOF 终结）
 	for {
-		_, err := wrapped.Recv()
+		_, err := reader.Recv()
 		if err != nil {
 			break
 		}
@@ -390,10 +392,11 @@ func TestStream_ErrorFinalizes(t *testing.T) {
 	}()
 
 	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, reader, lease)
+	consumer := wrapped.Reader()
 
 	// 读取直到错误
 	for {
-		_, err := wrapped.Recv()
+		_, err := consumer.Recv()
 		if err != nil {
 			break
 		}

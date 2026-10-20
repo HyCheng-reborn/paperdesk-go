@@ -1,5 +1,17 @@
 # 变更记录
 
+### Stage 2B 受控流会话三组修复（2026-10-20 第九轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：cd1a7acf9b2a381dc12471aa45ac9dff50475447
+- **修复内容**：
+  1. **Chat session 分支关闭所有权**：使用两个独立 Pipe (fgPipe + bgPipe) 替代 Copy(2) 分叉；每个 child 的 Close 独立，避免 double-close panic
+  2. **StreamSession Done 覆盖所有任务**：WaitGroup 跟踪 recv + forward 两个 goroutine；recv 阻塞放入临时 goroutine + select 监听 cancelSig；done 等待两者退出后关闭
+  3. **测试签名更新**：integration_test.go/stage2b_stream_test.go 更新为 Reader()/Close()/Done() 调用
+- **新增测试**：5 个 chat session 测试 + 3 个 StreamSession done 测试
+- **验证**：gofmt/build/vet exit 0；chat session 50 PASS（5 tests × 10 rounds）；StreamSession done 50 PASS（5 tests × 10 rounds）；providers 144 PASS；受影响包 race 通过（8 包）；全项目 go test -p 1 ./... 通过（17 包）
+- **状态**：2B 受控流会话三组修复完成待再次复核
+
 ### Stage 2B 受控流会话方案（2026-10-20 第八轮）
 
 - **类型**：架构重构（基于 Eino v0.6.0 API 限制的真实关闭机制）

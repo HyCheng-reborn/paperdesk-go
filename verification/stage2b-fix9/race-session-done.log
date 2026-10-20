@@ -1,0 +1,114 @@
+# CMD: go test -race ./core/providers/... -count=10 -v -timeout=120s -run TestStreamSession_CloseWaitsRecv|TestStreamSession_ParentCancelBackpressure|TestStreamSession_CloseInterruptsHTTP
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 21:07:50
+
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseWaitsRecv
+--- PASS: TestStreamSession_CloseWaitsRecv (0.00s)
+=== RUN   TestStreamSession_ParentCancelBackpressure
+--- PASS: TestStreamSession_ParentCancelBackpressure (0.05s)
+=== RUN   TestStreamSession_ParentCancelBackpressure_RealCancel
+--- PASS: TestStreamSession_ParentCancelBackpressure_RealCancel (0.05s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP_RealHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP_RealHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	2.385s
+testing: warning: no tests to run
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.280s [no tests to run]
+testing: warning: no tests to run
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.288s [no tests to run]

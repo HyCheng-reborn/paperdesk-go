@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-20
-**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2B 受控流会话三组修复完成（2026-10-20 第九轮）待再次复核**（修复基线 `cd1a7ac`；Chat session 双 Pipe 独立关闭、StreamSession Done WaitGroup 覆盖 recv+forward、测试签名更新；chat session 50 PASS、StreamSession done 50 PASS、providers 144 PASS；受影响包 race 通过；全项目 17 包 ok）。
+**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2B 两组 P1 修复完成（2026-10-20 第十轮）待再次复核**（修复基线 `fbbaeb4`；P1-1 Session 路径去掉 `Copy(2)` 改为单一前台 Pipe + `closeFG()`（关 reader 而非 writer）使前台满队列时 `cleanupFail` 有界完成；P1-2 `wrapBudgetStreamReader` 接收 `parentCtx` + watcher 主动 cancel、临时 Recv goroutine 登记 WaitGroup、`cancel()` 内 `reader.Close()` 解除 forward 背压；chat race ×10 ok、providers race ×10 ok、8 个必需测试全 PASS、providers 146 RUN/0 FAIL、3 份失败条件复现取证；受影响包 race 通过；全项目 `go test -p 1 ./...` 17 包 ok）。
 **复核方式**：1-Pre/1A/1B/1C/1D-1/1D-2 为源码及提交日志复核，复核方未独立重跑测试；**1D-3 由本地 Codex 在干净工作树独立重跑**（普通/race/关键用例十轮/串行全量/build/vet，见 1D-3 验收记录）
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；**Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`**（本轮审查范围 `3e24a533f99aaa8578b848ae550dfd2e10292723..71c4c81`）
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
@@ -681,7 +681,7 @@
 
 ## Stage 2：模型角色契约 + Provider 能力 + 预算 + 维度契约
 
-**状态**：**2B 受控流会话方案完成（2026-10-20 第八轮）待再次复核**（修复基线 `db8ceed`；StreamSession 受控会话、recv/转发 goroutine 分离、移除 finalizer；真实关闭路径 10/10 PASS、StreamSession 综合 90 PASS；受影响包 race 通过（8 包）；全项目 16 包 ok）
+**状态**：**2B 两组 P1 修复完成（2026-10-20 第十轮）待再次复核**（修复基线 `fbbaeb4`；P1-1 去 `Copy(2)` + 单一前台 Pipe + `closeFG()` 关 reader、`SetAutomaticClose` CAS 幂等；P1-2 `parentCtx` watcher + 临时 goroutine 登记 WG + `cancel()` 内 `reader.Close()`；新增 4 个测试 + 3 份失败条件复现取证；chat/providers race ×10 通过；全项目 17 包 ok）
 **详细方案**：[design/stage2-plan.md](design/stage2-plan.md)
 
 ### 批次计划
@@ -689,7 +689,7 @@
 | 批次 | 内容 | 可离线 | 状态 |
 |---|---|---|---|
 | 2A | 角色接口 + 共享预算核心 + 生产共享链 | ✅ | ✅ 剩余阻塞修复完成待再次复核 |
-| 2B | 百炼适配 + 错误映射 + 预算 + 默认工厂与业务接线 | ✅（httptest） | ✅ 2B 受控流会话方案完成（2026-10-20 第八轮）待再次复核 |
+| 2B | 百炼适配 + 错误映射 + 预算 + 默认工厂与业务接线 | ✅（httptest） | ✅ 2B 两组 P1 修复完成（2026-10-20 第十轮）待再次复核 |
 | 2C | 维度/索引 fingerprint | ✅（httptest + fake） | ⬜ 待实施 |
 | 2D | 在线探针（仅制定方案，不执行） | ❌ | ⬜ 待实施 |
 

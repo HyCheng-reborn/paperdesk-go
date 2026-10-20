@@ -43,7 +43,7 @@ func TestStreamSession_CloseWaitsRecv(t *testing.T) {
 	lease, _ := rb.Reserve(&TokenEstimate{InputTokens: 10, MaxOutput: 100})
 	lease.Commit()
 
-	session := wrapBudgetStreamReader(streamCancel, srcReader, lease, nil)
+	session := wrapBudgetStreamReader(ctx, streamCancel, srcReader, lease, nil)
 	reader := session.Reader()
 
 	// Send one chunk
@@ -103,8 +103,7 @@ func TestStreamSession_ParentCancelBackpressure(t *testing.T) {
 	// Create a context-aware source
 	srcReader, srcWriter := ctxAwareSource(streamCtx, 1)
 
-	session := wrapBudgetStreamReader(streamCancel, srcReader, nil, nil)
-	_ = ctx
+	session := wrapBudgetStreamReader(ctx, streamCancel, srcReader, nil, nil)
 
 	reader := session.Reader()
 
@@ -153,7 +152,7 @@ func TestStreamSession_ParentCancelBackpressure_RealCancel(t *testing.T) {
 	// Create a context-aware blocking source
 	srcReader, srcWriter := ctxAwareSource(ctx, 1)
 
-	session := wrapBudgetStreamReader(streamCancel, srcReader, nil, nil)
+	session := wrapBudgetStreamReader(ctx, streamCancel, srcReader, nil, nil)
 
 	// Don't read from session — create backpressure
 	// Fill dataCh by sending to srcWriter
@@ -283,5 +282,163 @@ func TestStreamSession_CloseInterruptsHTTP_RealHTTP(t *testing.T) {
 	case <-session.Done():
 	case <-time.After(3 * time.Second):
 		t.Fatal("session.Done() not closed after Close")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// P1-2: 临时 Recv goroutine 必须登记到 WaitGroup；父 ctx 取消必须主动 cancel
+// ---------------------------------------------------------------------------
+
+// blockingRecvSource 返回一个源 reader：它的首次 Recv 会阻塞，直到 gate 关闭。
+// entered（缓冲 1）在 Recv 真正进入阻塞前收到一个信号，使测试能确定性地知道
+// “临时 goroutine 已经停在 bsr.Recv 内部”，而不是依赖固定 sleep。
+//
+// 实现上用 StreamReaderWithConvert 包一层 Pipe：阻塞发生在 convert 回调里，
+// 因此 closeSrc（closeRecv）无法解除它 —— 只有 gate 能。
+func blockingRecvSource(gate <-chan struct{}, entered chan<- struct{}) *schema.StreamReader[*schema.Message] {
+	inner, innerW := schema.Pipe[*schema.Message](1)
+	innerW.Send(&schema.Message{Role: schema.Assistant, Content: "blocked-chunk"}, nil)
+	innerW.Close()
+	return schema.StreamReaderWithConvert(inner, func(m *schema.Message) (*schema.Message, error) {
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-gate
+		return m, nil
+	})
+}
+
+// closeDetectingSource 返回一个“仅靠 reader Close 才能终止”的源：
+// 生产者完全不感知 ctx，只在 Send 返回 true（reader 已 closeRecv）时退出并关闭 writer。
+// 因此唯有 cancel() → closeSrc() 能让阻塞中的 Recv 返回 EOF。
+func closeDetectingSource(buf int) *schema.StreamReader[*schema.Message] {
+	r, w := schema.Pipe[*schema.Message](buf)
+	go func() {
+		defer w.Close()
+		for i := 0; ; i++ {
+			msg := &schema.Message{Role: schema.Assistant, Content: fmt.Sprintf("cd%d", i)}
+			if w.Send(msg, nil) {
+				return // reader 已关闭 → 退出，defer 关闭 writer → Recv 返回 EOF
+			}
+		}
+	}()
+	return r
+}
+
+// TestStreamSession_TempGoroutineTracked 验证 P1-2：执行 bsr.Recv 的临时 goroutine
+// 已登记到 WaitGroup，done/Close 不会在它仍阻塞于 Recv 时提前返回。
+//
+// 失败条件（未登记时）：Close() 只等 supervisor + forward，两者在 cancelSig 关闭后立即退出，
+// done 随之关闭，而临时 goroutine 仍持有上游连接阻塞在 Recv 中。
+func TestStreamSession_TempGoroutineTracked(t *testing.T) {
+	gate := make(chan struct{})
+	entered := make(chan struct{}, 1)
+
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	defer parentCancel()
+	streamCtx, streamCancel := context.WithCancel(parentCtx)
+	defer streamCancel()
+
+	src := blockingRecvSource(gate, entered)
+
+	budget, _ := NewProcessBudget(0, 0, 0, 0)
+	rb, _ := budget.NewRequestBudget(streamCtx)
+	lease, _ := rb.Reserve(&TokenEstimate{InputTokens: 10, MaxOutput: 100})
+	lease.Commit()
+
+	session := wrapBudgetStreamReader(parentCtx, streamCancel, src, lease, nil)
+
+	// 确定性信号：临时 goroutine 已进入 bsr.Recv 并阻塞
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("temp goroutine never entered bsr.Recv")
+	}
+
+	// Close 在独立 goroutine 中执行：它要等 done，而 done 必须等临时 goroutine 退出
+	closeReturned := make(chan struct{})
+	go func() {
+		session.Close()
+		close(closeReturned)
+	}()
+
+	// 关键断言：gate 未释放前，done 与 Close 都不得完成
+	select {
+	case <-session.Done():
+		t.Fatal("session.Done() closed while temp goroutine is still blocked in Recv — WG does not track it")
+	case <-closeReturned:
+		t.Fatal("session.Close() returned while temp goroutine is still blocked in Recv — WG does not track it")
+	case <-time.After(200 * time.Millisecond):
+		// 预期：两者均未完成
+	}
+
+	// 释放 gate：临时 goroutine 从 Recv 返回 → wg 归零 → done 关闭 → Close 返回
+	close(gate)
+
+	select {
+	case <-session.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("session.Done() not closed after temp goroutine unblocked")
+	}
+	select {
+	case <-closeReturned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("session.Close() did not return after temp goroutine unblocked")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for !lease.Finalized() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !lease.Finalized() {
+		t.Error("expected lease to be finalized after all goroutines exited")
+	}
+}
+
+// TestStreamSession_ParentCancelOnly 验证 P1-2：仅取消父 ctx（消费者不调用
+// Close/Drain）也能让 done 关闭 —— 由 parentCtx watcher 主动触发 cancel()，
+// 进而 streamCancel + closeSrc + close(cancelSig)。
+//
+// 源故意不感知 ctx（closeDetectingSource），因此未修复时 done 永远不会关闭。
+func TestStreamSession_ParentCancelOnly(t *testing.T) {
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	streamCtx, streamCancel := context.WithCancel(parentCtx)
+	defer streamCancel()
+	_ = streamCtx // 本用例的源不使用 ctx：只有 closeSrc() 能终止它
+
+	srcReader := closeDetectingSource(0)
+
+	session := wrapBudgetStreamReader(parentCtx, streamCancel, srcReader, nil, nil)
+
+	// 先确认管道已建立（有界等待，不依赖固定 sleep）
+	if _, err := session.Reader().Recv(); err != nil {
+		t.Fatalf("first Recv: %v", err)
+	}
+
+	// 只取消父 ctx，不额外调用 session.Close()/Drain()
+	parentCancel()
+
+	select {
+	case <-session.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("session.Done() not closed after parent ctx cancel only — parentCtx watcher missing")
+	}
+
+	// 消费者侧 reader 必须终结（forward 已 defer writer.Close()）
+	terminal := make(chan error, 1)
+	go func() {
+		for {
+			_, err := session.Reader().Recv()
+			if err != nil {
+				terminal <- err
+				return
+			}
+		}
+	}()
+	select {
+	case <-terminal:
+	case <-time.After(5 * time.Second):
+		t.Fatal("consumer Recv did not terminate after parent ctx cancel")
 	}
 }

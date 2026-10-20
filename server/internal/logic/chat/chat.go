@@ -225,9 +225,13 @@ type streamCoordinator struct {
 	coordDone chan struct{} // closed when background goroutine exits
 	bgReady   chan struct{} // closed when background has consumed EOF and is waiting for result
 
-	// Session path: independent Pipe fork, avoids Copy(2) double-close
+	// Session path: 单一前台 Pipe（不使用 Copy(2)）。
+	// fgReader 就是交给消费者的 Pipe reader；cleanup 关闭它以解除转发 goroutine
+	// 在 fgWriter.Send 上的背压阻塞。P1-1：Copy(2) 的 cleanup child 从不被消费，
+	// 只关它不会关闭父 pipe，满队列时 fgWriter.Send 永久阻塞、coordDone 永不到达。
 	session     *providers.StreamSession              // nil for fallback path
-	fgCleanupCh *schema.StreamReader[*schema.Message] // cleanup's Copy(2) child for closing fgPipe
+	fgReader    *schema.StreamReader[*schema.Message] // 消费者持有的前台 Pipe reader
+	fgCloseOnce sync.Once                             // 保护 fgReader.Close 幂等
 
 	// Fallback path: Copy(2) branches
 	srs    [2]*schema.StreamReader[*schema.Message]
@@ -236,17 +240,35 @@ type streamCoordinator struct {
 	savedOnce sync.Once // first cleanup call decides; repeated calls are no-ops
 }
 
+// closeFG 幂等关闭前台 Pipe reader。
+//
+// 关闭 reader（closeRecv → close(stream.closed)）会让阻塞中的 fgWriter.Send 立即返回 true，
+// 从而解除转发 goroutine 的背压阻塞，转发 goroutine 退出时 defer 关闭 fgWriter/bgWriter。
+//
+// 不能改用 fgWriter.Close()（closeSend → close(stream.items)）：当转发 goroutine 正阻塞在
+// `s.items <- item` 时关闭 items 会触发 "send on closed channel" panic。
+//
+// fgReader 在创建时调用了 SetAutomaticClose，其 closeRecv 走 CAS，因此消费者提前 Close
+// 与 cleanup Close 可以并存而不 panic；fgCloseOnce 再保证 cleanup 侧只发起一次。
+func (c *streamCoordinator) closeFG() {
+	if c.fgReader == nil {
+		return
+	}
+	c.fgCloseOnce.Do(func() { c.fgReader.Close() })
+}
+
 // cleanupFail: cancel model first (unblock if still running), then notify
 // failure, close foreground branch, and wait for background goroutine.
-// Session 路径：关闭 fgPipe → Drain session → 通知失败 → 等待后台。
+// Session 路径：关闭 fgReader 解除背压 → Drain session → 通知失败 → 等待后台。
 // 回退路径：cancel → 通知失败 → 关闭前台分支 → 等待后台。
 func (c *streamCoordinator) cleanupFail() {
 	c.savedOnce.Do(func() {
 		if c.session != nil {
-			c.session.Drain() // 1. cancel + close session → forwarding goroutine exits, closes fgWriter
-			if c.fgCleanupCh != nil {
-				c.fgCleanupCh.Close() // 2. close cleanup's Copy(2) child → propagates to parent when all children closed
-			}
+			// 1. 先解除前台背压：关闭 fgReader → fgWriter.Send 返回 true →
+			//    转发 goroutine 退出并关闭 bgWriter → 后台得到 EOF 并去等 resultCh。
+			//    放在 Drain 之前，避免任何 `<-done` 等待链与前台满队列相互耦合。
+			c.closeFG()
+			c.session.Drain()            // 2. cancel + close session → 中断模型、回收源、等待内部任务退出
 			c.resultCh <- StreamResult{} // 3. notify failure
 			<-c.coordDone                // 4. wait background
 		} else {
@@ -261,17 +283,15 @@ func (c *streamCoordinator) cleanupFail() {
 // cleanupOK: notify success, let background complete EOF consumption and
 // save decision, wait for completion, close the foreground branch, then
 // cancel the derived context.
-// Session 路径：通知成功 → 等待后台保存 → 关闭 fgPipe → Close session。
+// Session 路径：通知成功 → 等待后台保存 → 关闭 fgReader → Close session。
 // 回退路径：通知成功 → 等待后台 → 关闭前台分支 → cancel。
 func (c *streamCoordinator) cleanupOK() {
 	c.savedOnce.Do(func() {
 		if c.session != nil {
 			c.resultCh <- StreamResult{Success: true} // 1. notify success
 			<-c.coordDone                             // 2. wait background: consume eof, save, exit
-			if c.fgCleanupCh != nil {
-				c.fgCleanupCh.Close() // 3. close cleanup's Copy(2) child
-			}
-			c.session.Close() // 4. cancel + close session reader
+			c.closeFG()                               // 3. 幂等关闭前台 Pipe reader（回收 stream）
+			c.session.Close()                         // 4. cancel + close session reader
 		} else {
 			c.resultCh <- StreamResult{Success: true} // 1. notify success
 			<-c.coordDone                             // 2. wait background
@@ -382,37 +402,40 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 }
 
 // setupSessionCoordinator 使用 StreamSession 设置协调器。
-// 不使用 Copy(2)（避免 parent/child reader 的 double-close panic），
+// 不使用 Copy(2)（避免 parent/child reader 的 double-close panic，且 cleanup child 从不
+// 被消费会在前台满队列时永久阻塞 fgWriter.Send），
 // 而是创建两个独立 Pipe：转发 goroutine 从 session.Reader() 读取并写入两个 Pipe writer，
-// 前台和后台各使用独立的 Pipe reader。
+// 前台消费者直接持有 fgPipe，后台持有 bgPipe。
 //
 // 关闭所有权：
-//   - fgPipe（前台 Pipe reader）由 cleanup 关闭
-//   - bgPipe（后台 Pipe reader）由后台 goroutine defer 关闭
-//   - 转发 goroutine 的 Pipe writer 在其退出时自动关闭
-//   - session 由 cleanup 在后台退出后关闭（cancel + close reader + wait forwarding）
+//   - fgPipe（前台 Pipe reader）：消费者可提前 Close；cleanup 通过 closeFG() 幂等 Close。
+//     创建时调用 SetAutomaticClose 使 closeRecv 走 CAS，两者并存不 panic。
+//   - fgWriter/bgWriter：由转发 goroutine 的 defer 关闭（单一所有者，不并发 Send）。
+//   - bgPipe（后台 Pipe reader）由后台 goroutine defer 关闭。
+//   - session 由 cleanup 在后台退出后关闭（cancel + close reader + wait forwarding）。
 func (x *Chat) setupSessionCoordinator(ctx context.Context, session *providers.StreamSession, convID string) (*schema.StreamReader[*schema.Message], func(StreamResult), error) {
 	// Create two independent Pipes: one for foreground, one for background.
 	fgPipe, fgWriter := schema.Pipe[*schema.Message](8)
 	bgPipe, bgWriter := schema.Pipe[*schema.Message](8)
 
-	// Copy(2) on fgPipe creates two child readers. Each child's Close is independent;
-	// the parent only closes when ALL children are closed. This prevents double-close panic
-	// when both consumer and cleanup close their respective children.
-	fgChildren := fgPipe.Copy(2)
+	// fgPipe 有两个潜在关闭者（消费者 + cleanup）。SetAutomaticClose 使底层
+	// closeRecv 走 atomic CAS，重复 Close 不会触发 close(closed) panic。
+	// 必须在分发 reader 之前调用（该 API 非并发安全）。
+	fgPipe.SetAutomaticClose()
 
 	coord := &streamCoordinator{
-		resultCh:    make(chan StreamResult, 1),
-		coordDone:   make(chan struct{}),
-		bgReady:     make(chan struct{}),
-		session:     session,
-		fgCleanupCh: fgChildren[1], // cleanup closes this child
+		resultCh:  make(chan StreamResult, 1),
+		coordDone: make(chan struct{}),
+		bgReady:   make(chan struct{}),
+		session:   session,
+		fgReader:  fgPipe,
 	}
 
 	// Forwarding goroutine: read from session reader, write to two Pipes.
-	// fgWriter is ALWAYS closed by defer when this goroutine exits (any path).
-	// bgWriter is ALWAYS closed by defer when this goroutine exits.
-	// This ensures both consumers get EOF signal without cleanup needing to close fgPipe.
+	// fgWriter 与 bgWriter 均由本 goroutine 的 defer 在其退出时关闭（任何路径），
+	// 保证两侧消费者都能拿到 EOF/close 信号；defer 为 LIFO，bgWriter 先于 fgWriter 关闭，
+	// 因此消费者看到 EOF 时后台一定已看到 EOF。
+	// 本 goroutine 是 fgWriter/bgWriter 的唯一 Send 者，因此 closeSend 不会与在飞 Send 竞争。
 	go func() {
 		defer fgWriter.Close() // ensure foreground always gets EOF/close signal
 		defer bgWriter.Close() // ensure background always gets EOF/close signal
@@ -427,10 +450,12 @@ func (x *Chat) setupSessionCoordinator(ctx context.Context, session *providers.S
 				}
 				return // defer closes both writers
 			}
+			// fgWriter.Send 返回 true 表示消费者/cleanup 已关闭 fgPipe；
+			// 仍先写入 bgWriter，保证后台分支获得与前台一致的 chunk 序列。
 			fgClosed := fgWriter.Send(chunk, nil)
 			bgWriter.Send(chunk, nil)
 			if fgClosed {
-				return // consumer closed fgPipe, defer closes bgWriter
+				return // foreground closed, defer closes both writers
 			}
 		}
 	}()
@@ -476,7 +501,7 @@ func (x *Chat) setupSessionCoordinator(ctx context.Context, session *providers.S
 		}
 	}()
 
-	return fgChildren[0], func(r StreamResult) {
+	return fgPipe, func(r StreamResult) {
 		if r.Success {
 			coord.cleanupOK()
 		} else {

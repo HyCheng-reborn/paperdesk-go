@@ -1,0 +1,11 @@
+# P1-1 PRE-FIX REPRO (chat.go reverted to HEAD fbbaeb4)
+# cmd: go test ./internal/logic/chat/... -count=1 -timeout=60s -v -run "TestChatStream_SessionFailCleanup_Backpressure|TestChatStream_SessionFailCleanup_NoPartialSave"
+# exit=1
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+    chat_test.go:1623: cleanupFail hung under foreground backpressure: coordDone never arrived
+--- FAIL: TestChatStream_SessionFailCleanup_Backpressure (10.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/chat	10.178s
+FAIL

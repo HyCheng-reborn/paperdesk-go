@@ -119,8 +119,9 @@ func (b *budgetChatRole) StreamSession(ctx context.Context, messages []*schema.M
 		}
 	}
 
-	// 包装 Pipe 转发，附加预算 lease 追踪
-	return wrapBudgetStreamReader(streamCancel, innerReader, lease, innerSession), nil
+	// 包装 Pipe 转发，附加预算 lease 追踪。
+	// P1-2：传入父 ctx，使父 ctx 单独取消（消费者未显式 Close/Drain）也能收敛。
+	return wrapBudgetStreamReader(ctx, streamCancel, innerReader, lease, innerSession), nil
 }
 
 func (b *budgetChatRole) reserveBudget(ctx context.Context, est *TokenEstimate) (*AttemptLease, error) {
@@ -409,29 +410,56 @@ func (w *budgetStreamReader) finalize(err error) {
 
 // wrapBudgetStreamReader 包装 StreamReader，返回 *StreamSession 供业务消费。
 //
-// 架构：recv goroutine + 转发 goroutine + WaitGroup 跟踪。
-//   - recv goroutine：阻塞在 inner Recv，将结果发送到 dataCh（buffer=1）。
-//     当 inner 返回 EOF/错误时退出，或 cancelSig 关闭时退出。
+// 架构：recv supervisor goroutine + 临时 Recv goroutine + 转发 goroutine + WaitGroup 跟踪。
+//   - recv supervisor：循环起一个临时 goroutine 执行阻塞的 inner Recv，结果进 dataCh（buffer=1）。
+//     supervisor 自身 select 监听 recvDone 与 cancelSig；当 inner 返回 EOF/错误或 cancelSig
+//     关闭时退出。
+//   - 临时 Recv goroutine（P1-2）：每一个都登记到 WaitGroup。done 关闭时保证没有
+//     goroutine 仍停在 bsr.Recv 中；否则调用方会误以为流已完全回收，而实际上仍有
+//     一个阻塞的 Recv 持有上游连接。
 //   - 转发 goroutine：select { dataCh → writer; cancelSig → return }。
 //     负责关闭内层 session/reader 和终结 lease。
-//   - waiter goroutine：等待两个 goroutine 都退出后关闭 done channel。
+//   - waiter goroutine：等待 WaitGroup 归零（supervisor + 全部临时 goroutine + 转发）后关闭 done。
 //
-// done channel 覆盖所有任务（recv + forward + waiter），确保：
-//   - StreamSession.Close() 等待所有 goroutine 退出
+// done channel 覆盖所有任务（supervisor + 临时 Recv + forward），确保：
+//   - StreamSession.Close()/Drain() 等待所有 goroutine 退出
 //   - 父 ctx 取消 + 背压也能收敛
 //   - 终结者和终态唯一
 //
+// 临时 goroutine 的退出依赖源 reader 的 writer 关闭：
+// cancel() → streamCancel() 取消 derivedCtx → 生产环境 HTTP body Read 返回错误 →
+// 内层 writer 关闭 → Recv 返回 EOF → 临时 goroutine 退出 → wg 归零 → done 关闭。
+// 注意：closeSrc()（StreamReader.Close → closeRecv）只能解除阻塞的 Send，不能解除
+// 阻塞的 Recv，因此真正的中断靠 streamCancel()。
+//
 // streamCancel 是派生 ctx 的取消函数。cancel 时：
 //  1. streamCancel → 取消内层 ctx（生产环境中断 HTTP body read）
-//  2. close(cancelSig) → 解除 recv/forward goroutine 的阻塞
-//  3. 等待 waiter goroutine 确认所有任务退出
+//  2. close(cancelSig) → 解除 supervisor/forward goroutine 的 select 阻塞
+//  3. reader.Close() → 解除 forward 在 writer.Send 上的背压阻塞
+//  4. closeSrc → 关闭源 reader，解除源生产者的 Send 阻塞并使其关闭 writer
+//  5. 等待 waiter goroutine 确认所有任务退出
 //
-// 不使用 runtime.SetFinalizer，正确性由 StreamSession.Close/Drain 保证。
-func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease, innerSession *StreamSession) *StreamSession {
+// parentCtx 是调用方传入 StreamSession 的原始 ctx（streamCtx 的父）。P1-2：监听它，
+// 在它取消时主动调 cancel()，不依赖消费者显式调用 Close/Drain；因此“仅取消父 ctx
+// 然后等 Done”也能收敛。
+// watcher goroutine 不登记到 WaitGroup（否则与 waiter 形成循环等待），它在
+// parentCtx.Done / cancelSig / done 任一发生时退出，不泄漏。
+//
+// 不使用 runtime.SetFinalizer，正确性由 StreamSession.Close/Drain 与 parentCtx watcher 保证。
+func wrapBudgetStreamReader(parentCtx context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease, innerSession *StreamSession) *StreamSession {
 	reader, writer := schema.Pipe[*schema.Message](1)
+	// 输出 pipe reader 有多个关闭者：cancel()（含 parentCtx watcher 触发的）、
+	// StreamSession.Close()/Drain()、以及业务侧消费者的提前 Close。
+	// SetAutomaticClose 使底层 closeRecv 走 atomic CAS，重复 Close 不会触发
+	// close(s.closed) panic。必须在分发 reader 之前调用（该 API 非并发安全）。
+	reader.SetAutomaticClose()
 	bsr := &budgetStreamReader{inner: sr, lease: lease}
 	done := make(chan struct{})      // 所有 goroutine 退出信号
 	cancelSig := make(chan struct{}) // cancel 信号
+
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
 
 	// closeSrcOnce protects source close idempotency.
 	// Both cancel() and forward goroutine defer call this.
@@ -449,22 +477,47 @@ func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamRe
 
 	// cancelOnce protects close(cancelSig) idempotency (concurrent cancel safe)
 	var cancelOnce sync.Once
+	// cancel 逐步解除全部阻塞点，顺序按“先不阻塞的信号、后可能阻塞的回收”排列：
+	//  1. streamCancel：取消 derivedCtx，中断底层 HTTP body read（解除阻塞 Recv 的唯一手段）
+	//  2. close(cancelSig)：解除 supervisor / forward 的 select 阻塞
+	//  3. reader.Close()：closeRecv 使 forward 阻塞中的 writer.Send 立即返回 true
+	//     （否则消费者停止读取 + 输出管道满时 forward 会永久阻塞，done 不会关闭）
+	//  4. closeSrc：回收源；innerSession.Close() 会等内层 done，放在最后避免卡住前三步
+	//
+	// 注意：closeSrc（StreamReader.Close → closeRecv）只能解除阻塞的 Send，不能解除
+	// 阻塞的 Recv；解除阻塞 Recv 靠第 1 步的 streamCancel。
 	cancel := func() {
 		streamCancel() // 1. cancel derived ctx
-		closeSrc()     // 2. Close source reader to unblock recv goroutine
 		cancelOnce.Do(func() {
-			close(cancelSig) // 3. Signal cancel
+			close(cancelSig) // 2. Signal cancel
 		})
+		reader.Close() // 3. 解除 forward 在 writer.Send 上的背压阻塞（CAS 幂等）
+		closeSrc()     // 4. Close source reader to unblock the source producer's Send
 	}
 
-	// WaitGroup tracks recv and forward goroutines
+	// WaitGroup tracks the recv supervisor and the forward goroutine.
+	// 临时 Recv goroutine 在 supervisor 内部 wg.Add(1) 动态登记；因为 supervisor 自身
+	// 尚未 Done，计数永不会在 Add 时归零，因此不会触发 WaitGroup misuse。
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// recv goroutine：桥接阻塞 Recv 到 dataCh。
+	// parent ctx watcher（P1-2）：父 ctx 取消时主动 cancel，使 cancelSig 关闭、
+	// closeSrc 触发，不依赖消费者显式调用 Close/Drain。
+	go func() {
+		select {
+		case <-parentCtx.Done():
+			cancel()
+		case <-cancelSig:
+			// cancel 已被调用，无需重复
+		case <-done:
+			// 所有任务已退出，无需再 cancel
+		}
+	}()
+
+	// recv supervisor goroutine：桥接阻塞 Recv 到 dataCh。
 	// 将阻塞的 bsr.Recv() 放入临时 goroutine，外层 select 监听结果和 cancelSig。
-	// 当 cancelSig 关闭时，recv goroutine 立即退出（临时 goroutine 可能在 bsr.Recv
-	// 中短暂泄漏，直到源 writer 关闭或 ctx 取消使其返回）。
+	// 当 cancelSig 关闭时 supervisor 立即退出；在飞的临时 goroutine 仍登记在 wg 中，
+	// 因此 done 会等到它真正从 bsr.Recv 返回后才关闭。
 	type recvItem struct {
 		chunk *schema.Message
 		err   error
@@ -473,9 +526,12 @@ func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamRe
 	go func() {
 		defer wg.Done()
 		for {
-			// 临时 goroutine 执行阻塞 Recv
+			// 临时 goroutine 执行阻塞 Recv；recvDone 缓冲 1 且每轮只有一个临时
+			// goroutine，因此它的发送永不阻塞，退出不会被 supervisor 卡住。
 			recvDone := make(chan recvItem, 1)
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				chunk, err := bsr.Recv()
 				recvDone <- recvItem{chunk, err}
 			}()
@@ -521,7 +577,7 @@ func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamRe
 		}
 	}()
 
-	// waiter goroutine：等待 recv 和 forward 都退出后关闭 done。
+	// waiter goroutine：等待 supervisor、全部临时 Recv goroutine 和 forward 都退出后关闭 done。
 	// 这确保 done 覆盖所有任务，而非仅 forward。
 	go func() {
 		wg.Wait()

@@ -96,11 +96,12 @@ func TestStreamSession_NoBudgetFullContent(t *testing.T) {
 
 // TestStreamSession_EOFSettles 验证 EOF 正常结算：转发 goroutine 退出，done 关闭。
 func TestStreamSession_EOFSettles(t *testing.T) {
-	_, streamCancel := context.WithCancel(context.Background())
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
 	sr := schema.StreamReaderFromArray([]*schema.Message{
 		{Role: schema.Assistant, Content: "only"},
 	})
-	session := wrapBudgetStreamReader(streamCancel, sr, nil, nil)
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
 
 	reader := session.Reader()
 	// 消费到 EOF
@@ -125,9 +126,10 @@ func TestStreamSession_EOFSettles(t *testing.T) {
 
 // TestStreamSession_ReadError 验证读错误传播给调用方。
 func TestStreamSession_ReadError(t *testing.T) {
-	_, streamCancel := context.WithCancel(context.Background())
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	session := wrapBudgetStreamReader(streamCancel, srcReader, nil, nil)
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, srcReader, nil, nil)
 
 	testErr := errors.New("test read error")
 	go func() {
@@ -148,13 +150,14 @@ func TestStreamSession_ReadError(t *testing.T) {
 
 // TestStreamSession_EarlyClose 验证提前 Close 幂等：多次 Close 不 panic。
 func TestStreamSession_EarlyClose(t *testing.T) {
-	_, streamCancel := context.WithCancel(context.Background())
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
 	sr := schema.StreamReaderFromArray([]*schema.Message{
 		{Role: schema.Assistant, Content: "a"},
 		{Role: schema.Assistant, Content: "b"},
 		{Role: schema.Assistant, Content: "c"},
 	})
-	session := wrapBudgetStreamReader(streamCancel, sr, nil, nil)
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
 
 	reader := session.Reader()
 	_, _ = reader.Recv() // 读一个 chunk
@@ -167,11 +170,12 @@ func TestStreamSession_EarlyClose(t *testing.T) {
 
 // TestStreamSession_ConcurrentCloseEOF 验证并发 Close 和 EOF 安全。
 func TestStreamSession_ConcurrentCloseEOF(t *testing.T) {
-	_, streamCancel := context.WithCancel(context.Background())
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
 	sr := schema.StreamReaderFromArray([]*schema.Message{
 		{Role: schema.Assistant, Content: "x"},
 	})
-	session := wrapBudgetStreamReader(streamCancel, sr, nil, nil)
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
 
 	reader := session.Reader()
 	var wg sync.WaitGroup

@@ -1582,3 +1582,103 @@ func TestChatStream_SessionBranchesRecycled(t *testing.T) {
 		t.Errorf("foreground branch unexpected error: got %v, want EOF or ErrRecvAfterClosed", recvErr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// P1-1: cleanupFail 在前台满队列时不得卡住
+// ---------------------------------------------------------------------------
+
+// TestChatStream_SessionFailCleanup_Backpressure 验证 P1-1：前台停止消费使 fgPipe（cap 8）
+// 满队列、转发 goroutine 阻塞在 fgWriter.Send 时，失败 cleanup 仍能在有界时间内独立完成。
+//
+// 旧实现用 fgPipe.Copy(2) 派生一个从不被消费的 cleanup child：Eino 的 parent 只在
+// 全部 child 都 Close 后才关闭，因此只关 cleanup child 不会解除 fgWriter.Send 阻塞，
+// bgWriter 无法关闭，后台停在 bgPipe.Recv，coordDone 永不到达。
+func TestChatStream_SessionFailCleanup_Backpressure(t *testing.T) {
+	const chunkCount = 16 // 必须 > fgPipe 容量 8，才能形成真实背压
+	chunks := make([]*schema.Message, 0, chunkCount)
+	for i := 0; i < chunkCount; i++ {
+		chunks = append(chunks, &schema.Message{Role: schema.Assistant, Content: fmt.Sprintf("bp%d", i)})
+	}
+
+	fm := &fakeSessionModel{chunks: chunks}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-backpressure", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 消费首个 chunk 后彻底停止消费：转发 goroutine 会在 fgWriter.Send 上阻塞
+	first, recvErr := sr.Recv()
+	if recvErr != nil {
+		t.Fatalf("first Recv: %v", recvErr)
+	}
+	if first == nil || first.Content != "bp0" {
+		t.Fatalf("unexpected first chunk: %+v", first)
+	}
+
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(10 * time.Second) {
+		t.Fatal("cleanupFail hung under foreground backpressure: coordDone never arrived")
+	}
+
+	// 失败路径不得写入 assistant
+	if got := saver.getSaveCount(); got != 1 {
+		t.Errorf("expected 1 save (user only), got %d", got)
+	}
+
+	// 前台分支必须终结：排空残留缓冲后 Recv 返回非 nil 错误
+	// （fgWriter 已由转发 goroutine 的 defer closeSend），不得永久阻塞。
+	// 注意：closeFG 走 closeRecv，仅解除阻塞的 Send；已缓冲的 chunk 仍可被读出。
+	terminal := make(chan error, 1)
+	go func() {
+		for {
+			_, rerr := sr.Recv()
+			if rerr != nil {
+				terminal <- rerr
+				return
+			}
+		}
+	}()
+	select {
+	case <-terminal:
+	case <-time.After(5 * time.Second):
+		t.Fatal("foreground Recv blocked after cleanupFail: fgWriter never closed")
+	}
+}
+
+// TestChatStream_SessionFailCleanup_NoPartialSave 验证 P1-1 修复后失败路径不保存部分回答：
+// 前台只消费了一部分 chunk 就报失败，后台即使已 cleanEOF 也不得写入 assistant 消息。
+func TestChatStream_SessionFailCleanup_NoPartialSave(t *testing.T) {
+	fm := &fakeSessionModel{chunks: []*schema.Message{
+		{Role: schema.Assistant, Content: "partial-A "},
+		{Role: schema.Assistant, Content: "partial-B "},
+		{Role: schema.Assistant, Content: "partial-C"},
+	}}
+	saver := &fakeMessageSaver{}
+	c := newTestChat(fm, saver)
+
+	sr, cleanup, err := c.GetAnswerStream(context.Background(), "conv-partial", nil, "question")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// 只消费第一个 chunk，剩余留在前台管道；随后报失败
+	if _, recvErr := sr.Recv(); recvErr != nil {
+		t.Fatalf("first Recv: %v", recvErr)
+	}
+
+	waitFn := callCleanup(cleanup, StreamResult{})
+	if !waitFn(10 * time.Second) {
+		t.Fatal("cleanupFail did not complete")
+	}
+
+	// 仅 docsMessages 写入的 user 消息落库；assistant 部分回答一律不得保存
+	if got := saver.getSaveCount(); got != 1 {
+		t.Errorf("expected 1 save (user only), got %d", got)
+	}
+	if content := saver.getSavedContent(); strings.Contains(content, "partial-") {
+		t.Errorf("partial assistant answer must not be saved, got: %q", content)
+	}
+}

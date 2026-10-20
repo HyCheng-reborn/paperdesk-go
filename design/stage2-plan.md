@@ -1,8 +1,8 @@
 # Stage 2 细化实施方案
 
-> **状态**：2A 剩余阻塞修复完成（2026-10-19），待再次复核；2B 受控流会话三组修复完成（2026-10-20 第九轮），待再次复核；2C/2D 待实施
+> **状态**：2A 剩余阻塞修复完成（2026-10-19），待再次复核；2B 两组 P1 修复完成（2026-10-20 第十轮），待再次复核；2C/2D 待实施
 > **日期**：2026-10-20
-> **基线**：实施 `212ccd8`；修复 `2780e39`；2B 实施 `df260dd`；2B 阻塞修复（一轮）`a24cb8d`；2B 阻塞修复（二轮）`be28e91`；2B 阻塞修复（三轮）`745c443`；2B 阻塞修复（四轮）`64aac44`；2B 阻塞修复（五轮）`06ef59c`；2B 阻塞修复（六轮）`02d6bae`；2B 阻塞修复（七轮）`4356f65`；2B 受控流会话方案（八轮）`db8ceed`；2B 受控流会话三组修复（九轮）`cd1a7ac`（`review/stage1a` 分支）
+> **基线**：实施 `212ccd8`；修复 `2780e39`；2B 实施 `df260dd`；2B 阻塞修复（一轮）`a24cb8d`；2B 阻塞修复（二轮）`be28e91`；2B 阻塞修复（三轮）`745c443`；2B 阻塞修复（四轮）`64aac44`；2B 阻塞修复（五轮）`06ef59c`；2B 阻塞修复（六轮）`02d6bae`；2B 阻塞修复（七轮）`4356f65`；2B 受控流会话方案（八轮）`db8ceed`；2B 受控流会话三组修复（九轮）`cd1a7ac`；2B 两组 P1 修复（十轮）`fbbaeb4`（`review/stage1a` 分支）
 > **约束**：本轮只修订方案文档，不改业务代码；不启动服务；不调用模型 API；不操作 Codex 独立审查 worktree
 
 ---
@@ -217,6 +217,12 @@ type Capabilities struct {
   - Chat session 分支关闭所有权：使用两个独立 Pipe (fgPipe + bgPipe) 替代 Copy(2) 分叉，每个 child 的 Close 独立，避免 double-close panic。
   - StreamSession Done 覆盖所有任务：WaitGroup 跟踪 recv + forward 两个 goroutine；recv 阻塞放入临时 goroutine + select 监听 cancelSig；done 等待两者退出后关闭。
   - 测试签名更新：integration_test.go/stage2b_stream_test.go 更新为 Reader()/Close()/Done() 调用。
+- **两组 P1 修复（2026-10-20 第十轮更新）**：
+  - **P1-1 前台满队列时 `cleanupFail` 卡住**：Session 路径彻底去掉 `Copy(2)`，改为单一前台 Pipe 直接交给消费者。根因：`parentStreamReader.close(idx)` 只在全部 child 关闭后才关父 pipe，从不被消费的 cleanup child 单关无效，`fgWriter.Send` 永久阻塞 → `bgWriter` 不关 → 后台停在 `bgPipe.Recv()` → `coordDone` 永不到达。
+  - **关闭方向的关键更正**：解除背压必须关 **reader**（`closeRecv` → `close(s.closed)`，阻塞的 `Send` 安全返回 `true`），而不能关 **writer**（`closeSend` → `close(s.items)`，此时若转发 goroutine 正阻塞在 `s.items <- item` 会触发 "send on closed channel" panic）。配合 `SetAutomaticClose()`（CAS 幂等）+ `sync.Once`，使消费者与 cleanup 双重 Close 安全共存。
+  - `cleanupFail` 顺序：`closeFG()` → `session.Drain()` → `resultCh` → `<-coordDone`（先解背压再等 done）；`cleanupOK` 顺序：`resultCh` → `<-coordDone` → `closeFG()` → `session.Close()`。`savedOnce` 保证首次 cleanup 决定、重复调用为 no-op。
+  - **P1-2 临时 goroutine 未登记 WaitGroup**：`wrapBudgetStreamReader` 新增 `parentCtx` 首参，watcher 在父 ctx 单独取消时主动 `cancel()`（watcher 不入 WG，避免与 waiter 循环等待）；supervisor 内 `wg.Add(1)` + 临时 goroutine `defer wg.Done()`，`done` 不再在仍有 goroutine 阻塞于上游 `Recv` 时提前关闭。
+  - `cancel()` 必须同时 `reader.Close()`（解除 forward 在 `writer.Send` 上的背压阻塞，`cancelSig` 无法中断阻塞中的 Send），顺序按「先不阻塞的信号、后可能阻塞的回收」：`streamCancel()` → `close(cancelSig)` → `reader.Close()` → `closeSrc()`。
 
 ---
 
@@ -739,7 +745,7 @@ PROBE_MAX_TOKENS=1000                     # 探针最大 token
 | 批次 | 验收条件 | 回滚边界 | 状态 |
 |---|---|---|---|
 | **2A** | 不可变 ProviderProfile/角色+capabilities；锁定 Eino 的可编译 Stream/Embedding 适配；共享预算执行核心（attempt lease、deadline/并发、一次性结算）；生产共享链；fake 覆盖所有角色；预算并发争用 race 通过；预算不足返回错误；取消传播；usage 缺失保守预留；`MaxRequests=1` 并发实际发送计数为 1；请求足够/进程不足或反之均零发送且完全回退；重试/子步骤/后台接管不刷新累计额度；发送后网络失败不返还尝试计数；重复 Finish/Abort/Close 不重复退款；httptest 阻塞 body 时下个请求不越过并发上限；非流式读失败/stream 提前 Close/取消/错误均最终释放 slot；Close 与 EOF 并发只 finalize 一次；unknown usage 不退款 token 但下一请求能用释放的 slot；预留阶段溢出拦截；resolver 隔离内部 Profile；`go test -race ./core/providers/...` exit 0 | 删除 `providers/` 目录 | **2A 剩余阻塞修复完成（2026-10-19）** |
-| **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；预算入口 owner 复用与重定向计 attempts；流式 leaseStreamReader 幂等终结；Reset 失败保留 Registry；cfg=nil 默认路径 vs 显式配置；OpenAI 生产 builder；Send 语义修正 + 输出预留同源 + Embedding usage 隔离；Index 后台预算共享 scope + Stream 提前 Close 传播 + Owner 嵌套传递 + 初始化回滚；流消费者 Close 接线 + ChatStream owner 注入；流关闭三层防御机制（L1 Pipe Send 检测 Close / L2 defer streamCancel ctx 安全网 / L3 SetFinalizer GC cancel）+ derivedCtx 传递；**受控流会话方案（第八轮）**：StreamSession 显式拥有、Close 确定链路（cancel derivedCtx → 中断 HTTP → 等待转发退出 → 终结 lease）、recv/转发 goroutine 分离、移除 finalizer 作为正确性机制、移除 lease==nil 后台抢读 goroutine 统一 Pipe 转发；**受控流会话三组修复（第九轮）**：Chat session 双 Pipe 独立关闭避免 double-close、StreamSession Done WaitGroup 覆盖 recv+forward、测试签名更新；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 | **2B 受控流会话三组修复完成（2026-10-20 第九轮）** |
+| **2B** | httptest 模拟百炼正常/错误/畸形/流中断/usage 缺失均通过；重试计入预算；Rerank 保留已验收校验链；Embedding 响应边界验证；承接默认工厂和业务接线；兼容层委派 Registry；预算入口 owner 复用与重定向计 attempts；流式 leaseStreamReader 幂等终结；Reset 失败保留 Registry；cfg=nil 默认路径 vs 显式配置；OpenAI 生产 builder；Send 语义修正 + 输出预留同源 + Embedding usage 隔离；Index 后台预算共享 scope + Stream 提前 Close 传播 + Owner 嵌套传递 + 初始化回滚；流消费者 Close 接线 + ChatStream owner 注入；流关闭三层防御机制（L1 Pipe Send 检测 Close / L2 defer streamCancel ctx 安全网 / L3 SetFinalizer GC cancel）+ derivedCtx 传递；**受控流会话方案（第八轮）**：StreamSession 显式拥有、Close 确定链路（cancel derivedCtx → 中断 HTTP → 等待转发退出 → 终结 lease）、recv/转发 goroutine 分离、移除 finalizer 作为正确性机制、移除 lease==nil 后台抢读 goroutine 统一 Pipe 转发；**受控流会话三组修复（第九轮）**：Chat session 双 Pipe 独立关闭避免 double-close、StreamSession Done WaitGroup 覆盖 recv+forward、测试签名更新；**两组 P1 修复（第十轮）**：P1-1 Session 路径去掉 `Copy(2)` 改为单一前台 Pipe + `closeFG()`（关 reader 而非 writer，`SetAutomaticClose` CAS 幂等）使前台满队列时 `cleanupFail` 有界完成；P1-2 `wrapBudgetStreamReader` 接收 `parentCtx` + watcher 主动 cancel、临时 Recv goroutine 登记 WaitGroup、`cancel()` 内 `reader.Close()` 解除 forward 背压；4 个新测试 + 3 份失败条件复现取证；`go test -race ./core/providers/bailian/...` exit 0 | 删除 `bailian/` + 回退兼容层 | **2B 两组 P1 修复完成（2026-10-20 第十轮）** |
 | **2C** | 维度 fingerprint 匹配/不匹配逻辑正确；ES/Qdrant CreateIndex 使用配置维度；维度不匹配阻断写入/检索；同维度不等于同模型 | `git revert` 2C 提交 | |
 | **2D** | 探针在授权预算内执行；所有候选模型最小调用通过；脱敏证据完整；A-4 QA 向量行为记录 | 不影响离线代码（探针为只读验证） | |
 

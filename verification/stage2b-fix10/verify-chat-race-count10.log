@@ -1,0 +1,4 @@
+=== go test -race ./internal/logic/chat/... -count=10 -run SessionFailCleanup|SessionEarlyClose|SessionRepeatCleanup ===
+EXIT=0
+
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.248s

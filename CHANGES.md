@@ -1,5 +1,48 @@
 # 变更记录
 
+### Stage 2B 两组 P1 修复（2026-10-20 第十轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告 P1-1 / P1-2）
+- **基线**：fbbaeb4（`review/stage1a` 分支）
+- **修复内容**：
+  1. **P1-1 `cleanupFail` 在前台满队列时卡住**（`internal/logic/chat/chat.go`）：
+     - 去掉 Session 路径的 `fgPipe.Copy(2)`——cleanup child 从不被消费，`parentStreamReader.close(idx)` 只有在全部 child 关闭后才关父 pipe，因此单关 cleanup child 无效，`fgWriter.Send` 永久阻塞 → `bgWriter` 不关闭 → 后台停在 `bgPipe.Recv()` → `coordDone` 永不到达。
+     - 改为单一前台 Pipe：`streamCoordinator` 持有 `fgReader`（即交给消费者的 `fgPipe`）+ `fgCloseOnce`，删除 `fgCleanupCh`；`setupSessionCoordinator` 直接 `return fgPipe`。
+     - `fgPipe.SetAutomaticClose()`：底层 `closeRecv` 走 atomic CAS，使「消费者提前 Close」与「cleanup Close」可并存而不 panic。
+     - 新增 `closeFG()`（`sync.Once` 保护），`cleanupFail` / `cleanupOK` 均调用它。
+     - **对研究报告方案的偏离**：报告建议 cleanup 持有 `fgWriter` 并 `sync.Once` 保护 `fgWriter.Close()`。经查 Eino v0.6.0 `schema/stream.go`，`StreamWriter.Close()` = `closeSend()` = `close(s.items)`；当转发 goroutine 正阻塞在 `select { case <-s.closed: … ; case s.items <- item: }` 时关闭 `items` 会触发 **"send on closed channel" panic**。故改为关闭 **reader**（`closeRecv` → `close(s.closed)` → 阻塞的 `Send` 安全返回 `true`），既解除背压又不引回提前 Close panic。
+     - `cleanupFail` Session 路径顺序：`closeFG()` → `session.Drain()` → `resultCh <- {}` → `<-coordDone`（先解背压再等 done，避免等待链与满队列耦合）。
+     - `cleanupOK` Session 路径顺序：`resultCh <- {Success:true}` → `<-coordDone` → `closeFG()` → `session.Close()`。
+  2. **P1-2 WaitGroup 未登记执行 `bsr.Recv` 的临时 goroutine**（`core/providers/budget_adapter.go`）：
+     - `wrapBudgetStreamReader` 新增首参 `parentCtx context.Context`；`budgetChatRole.StreamSession` 传入调用方原始 `ctx`。
+     - 新增 parent ctx watcher goroutine：`select { case <-parentCtx.Done(): cancel(); case <-cancelSig:; case <-done: }`——父 ctx 单独取消（消费者未显式 `Close`/`Drain`）也能收敛；watcher 不登记 WaitGroup（否则与 waiter 形成循环等待），三条件任一即退出，不泄漏。
+     - 临时 Recv goroutine 登记 WaitGroup：supervisor 内 `wg.Add(1)` + 临时 goroutine `defer wg.Done()`，`done` 不再在仍有 goroutine 阻塞于上游 `Recv` 时提前关闭。因 supervisor 自身尚未 `Done`，计数在 `Add` 时永不归零，不触发 WaitGroup misuse。
+     - 输出 `reader.SetAutomaticClose()`（多关闭者：`cancel()`、`StreamSession.Close()/Drain()`、业务侧消费者），并在 `cancel()` 中新增 `reader.Close()`——否则消费者停读 + 输出管道满时 forward 会永久阻塞在 `writer.Send`，`cancelSig` 无法中断它。
+     - `cancel()` 顺序重排为「先不阻塞的信号、后可能阻塞的回收」：`streamCancel()` → `close(cancelSig)` → `reader.Close()` → `closeSrc()`（`innerSession.Close()` 会等内层 done，放最后）。
+- **新增测试**（4 个）：
+  - `TestChatStream_SessionFailCleanup_Backpressure`：16 chunks（> fgPipe 容量 8）形成真实背压，消费 1 个后停止消费再报失败，`cleanupFail` 必须有界完成（10s）且只保存 1 次（用户消息）、前台分支必须终结。
+  - `TestChatStream_SessionFailCleanup_NoPartialSave`：3 chunks 只消费 1 个后失败，保存内容不得含任何 `partial-` 片段。
+  - `TestStreamSession_TempGoroutineTracked`：`blockingRecvSource` 用 `StreamReaderWithConvert` 把阻塞放进 convert 回调（`closeSrc` 无法解除），断言 gate 未释放前 `Done()`/`Close()` 都不得完成（200ms 负向窗口），释放后收敛且 lease `Finalized()`。
+  - `TestStreamSession_ParentCancelOnly`：`closeDetectingSource` 生产者完全不感知 ctx，仅 `parentCancel()`、不调 `Close`/`Drain`，断言 `Done()` 5s 内关闭且消费者 `Recv` 终结。
+  - 新增测试 helper：`blockingRecvSource`、`closeDetectingSource`。
+- **测试调用点签名更新**（`wrapBudgetStreamReader` 新增首参）：`stream_close_test.go` 4 处、`stream_session_test.go` 4 处、`stream_session_done_test.go` 3 处；`_, streamCancel :=` 改为 `streamCtx, streamCancel := …` + `defer streamCancel()`。
+- **失败条件复现取证**（`verification/stage2b-fix10/`）：
+  - `repro-p1-1-prefix.log`：还原 chat.go 到 HEAD → `TestChatStream_SessionFailCleanup_Backpressure` **FAIL**（"cleanupFail hung under foreground backpressure: coordDone never arrived"，10.00s）；`NoPartialSave` PASS（3 chunks 无背压，属守卫测试）。
+  - `repro-p1-2a-temp-goroutine.log`：临时移除临时 goroutine 的 `wg.Add(1)`/`defer wg.Done()` → `TestStreamSession_TempGoroutineTracked` **FAIL**（"session.Done() closed while temp goroutine is still blocked in Recv — WG does not track it"）。
+  - `repro-p1-2b-parent-watcher.log`：临时移除 parentCtx watcher → `TestStreamSession_ParentCancelOnly` **FAIL**（"session.Done() not closed after parent ctx cancel only"，5.00s）。
+  - 三份复现取证后均从修复版恢复，`Select-String -Pattern REPRO` 计数为 0，`go build ./...` exit 0。
+- **验证**：
+  - `gofmt -l core/providers/ internal/logic/chat/` 无输出；`go build ./...` exit 0；`go vet ./...` exit 0
+  - `go test -race ./internal/logic/chat/... -count=10`（FailCleanup|EarlyClose|RepeatCleanup）ok 1.248s
+  - `go test -race ./core/providers/... -count=10`（CloseWaitsRecv|ParentCancel|TempGoroutine）ok 4.300s
+  - 8 个必需测试 `-race -v` 逐一 PASS：EarlyCloseThenCleanup / RepeatCleanup / FailCleanup_Backpressure / FailCleanup_NoPartialSave / CloseWaitsRecv / ParentCancelBackpressure(+_RealCancel) / TempGoroutineTracked / ParentCancelOnly
+  - `go test ./core/providers/... -count=1 -v`：146 RUN / 0 FAIL（providers 0.654s、bailian 8.205s、openai 3.182s）
+  - `go test -race ./core/providers/... -count=1` exit 0；`go test -race ./internal/logic/chat/... -count=1` exit 0
+  - `go test -p 1 ./... -count=1 -timeout=300s` exit 0（17 个含测试包全 ok）
+  - 全程离线：不调用模型 API，不连接真实数据库/ES/Qdrant
+- **约束遵守**：未扩大到 2C/2D；保留 Stage 1 已验收契约与已闭合项；SSE cleanup 顺序未破坏（`defer fgWriter.Close()` 先注册后执行、`defer bgWriter.Close()` 后注册先执行，保证消费者见 EOF 时后台必已见 EOF）；成功 EOF+SSE success 才保存一次、失败不保存部分回答；未引回提前 Close panic（`TestChatStream_SessionEarlyCloseThenCleanup` PASS）；新增并发测试全部采用 channel + 超时 + cleanup，不依赖固定 sleep。
+- **状态**：2B 两组 P1 修复完成待再次复核
+
 ### Stage 2B 受控流会话三组修复（2026-10-20 第九轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

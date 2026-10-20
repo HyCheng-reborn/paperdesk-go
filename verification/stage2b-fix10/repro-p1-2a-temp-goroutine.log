@@ -1,0 +1,9 @@
+# P1-2a PRE-FIX REPRO (temp Recv goroutine NOT registered in WaitGroup)
+# cmd: go test ./core/providers/ -count=1 -timeout=60s -v -run "TestStreamSession_TempGoroutineTracked"
+# exit=1
+=== RUN   TestStreamSession_TempGoroutineTracked
+    stream_session_done_test.go:369: session.Done() closed while temp goroutine is still blocked in Recv 鈥?WG does not track it
+--- FAIL: TestStreamSession_TempGoroutineTracked (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.114s
+FAIL

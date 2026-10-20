@@ -27,8 +27,9 @@ func TestStream_BusinessCloseWakesSource(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk3"},
 	})
 
-	_, streamCancel := context.WithCancel(context.Background())
-	session := wrapBudgetStreamReader(streamCancel, sr, lease, nil)
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
 	reader := session.Reader()
 
 	_, err := reader.Recv()
@@ -58,8 +59,9 @@ func TestStream_BusinessCloseFinalizesLease(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk2"},
 	})
 
-	_, streamCancel := context.WithCancel(context.Background())
-	session := wrapBudgetStreamReader(streamCancel, sr, lease, nil)
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
 	reader := session.Reader()
 
 	_, err := reader.Recv()
@@ -90,8 +92,9 @@ func TestStream_BusinessCloseWaitsGoroutine(t *testing.T) {
 		{Role: schema.Assistant, Content: "c"},
 	})
 
-	_, streamCancel := context.WithCancel(context.Background())
-	session := wrapBudgetStreamReader(streamCancel, sr, lease, nil)
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
 	reader := session.Reader()
 	_, _ = reader.Recv()
 	session.Close()
@@ -114,8 +117,9 @@ func TestStream_CtxCancelWakesSource(t *testing.T) {
 
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
 
-	_, streamCancel := context.WithCancel(context.Background())
-	session := wrapBudgetStreamReader(streamCancel, srcReader, lease, nil)
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	defer streamCancel()
+	session := wrapBudgetStreamReader(streamCtx, streamCancel, srcReader, lease, nil)
 	reader := session.Reader()
 
 	// 关闭源 writer 模拟模型响应关闭流

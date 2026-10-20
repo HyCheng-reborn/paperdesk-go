@@ -259,12 +259,14 @@ func (w *leaseStreamReader) finalize(err error) {
 // wrapLeaseStreamReader 包装 StreamReader，使用 leaseStreamReader 单一所有权终结。
 // 内部启动一个转发 goroutine：从源 Recv → 向 pipe writer Send。
 // 所有权链：下游 Close/取消 → writer.Send 返回 true（closed）→ 源 Close → lease 终结 → goroutine 退出。
+// Fix 2: goroutine 退出时确保源 reader 被关闭，避免连接泄漏。
 func wrapLeaseStreamReader(sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	lsw := &leaseStreamReader{inner: sr, lease: lease}
 
 	go func() {
 		defer writer.Close()
+		defer lsw.Close() // Fix 2: 确保源 reader 被关闭
 		for {
 			chunk, err := lsw.Recv()
 			if err != nil {
@@ -278,7 +280,6 @@ func wrapLeaseStreamReader(sr *schema.StreamReader[*schema.Message], lease *prov
 			// Eino v0.6.0: Send 返回 true 表示 pipe 已关闭（下游 Close/取消）
 			if writer.Send(chunk, nil) {
 				// 下游已关闭：终结源 reader 与 lease
-				lsw.Close()
 				return
 			}
 		}

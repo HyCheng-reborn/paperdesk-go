@@ -17,6 +17,7 @@ import (
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/grader"
 	"github.com/wangle201210/go-rag/server/core/indexer"
+	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/retriever"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
@@ -79,16 +80,24 @@ type Rag struct {
 	markFailed func(ctx context.Context, docID int64, err error)
 }
 
-func New(ctx context.Context, conf *config.Config) (*Rag, error) {
+func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	if len(conf.IndexName) == 0 {
 		return nil, fmt.Errorf("indexName is empty")
 	}
 
-	// B5: 如果显式传入了 Registry，在初始化期间临时设置，供 GetQAModel/GetChatModel 使用。
-	// 成功后由调用方（defaultRagFactory）正式发布；失败时回滚。
+	// B5: 临时设置 Registry 供内部使用，失败时回滚。
+	// 成功后由调用方（defaultRagFactory）正式发布；失败时恢复旧 Registry。
+	var oldRegistry providers.ProviderRegistry
 	if conf.Registry != nil {
+		oldRegistry = common.GetRegistry()
 		common.SetRegistry(conf.Registry)
 	}
+	// 失败回滚：如果函数返回错误且我们设置了 Registry，恢复旧值
+	defer func() {
+		if err != nil && conf.Registry != nil {
+			common.SetRegistry(oldRegistry)
+		}
+	}()
 
 	// 确保 index 存在
 	exists, err := conf.IndexExists(ctx)
@@ -157,7 +166,7 @@ func New(ctx context.Context, conf *config.Config) (*Rag, error) {
 
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
 
-	rag := &Rag{
+	rag = &Rag{
 		idxerAsync: buildIndexAsync,
 		rtrvr:      buildRetriever,
 		qaRtrvr:    qaRetriever,

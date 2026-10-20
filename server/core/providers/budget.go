@@ -427,6 +427,28 @@ func (tb *TaskBudget) ContextWithDeadline(ctx context.Context) (context.Context,
 // Snapshot 返回任务级作用域的只读快照。
 func (tb *TaskBudget) Snapshot() BudgetSnapshot { return tb.s.snapshot() }
 
+// NewSharedRequestBudget 创建共享同一 scope 的 RequestBudget，供适配器消费。
+// 返回的 RequestBudget 与 TaskBudget 共享累计额度（不刷新），用于 Index 后台等场景。
+func (tb *TaskBudget) NewSharedRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error) {
+	cfg, err := newBudgetConfig(opts)
+	if err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var ownerDeadline time.Time
+	if cfg.deadline > 0 {
+		ownerDeadline = time.Now().Add(cfg.deadline)
+	}
+	return &RequestBudget{
+		s:             tb.s, // 共享 scope → 累计额度不刷新
+		deadline:      cfg.deadline,
+		ownerCtx:      ctx,
+		ownerDeadline: ownerDeadline,
+	}, nil
+}
+
 // ownerErr 检查 owner 取消与固定 deadline 过期，返回相应错误（nil 表示可继续）。
 // ownerCtx 取消→返回其 Err（Canceled/DeadlineExceeded）；固定 deadline 已过→DeadlineExceeded。
 func ownerErr(ownerCtx context.Context, ownerDeadline time.Time) error {

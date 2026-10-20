@@ -381,12 +381,14 @@ func (w *budgetStreamReader) finalize(err error) {
 
 // wrapBudgetStreamReader 包装 StreamReader，使用 budgetStreamReader 单一所有权终结。
 // 所有权链：下游 Close/取消 → writer.Send 返回 true → 源 Close → lease 终结 → goroutine 退出。
+// Fix 2: goroutine 退出时确保源 reader 被关闭，避免连接泄漏。
 func wrapBudgetStreamReader(sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	bsr := &budgetStreamReader{inner: sr, lease: lease}
 
 	go func() {
 		defer writer.Close()
+		defer bsr.Close() // Fix 2: 确保源 reader 被关闭
 		for {
 			chunk, err := bsr.Recv()
 			if err != nil {
@@ -397,7 +399,7 @@ func wrapBudgetStreamReader(sr *schema.StreamReader[*schema.Message], lease *Att
 			}
 			// Eino v0.6.0: Send 返回 true 表示 pipe 已关闭（下游 Close/取消）
 			if writer.Send(chunk, nil) {
-				bsr.Close()
+				// 下游已关闭
 				return
 			}
 		}

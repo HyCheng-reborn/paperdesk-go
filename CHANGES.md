@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-20 第四轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：64aac44155414403d5d4e007863987e1f79acfe2
+- **修复内容**：
+  1. **Index 后台预算接线**：后台使用 `bgTaskBudget.NewSharedRequestBudget()` 创建共享 scope，而非从 Registry 创建全新独立 scope
+  2. **Stream 提前 Close 传播**：goroutine 退出时通过 `defer lsw.Close()` / `defer bsr.Close()` 确保源 reader 被关闭，覆盖百炼和通用两层
+  3. **Owner 嵌套传递**：`WithRequestBudget` 检查 ctx 是否已有 RequestBudget，有则直接返回；`WithTaskBudget` 创建共享 TaskBudget scope 的 RequestBudget
+  4. **初始化回归**：`core.New` 添加失败回滚机制，保存旧 Registry，失败时恢复
+- **新增测试**：Stream 关闭传播、Owner 嵌套、初始化回滚、生产共享链回归
+- **验证**：gofmt/build/vet exit 0；120 providers 测试 PASS；race 压测 -count=10 PASS（100 次，0 DATA RACE）；受影响包 race 通过（7 包）；全项目 go test -p 1 ./... 通过（16 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-20 第三轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

@@ -14,6 +14,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
+	"github.com/wangle201210/go-rag/server/core/common"
+	"github.com/wangle201210/go-rag/server/core/providers"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
@@ -76,7 +78,10 @@ func (p *prodAsyncIndexer) indexAsyncByDocsID(ctx context.Context, knowledgeName
 // 这里处理文档的读取、分割、合并和存储
 // 真正的embedding 和 QA 异步执行
 // Stage 1D-3-A: 同步前准入 + 所有权转移 + Shutdown 协调 + 两路取消
+// B5: 入口创建 TaskBudget，后台通过 TransferToBackground 显式移交。
 func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error) {
+	// B5: 注入任务级预算 owner
+	ctx, taskBudget := common.WithTaskBudget(ctx)
 	// === 同步前准入 ===
 	x.mu.Lock()
 	if x.closed {
@@ -163,6 +168,18 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 
 	// 后台从服务级 bgRootCtx 派生任务 timeout
 	bgCtx, bgCancel := context.WithTimeout(x.bgRootCtx, x.taskTimeout)
+
+	// B5: 后台显式移交 TaskBudget，共享累计额度与固定 deadline
+	if taskBudget != nil {
+		bgTaskBudget, transferErr := taskBudget.TransferToBackground()
+		if transferErr == nil && bgTaskBudget != nil {
+			// Fix 1: 创建共享 bgTaskBudget scope 的 RequestBudget，而非从 Registry 创建全新独立 scope
+			bgRb, rbErr := bgTaskBudget.NewSharedRequestBudget(bgCtx)
+			if rbErr == nil {
+				bgCtx = providers.ContextWithRequestBudget(bgCtx, bgRb)
+			}
+		}
+	}
 
 	// 后台负责唯一一次释放（容量 + 登记）
 	go func() {

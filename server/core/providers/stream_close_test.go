@@ -29,7 +29,7 @@ func TestStream_BusinessCloseWakesSource(t *testing.T) {
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
 	reader := session.Reader()
 
 	_, err := reader.Recv()
@@ -61,7 +61,7 @@ func TestStream_BusinessCloseFinalizesLease(t *testing.T) {
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
 	reader := session.Reader()
 
 	_, err := reader.Recv()
@@ -94,7 +94,7 @@ func TestStream_BusinessCloseWaitsGoroutine(t *testing.T) {
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, sr, lease, nil)
 	reader := session.Reader()
 	_, _ = reader.Recv()
 	session.Close()
@@ -119,7 +119,7 @@ func TestStream_CtxCancelWakesSource(t *testing.T) {
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, srcReader, lease, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, srcReader, lease, nil)
 	reader := session.Reader()
 
 	// 关闭源 writer 模拟模型响应关闭流

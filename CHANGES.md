@@ -1,5 +1,31 @@
 # 变更记录
 
+## Stage 2B 第十轮：百炼父取消背压（2026-10-21）
+
+### 修复
+- 百炼 `wrapLeaseStreamReader` 丢弃传入 ctx，父取消时无法解除输出 Send 背压
+- Registry 直接返回 bailian builder role，budget_adapter 的 watcher 不覆盖百炼流
+
+### 方案
+- 导出 `WrapBudgetStreamReader`（`budget_adapter.go`）
+- 百炼 `chatAdapter.StreamSession` 改用 `providers.WrapBudgetStreamReader(ctx, ...)`
+- 传入原始 `ctx`（父 ctx）而非 `streamCtx`（派生 ctx）
+- 删除 `wrapLeaseStreamReader` 和 `leaseStreamReader`（约 90 行）
+- 百炼和 OpenAI 走同一生命周期验收路径
+
+### 测试
+- 新增 6 个百炼父取消测试（`parent_cancel_test.go`）
+- 更新现有测试签名（integration_test.go、stage2b_stream_test.go、stream_close_test.go、stream_session_done_test.go）
+
+### 验证
+- 百炼父取消背压 `-race -count=10` PASS
+- providers 全量 PASS，无 DATA RACE
+- 全项目 16 包 PASS
+
+### 提交
+- commit `216fb28af6b5cf2cdb44b168fdacfa59e5925f1d`
+- 分支 `review/stage1a`
+
 ### Stage 2B 两组 P1 修复（2026-10-20 第十轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告 P1-1 / P1-2）

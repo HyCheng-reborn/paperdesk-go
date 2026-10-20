@@ -101,7 +101,7 @@ func TestStreamSession_EOFSettles(t *testing.T) {
 	sr := schema.StreamReaderFromArray([]*schema.Message{
 		{Role: schema.Assistant, Content: "only"},
 	})
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
 
 	reader := session.Reader()
 	// 消费到 EOF
@@ -129,7 +129,7 @@ func TestStreamSession_ReadError(t *testing.T) {
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
 	srcReader, srcWriter := schema.Pipe[*schema.Message](1)
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, srcReader, nil, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, srcReader, nil, nil)
 
 	testErr := errors.New("test read error")
 	go func() {
@@ -157,7 +157,7 @@ func TestStreamSession_EarlyClose(t *testing.T) {
 		{Role: schema.Assistant, Content: "b"},
 		{Role: schema.Assistant, Content: "c"},
 	})
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
 
 	reader := session.Reader()
 	_, _ = reader.Recv() // 读一个 chunk
@@ -175,7 +175,7 @@ func TestStreamSession_ConcurrentCloseEOF(t *testing.T) {
 	sr := schema.StreamReaderFromArray([]*schema.Message{
 		{Role: schema.Assistant, Content: "x"},
 	})
-	session := wrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
+	session := WrapBudgetStreamReader(streamCtx, streamCancel, sr, nil, nil)
 
 	reader := session.Reader()
 	var wg sync.WaitGroup

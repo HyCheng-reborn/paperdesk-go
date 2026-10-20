@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -324,7 +323,9 @@ func TestStream_EarlyCloseFinalizes(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk3"},
 	})
 
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	defer parentCancel()
+	wrapped := providers.WrapBudgetStreamReader(parentCtx, func() {}, sr, lease, nil)
 	reader := wrapped.Reader()
 
 	// 只读一个 chunk 然后提前关闭
@@ -359,7 +360,9 @@ func TestStream_CancelFinalizes(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk1"},
 	})
 
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, sr, lease)
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	defer parentCancel()
+	wrapped := providers.WrapBudgetStreamReader(parentCtx, func() {}, sr, lease, nil)
 	reader := wrapped.Reader()
 
 	// 读取所有（EOF 终结）
@@ -391,7 +394,9 @@ func TestStream_ErrorFinalizes(t *testing.T) {
 		writer.Send(nil, fmt.Errorf("connection reset"))
 	}()
 
-	wrapped := wrapLeaseStreamReader(context.Background(), func() {}, reader, lease)
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	defer parentCancel()
+	wrapped := providers.WrapBudgetStreamReader(parentCtx, func() {}, reader, lease, nil)
 	consumer := wrapped.Reader()
 
 	// 读取直到错误
@@ -718,7 +723,7 @@ func newFakeStreamServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-// 确保 leaseStreamReader 的 finalize 只执行一次（并发安全）
+// 确保 lease 终结的并发安全性（通过 StreamSession 并发 Close）
 func TestStream_ConcurrentCloseFinalizes(t *testing.T) {
 	budget, _ := providers.NewProcessBudget(0, 0, 0, 0)
 	rb, _ := budget.NewRequestBudget(context.Background())
@@ -729,16 +734,17 @@ func TestStream_ConcurrentCloseFinalizes(t *testing.T) {
 		{Role: schema.Assistant, Content: "chunk1"},
 	})
 
-	// 直接测试 leaseStreamReader 的并发安全性
-	lsw := &leaseStreamReader{inner: sr, lease: lease}
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	defer parentCancel()
+	session := providers.WrapBudgetStreamReader(parentCtx, func() {}, sr, lease, nil)
 
-	// 并发 finalize 不应 panic
+	// 并发 Close 不应 panic（底层 sync.Once 保证幂等）
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			lsw.finalize(nil)
+			session.Close()
 		}()
 	}
 
@@ -751,19 +757,21 @@ func TestStream_ConcurrentCloseFinalizes(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for concurrent finalize")
+		t.Fatal("timeout waiting for concurrent Close")
 	}
 
+	// 等待 lease 终结
+	deadline := time.Now().Add(2 * time.Second)
+	for !lease.Finalized() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
 	if !lease.Finalized() {
 		t.Error("expected lease to be finalized")
 	}
 }
 
 // 确保未使用的 import 不报错
-var (
-	_ = io.EOF
-	_ = model.TokenUsage{}
-)
+var _ = model.TokenUsage{}
 
 // ---------------------------------------------------------------------------
 // Fix 7: 独立流关闭测试（真实 httptest 阻塞服务器）

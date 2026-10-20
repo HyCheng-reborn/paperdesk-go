@@ -43,7 +43,7 @@ func TestStreamSession_CloseWaitsRecv(t *testing.T) {
 	lease, _ := rb.Reserve(&TokenEstimate{InputTokens: 10, MaxOutput: 100})
 	lease.Commit()
 
-	session := wrapBudgetStreamReader(ctx, streamCancel, srcReader, lease, nil)
+	session := WrapBudgetStreamReader(ctx, streamCancel, srcReader, lease, nil)
 	reader := session.Reader()
 
 	// Send one chunk
@@ -103,7 +103,7 @@ func TestStreamSession_ParentCancelBackpressure(t *testing.T) {
 	// Create a context-aware source
 	srcReader, srcWriter := ctxAwareSource(streamCtx, 1)
 
-	session := wrapBudgetStreamReader(ctx, streamCancel, srcReader, nil, nil)
+	session := WrapBudgetStreamReader(ctx, streamCancel, srcReader, nil, nil)
 
 	reader := session.Reader()
 
@@ -152,7 +152,7 @@ func TestStreamSession_ParentCancelBackpressure_RealCancel(t *testing.T) {
 	// Create a context-aware blocking source
 	srcReader, srcWriter := ctxAwareSource(ctx, 1)
 
-	session := wrapBudgetStreamReader(ctx, streamCancel, srcReader, nil, nil)
+	session := WrapBudgetStreamReader(ctx, streamCancel, srcReader, nil, nil)
 
 	// Don't read from session — create backpressure
 	// Fill dataCh by sending to srcWriter
@@ -347,7 +347,7 @@ func TestStreamSession_TempGoroutineTracked(t *testing.T) {
 	lease, _ := rb.Reserve(&TokenEstimate{InputTokens: 10, MaxOutput: 100})
 	lease.Commit()
 
-	session := wrapBudgetStreamReader(parentCtx, streamCancel, src, lease, nil)
+	session := WrapBudgetStreamReader(parentCtx, streamCancel, src, lease, nil)
 
 	// 确定性信号：临时 goroutine 已进入 bsr.Recv 并阻塞
 	select {
@@ -409,7 +409,7 @@ func TestStreamSession_ParentCancelOnly(t *testing.T) {
 
 	srcReader := closeDetectingSource(0)
 
-	session := wrapBudgetStreamReader(parentCtx, streamCancel, srcReader, nil, nil)
+	session := WrapBudgetStreamReader(parentCtx, streamCancel, srcReader, nil, nil)
 
 	// 先确认管道已建立（有界等待，不依赖固定 sleep）
 	if _, err := session.Reader().Recv(); err != nil {

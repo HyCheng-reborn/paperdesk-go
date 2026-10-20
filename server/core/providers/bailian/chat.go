@@ -7,9 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
-	"sync"
 
 	chatopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
@@ -142,8 +140,9 @@ func (a *chatAdapter) StreamSession(ctx context.Context, messages []*schema.Mess
 		return nil, mapChatError(err)
 	}
 
-	// 统一 Pipe 转发路径（无论有无 lease）
-	return wrapLeaseStreamReader(streamCtx, streamCancel, sr, lease), nil
+	// 统一 Pipe 转发路径（无论有无 lease）。
+	// P1-2: 传入父 ctx，使父 ctx 单独取消（消费者未显式 Close/Drain）也能收敛。
+	return providers.WrapBudgetStreamReader(ctx, streamCancel, sr, lease, nil), nil
 }
 
 // reserveBudget 从 ctx 复用已有 RequestBudget，或创建新的。Fix 2a: owner 复用。
@@ -209,94 +208,6 @@ func extractUsage(msg *schema.Message) *model.TokenUsage {
 		CompletionTokens: u.CompletionTokens,
 		TotalTokens:      u.TotalTokens,
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Fix 3: leaseStreamReader — 单一所有权终结 lease
-// ---------------------------------------------------------------------------
-
-// leaseStreamReader 包装 StreamReader，通过 Recv 单一所有权终结 lease。
-// 用于内部 lease 追踪；不直接返回给业务。
-type leaseStreamReader struct {
-	inner     *schema.StreamReader[*schema.Message]
-	lease     *providers.AttemptLease
-	once      sync.Once
-	lastUsage *model.TokenUsage
-	mu        sync.Mutex
-}
-
-func (w *leaseStreamReader) Recv() (*schema.Message, error) {
-	chunk, err := w.inner.Recv()
-	if err != nil {
-		w.finalize(err)
-		return nil, err
-	}
-	if chunk != nil && chunk.ResponseMeta != nil && chunk.ResponseMeta.Usage != nil {
-		w.mu.Lock()
-		w.lastUsage = &model.TokenUsage{
-			PromptTokens:     chunk.ResponseMeta.Usage.PromptTokens,
-			CompletionTokens: chunk.ResponseMeta.Usage.CompletionTokens,
-			TotalTokens:      chunk.ResponseMeta.Usage.TotalTokens,
-		}
-		w.mu.Unlock()
-	}
-	return chunk, nil
-}
-
-func (w *leaseStreamReader) finalize(err error) {
-	w.once.Do(func() {
-		if w.lease == nil {
-			return // 无 lease 时 finalize 为 no-op
-		}
-		w.mu.Lock()
-		usage := w.lastUsage
-		w.mu.Unlock()
-		if err != nil && !errors.Is(err, io.EOF) {
-			w.lease.Abort(err)
-		} else {
-			w.lease.Finish(usage)
-		}
-	})
-}
-
-// wrapLeaseStreamReader 包装 StreamReader，返回 *StreamSession 供业务消费。
-// 转发 goroutine 在后台从 lsw.Recv() 读取数据并写入 Pipe writer；
-// 当 writer.Send 返回 true（消费者已关闭 Pipe reader）或源 EOF 时退出。
-// lease 终结由转发 goroutine 的 defer 保证，不依赖消费者调用 Close。
-//
-// streamCancel 是派生 ctx 的取消函数；转发 goroutine 退出时调用，
-// 中断底层 HTTP 请求（安全网：确保 body read 不悬挂）。
-//
-// 无 lease 时（lease==nil）走同一 Pipe 转发路径，finalize 为 no-op。
-// 不使用 runtime.SetFinalizer，正确性由 StreamSession.Close/Drain 保证。
-func wrapLeaseStreamReader(_ context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *providers.StreamSession {
-	reader, writer := schema.Pipe[*schema.Message](1)
-	lsw := &leaseStreamReader{inner: sr, lease: lease}
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)       // 通知 StreamSession 转发已完成
-		defer streamCancel()    // 安全网：goroutine 退出时取消 ctx，中断底层 HTTP 请求
-		defer lsw.inner.Close() // 关闭源 reader
-		defer writer.Close()    // 关闭 pipe writer，通知消费者流结束
-		defer lsw.finalize(nil) // 终结 lease（nil lease 时为 no-op）
-		for {
-			chunk, err := lsw.Recv()
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					// 非 EOF 错误必须传给调用方
-					writer.Send(nil, err)
-				}
-				return
-			}
-			// Send 返回 true 表示消费者已关闭 Pipe reader
-			if writer.Send(chunk, nil) {
-				return
-			}
-		}
-	}()
-
-	return providers.NewStreamSession(reader, streamCancel, done, lease)
 }
 
 // mapChatBuildError 映射构造期错误。

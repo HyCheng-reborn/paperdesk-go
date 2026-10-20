@@ -121,7 +121,7 @@ func (b *budgetChatRole) StreamSession(ctx context.Context, messages []*schema.M
 
 	// 包装 Pipe 转发，附加预算 lease 追踪。
 	// P1-2：传入父 ctx，使父 ctx 单独取消（消费者未显式 Close/Drain）也能收敛。
-	return wrapBudgetStreamReader(ctx, streamCancel, innerReader, lease, innerSession), nil
+	return WrapBudgetStreamReader(ctx, streamCancel, innerReader, lease, innerSession), nil
 }
 
 func (b *budgetChatRole) reserveBudget(ctx context.Context, est *TokenEstimate) (*AttemptLease, error) {
@@ -408,7 +408,7 @@ func (w *budgetStreamReader) finalize(err error) {
 	})
 }
 
-// wrapBudgetStreamReader 包装 StreamReader，返回 *StreamSession 供业务消费。
+// WrapBudgetStreamReader 包装 StreamReader，返回 *StreamSession 供业务消费。
 //
 // 架构：recv supervisor goroutine + 临时 Recv goroutine + 转发 goroutine + WaitGroup 跟踪。
 //   - recv supervisor：循环起一个临时 goroutine 执行阻塞的 inner Recv，结果进 dataCh（buffer=1）。
@@ -446,7 +446,7 @@ func (w *budgetStreamReader) finalize(err error) {
 // parentCtx.Done / cancelSig / done 任一发生时退出，不泄漏。
 //
 // 不使用 runtime.SetFinalizer，正确性由 StreamSession.Close/Drain 与 parentCtx watcher 保证。
-func wrapBudgetStreamReader(parentCtx context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease, innerSession *StreamSession) *StreamSession {
+func WrapBudgetStreamReader(parentCtx context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease, innerSession *StreamSession) *StreamSession {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	// 输出 pipe reader 有多个关闭者：cancel()（含 parentCtx watcher 触发的）、
 	// StreamSession.Close()/Drain()、以及业务侧消费者的提前 Close。

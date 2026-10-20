@@ -1,0 +1,12 @@
+CODE_SHA: 5bb15e8eb7c17070eaa29203efcf58fb008c0b53
+BASELINE: 8d2c21225d4627a2668cad788cc254f78f2e04e4
+CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+Process only; GOFLAGS empty; GOPROXY=off; GOSUMDB=off
+go version go1.27.1 windows/amd64
+windows
+amd64
+1
+C:\msys64\ucrt64\bin\gcc.exe
+C:\msys64\ucrt64\bin\g++.exe
+
+gcc.exe (Rev6, Built by MSYS2 project) 16.2.0

@@ -378,7 +378,7 @@ type RequestBudget struct {
 ### 5.2 query/document 一致性
 
 - **设计决定**：query 和 document 使用一致模型与配置。不在检索时使用与索引时不同的 Embedding 模型。
-- **已确认**：当前 `rag.go:New()` 创建一个 embedder 同时用于索引和检索。
+- **源码核实**：`rag.go:New()` 把同一配置传给同步/异步 indexer 与 retriever，各自构造 embedder；模型与维度来源一致，不把实例相同作为前提。
 
 ### 5.3 模型身份及维度进入索引配置
 
@@ -389,11 +389,11 @@ type RequestBudget struct {
 ### 5.4 维度不匹配时拒绝操作
 
 - **设计决定**：如果现有索引的维度与当前 Embedding 配置的维度不一致，拒绝写入/检索操作并返回明确错误。
-- **已确认**：当前 ES 和 Qdrant 均硬编码 1024 维。
+- **实施前基线**：ES 和 Qdrant 均硬编码 1024；2C-1 已贯通配置（§5.7），既有真实索引的身份/维度检查仍待 2C-2。
 
 ### 5.5 实际写死维度位置全清单（修正：不止“六处”）
 
-> 源码核对（非测试）。以下为真实向量维度字面量；之前仅记“六处”不完整，实为约 13 处 +1 回退默认。**待验证**：哪些 ES/Qdrant schema builder 在当前生产 `CreateIndex` 路径实际生效（config/helpers vs common/es vs vector/es 可能为新旧双路径）。
+> 实施前源码清单（非测试，行号属交接基线）：约 13 处 +1 回退默认，不止“六处”。2C-1 已完成生产路径核实与替换，解析/共享 schema 见 §5.7；本表保留用于变更追溯。
 
 | 类别 | 位置 | 当前值 | 用途 |
 |---|---|---|---|
@@ -441,7 +441,7 @@ type RequestBudget struct {
 **需要确认的最小决策**：接受上述 ES/Qdrant 存储分流；接受 Qdrant 唯一物理名/独占管理约束（否则保持禁用）；确认 fingerprint v1 字段与 revision/alias 人工证明规则。任何决定不自动授权迁移真实数据或付费探针。
 
 资料核实日期 2026-10-21：
-- [Elasticsearch 官方 `_meta`](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/mapping-meta-field)；本地 elastic/go-elasticsearch v8.16.0 `typedapi/types/type_mapping.go` 提供 Meta_。
+- [Elasticsearch 官方 `_meta`](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/mapping-meta-field)；本地 elastic/go-elasticsearch v8.16.0 `typedapi/types/typemapping.go` 提供 Meta_。
 - [Qdrant 官方 Collection Metadata](https://qdrant.tech/documentation/manage-data/collections/#collection-metadata)，注明 available as of v1.16.0；本地 go-client v1.15.2 `qdrant/collections.pb.go` 的创建/配置消息无该字段。资料与锁定 API 能力分开，不据此推断真实服务器已验证。
 
 ---

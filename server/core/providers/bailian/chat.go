@@ -10,6 +10,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	chatopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
@@ -207,15 +208,15 @@ func extractUsage(msg *schema.Message) *model.TokenUsage {
 // ---------------------------------------------------------------------------
 
 // leaseStreamReader 包装 StreamReader，通过 Recv/Close 单一所有权终结 lease。
-// 不使用 Copy(2)，不启动后台 goroutine，避免失控所有权。
-// Close 和 finalize 均幂等（sync.Once 保护）。
+// Fix 4: Close 时直接关闭 inner 以打断可能阻塞的 Recv，确保 goroutine 退出。
 type leaseStreamReader struct {
 	inner     *schema.StreamReader[*schema.Message]
 	lease     *providers.AttemptLease
 	once      sync.Once
 	closeOnce sync.Once
 	lastUsage *model.TokenUsage
-	mu        sync.Mutex // 保护 lastUsage
+	mu        sync.Mutex    // 保护 lastUsage
+	done      chan struct{} // 信号：goroutine 已退出
 }
 
 func (w *leaseStreamReader) Recv() (*schema.Message, error) {
@@ -238,8 +239,16 @@ func (w *leaseStreamReader) Recv() (*schema.Message, error) {
 
 func (w *leaseStreamReader) Close() {
 	w.closeOnce.Do(func() {
+		// Fix 4: 直接关闭 inner 以打断可能阻塞的 Recv，确保 goroutine 退出
 		w.inner.Close()
 	})
+	// 等待 goroutine 退出（有限等待，避免无限阻塞）
+	select {
+	case <-w.done:
+		// goroutine 已退出
+	case <-time.After(100 * time.Millisecond):
+		// 超时：goroutine 可能仍在阻塞，但 lease 仍需终结
+	}
 	w.finalize(nil)
 }
 
@@ -257,29 +266,25 @@ func (w *leaseStreamReader) finalize(err error) {
 }
 
 // wrapLeaseStreamReader 包装 StreamReader，使用 leaseStreamReader 单一所有权终结。
-// 内部启动一个转发 goroutine：从源 Recv → 向 pipe writer Send。
-// 所有权链：下游 Close/取消 → writer.Send 返回 true（closed）→ 源 Close → lease 终结 → goroutine 退出。
-// Fix 2: goroutine 退出时确保源 reader 被关闭，避免连接泄漏。
+// Fix 4: goroutine 退出时终结 lease，不依赖消费者调用 Close。
 func wrapLeaseStreamReader(sr *schema.StreamReader[*schema.Message], lease *providers.AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
-	lsw := &leaseStreamReader{inner: sr, lease: lease}
+	lsw := &leaseStreamReader{inner: sr, lease: lease, done: make(chan struct{})}
 
 	go func() {
+		defer close(lsw.done)
 		defer writer.Close()
-		defer lsw.Close() // Fix 2: 确保源 reader 被关闭
+		defer lsw.inner.Close()
+		defer lsw.finalize(nil) // Fix 4: goroutine 退出时终结 lease
 		for {
 			chunk, err := lsw.Recv()
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
-					// 非 EOF 错误：传播给下游，然后终结
 					writer.Send(nil, err)
 				}
-				// EOF 或错误：lease 已由 finalize 终结
 				return
 			}
-			// Eino v0.6.0: Send 返回 true 表示 pipe 已关闭（下游 Close/取消）
 			if writer.Send(chunk, nil) {
-				// 下游已关闭：终结源 reader 与 lease
 				return
 			}
 		}

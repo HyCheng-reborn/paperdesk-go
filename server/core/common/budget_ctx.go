@@ -35,11 +35,11 @@ func WithRequestBudget(ctx context.Context, opts ...providers.BudgetOption) cont
 // WithTaskBudget 从当前 Registry 创建 TaskBudget 并注入 ctx（供 Index 等同步+后台场景）。
 // 返回注入后的 ctx 和 TaskBudget（供后台 TransferToBackground 使用）。
 // Registry 未设置时返回原始 ctx 和 nil TaskBudget。
-// Fix 3: 不把独立 rb 注入 ctx，而是创建共享 TaskBudget scope 的 RequestBudget。
-func WithTaskBudget(ctx context.Context, opts ...providers.BudgetOption) (context.Context, *providers.TaskBudget) {
+// Fix 3: 创建失败返回 error 而非 fmt.Printf + nil。
+func WithTaskBudget(ctx context.Context, opts ...providers.BudgetOption) (context.Context, *providers.TaskBudget, error) {
 	r := GetRegistry()
 	if r == nil {
-		return ctx, nil
+		return ctx, nil, nil
 	}
 	// TaskBudget 需要从 ProcessBudget 创建；通过 Registry 接口获取
 	// ProviderRegistry 接口目前只暴露 NewRequestBudget，TaskBudget 通过类型断言获取
@@ -48,20 +48,18 @@ func WithTaskBudget(ctx context.Context, opts ...providers.BudgetOption) (contex
 	}
 	tbc, ok := r.(taskBudgetCreator)
 	if !ok || tbc.Budget() == nil {
-		return ctx, nil
+		return ctx, nil, nil
 	}
 	tb, err := tbc.Budget().NewTaskBudget(ctx, opts...)
 	if err != nil {
 		// Fix 3: 创建失败返回错误而非静默 fallback
-		fmt.Printf("WithTaskBudget: create task budget failed: %v\n", err)
-		return ctx, nil
+		return ctx, nil, fmt.Errorf("create task budget: %w", err)
 	}
 	// Fix 3: 创建共享 TaskBudget scope 的 RequestBudget，供适配器消费
 	// 不再创建独立的 RequestBudget，而是共享同一 scope
 	rb, err := tb.NewSharedRequestBudget(ctx, opts...)
 	if err != nil {
-		fmt.Printf("WithTaskBudget: create shared request budget failed: %v\n", err)
-		return ctx, nil
+		return ctx, nil, fmt.Errorf("create shared request budget: %w", err)
 	}
-	return providers.ContextWithRequestBudget(ctx, rb), tb
+	return providers.ContextWithRequestBudget(ctx, rb), tb, nil
 }

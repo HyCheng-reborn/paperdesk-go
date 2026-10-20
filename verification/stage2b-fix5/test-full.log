@@ -1,0 +1,36 @@
+# CMD: go test -p 1 ./... -count=1
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-20 12:20:51
+
+?   	github.com/wangle201210/go-rag/server	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag/v1	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core	4.058s
+ok  	github.com/wangle201210/go-rag/server/core/common	0.145s
+ok  	github.com/wangle201210/go-rag/server/core/config	0.131s
+?   	github.com/wangle201210/go-rag/server/core/grader	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/indexer	0.503s
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.275s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	5.241s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	0.127s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	0.747s
+ok  	github.com/wangle201210/go-rag/server/core/retriever	0.133s
+?   	github.com/wangle201210/go-rag/server/core/types	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/vector	0.196s
+ok  	github.com/wangle201210/go-rag/server/core/websearch	0.275s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	0.174s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	0.186s
+ok  	github.com/wangle201210/go-rag/server/internal/dao	0.105s
+?   	github.com/wangle201210/go-rag/server/internal/dao/db	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/dao/internal	[no test files]
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.204s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.149s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	20.427s
+?   	github.com/wangle201210/go-rag/server/internal/logic/websearch	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/mcp	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/do	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/entity	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/gorm	[no test files]
+?   	github.com/wangle201210/go-rag/server/server	[no test files]
+

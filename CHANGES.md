@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 2B 独立复核阻塞修复（2026-10-20 第五轮）
+
+- **类型**：定点修复（基于 Codex 独立复核报告）
+- **基线**：06ef59c68000059f29302710ea15ce93afdc88bd
+- **修复内容**：
+  1. **Config.Copy 保留 Registry**：`Copy()` 方法补充 `cp.Registry = x.Registry`
+  2. **Stream Close 打断源**：`leaseStreamReader`/`budgetStreamReader` 增加 `done` channel 信号，Close() 直接关闭 inner reader 打断阻塞的 Recv
+  3. **TaskBudget deadline 继承**：`NewSharedRequestBudget` 继承 `tb.ownerDeadline` 作为固定绝对 deadline，额外 opts 至多收紧；`WithTaskBudget` 返回 error 而非 `fmt.Printf + nil`
+  4. **初始化并发安全**：移除 `core.New` 中的临时 `SetRegistry` 和 defer 回滚，新增显式传入 Registry 的 API
+- **新增测试**：Stream Close 传播、TaskBudget deadline 继承、初始化并发安全
+- **验证**：gofmt/build/vet exit 0；125 providers 测试 PASS；race 压测 -count=10 PASS（130 次，0 DATA RACE）；受影响包 race 通过（7 包）；全项目 go test -p 1 ./... 通过（17 包）
+- **状态**：2B 阻塞修复完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-20 第四轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

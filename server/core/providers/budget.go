@@ -429,6 +429,7 @@ func (tb *TaskBudget) Snapshot() BudgetSnapshot { return tb.s.snapshot() }
 
 // NewSharedRequestBudget 创建共享同一 scope 的 RequestBudget，供适配器消费。
 // 返回的 RequestBudget 与 TaskBudget 共享累计额度（不刷新），用于 Index 后台等场景。
+// Fix 3: 继承 tb.ownerDeadline 作为固定绝对 deadline，额外 opts 至多收紧（取更早者）。
 func (tb *TaskBudget) NewSharedRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error) {
 	cfg, err := newBudgetConfig(opts)
 	if err != nil {
@@ -437,15 +438,20 @@ func (tb *TaskBudget) NewSharedRequestBudget(ctx context.Context, opts ...Budget
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	var ownerDeadline time.Time
+	// Fix 3: 继承 tb.ownerDeadline 作为固定绝对 deadline
+	ownerDeadline := tb.ownerDeadline
+	// 额外 opts 至多收紧（取更早者），绝不刷新
 	if cfg.deadline > 0 {
-		ownerDeadline = time.Now().Add(cfg.deadline)
+		optsDeadline := time.Now().Add(cfg.deadline)
+		if ownerDeadline.IsZero() || optsDeadline.Before(ownerDeadline) {
+			ownerDeadline = optsDeadline
+		}
 	}
 	return &RequestBudget{
 		s:             tb.s, // 共享 scope → 累计额度不刷新
 		deadline:      cfg.deadline,
 		ownerCtx:      ctx,
-		ownerDeadline: ownerDeadline,
+		ownerDeadline: ownerDeadline, // Fix 3: 继承而非重建
 	}, nil
 }
 

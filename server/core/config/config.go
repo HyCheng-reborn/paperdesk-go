@@ -6,6 +6,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/qdrant/go-client/qdrant"
+	"github.com/wangle201210/go-rag/server/core/providers"
 )
 
 type Config struct {
@@ -28,6 +29,10 @@ type Config struct {
 
 	// Stage 2B: Provider 配置（可选，nil 时走旧路径）
 	Provider *ProviderConfig
+
+	// B5: 显式传入本次构建的 Registry，供 core.New 初始化时使用。
+	// 不通过全局变量获取，避免初始化顺序依赖。
+	Registry providers.ProviderRegistry
 }
 
 // ProviderConfig 是 Stage 2B 的 Provider 配置块。
@@ -76,6 +81,8 @@ func (x *Config) Copy() *Config {
 		QAMaxConcurrent:       x.QAMaxConcurrent,
 		MaxBackgroundTasks:    x.MaxBackgroundTasks,
 		BackgroundTaskTimeout: x.BackgroundTaskTimeout,
+		// B5: Registry 字段复制
+		Registry: x.Registry,
 	}
 	if x.Provider != nil {
 		p := *x.Provider

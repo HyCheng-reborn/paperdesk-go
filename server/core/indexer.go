@@ -81,7 +81,11 @@ func (p *prodAsyncIndexer) indexAsyncByDocsID(ctx context.Context, knowledgeName
 // B5: 入口创建 TaskBudget，后台通过 TransferToBackground 显式移交。
 func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error) {
 	// B5: 注入任务级预算 owner
-	ctx, taskBudget := common.WithTaskBudget(ctx)
+	// Fix 3: WithTaskBudget 现在返回 error
+	ctx, taskBudget, budgetErr := common.WithTaskBudget(ctx)
+	if budgetErr != nil {
+		return nil, fmt.Errorf("create task budget: %w", budgetErr)
+	}
 	// === 同步前准入 ===
 	x.mu.Lock()
 	if x.closed {

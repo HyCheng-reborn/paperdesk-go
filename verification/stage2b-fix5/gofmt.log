@@ -1,0 +1,6 @@
+# CMD: gofmt -l core/providers/ core/common/ core/config/ internal/logic/rag/ internal/logic/chat/ core/rag.go core/retriever.go core/indexer.go
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-20 12:14:55
+
+(no files need formatting)

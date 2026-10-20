@@ -45,6 +45,12 @@ func GetRegistry() providers.ProviderRegistry {
 }
 
 func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseChatModel, error) {
+	return GetChatModelWithRegistry(ctx, cfg, GetRegistry())
+}
+
+// GetChatModelWithRegistry 使用显式传入的 Registry 构造 Chat 模型。
+// Fix 4: 不依赖全局 Registry，避免初始化期间临时发布。
+func GetChatModelWithRegistry(ctx context.Context, cfg *openai.ChatModelConfig, reg providers.ProviderRegistry) (model.BaseChatModel, error) {
 	// Fix 5: cfg != nil 时直接构造，不查 Registry（显式配置不被静默忽略）
 	if cfg != nil {
 		cm, err := openai.NewChatModel(ctx, cfg)
@@ -53,9 +59,9 @@ func GetChatModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.BaseC
 		}
 		return cm, nil
 	}
-	// cfg == nil: 默认路径，优先使用 Registry
-	if r := GetRegistry(); r != nil {
-		chatRole, err := r.GetChat(ctx)
+	// cfg == nil: 优先使用显式传入的 Registry
+	if reg != nil {
+		chatRole, err := reg.GetChat(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("registry GetChat: %w", err)
 		}
@@ -98,6 +104,12 @@ func GetEmbeddingModel(ctx context.Context, cfg *openai.ChatModelConfig) (model.
 }
 
 func GetRewriteModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	return GetRewriteModelWithRegistry(ctx, cfg, GetRegistry())
+}
+
+// GetRewriteModelWithRegistry 使用显式传入的 Registry 构造 Rewrite 模型。
+// Fix 4: 不依赖全局 Registry。
+func GetRewriteModelWithRegistry(ctx context.Context, cfg *qwen.ChatModelConfig, reg providers.ProviderRegistry) (model.BaseChatModel, error) {
 	// Fix 5: cfg != nil 时直接构造，不查 Registry
 	if cfg != nil {
 		cm, err := qwen.NewChatModel(ctx, cfg)
@@ -106,9 +118,9 @@ func GetRewriteModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.Base
 		}
 		return cm, nil
 	}
-	// cfg == nil: 默认路径，优先使用 Registry
-	if r := GetRegistry(); r != nil {
-		chatRole, err := r.GetRewrite(ctx)
+	// cfg == nil: 优先使用显式传入的 Registry
+	if reg != nil {
+		chatRole, err := reg.GetRewrite(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("registry GetRewrite: %w", err)
 		}
@@ -236,13 +248,19 @@ var qaDefaultCache = &qaModelCache{
 // GetQAModel 公开入口，委派给生产默认实例；保留签名与成功缓存行为。
 // Fix 5: cfg != nil 时直接构造，不查 Registry。
 func GetQAModel(ctx context.Context, cfg *qwen.ChatModelConfig) (model.BaseChatModel, error) {
+	return GetQAModelWithRegistry(ctx, cfg, GetRegistry())
+}
+
+// GetQAModelWithRegistry 使用显式传入的 Registry 构造 QA 模型。
+// Fix 4: 不依赖全局 Registry，避免初始化期间临时发布。
+func GetQAModelWithRegistry(ctx context.Context, cfg *qwen.ChatModelConfig, reg providers.ProviderRegistry) (model.BaseChatModel, error) {
 	// Fix 5: cfg != nil 时直接构造，不查 Registry
 	if cfg != nil {
 		return qaDefaultCache.get(ctx, cfg)
 	}
-	// cfg == nil: 默认路径，优先使用 Registry
-	if r := GetRegistry(); r != nil {
-		chatRole, err := r.GetQA(ctx)
+	// cfg == nil: 优先使用显式传入的 Registry
+	if reg != nil {
+		chatRole, err := reg.GetQA(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("registry GetQA: %w", err)
 		}

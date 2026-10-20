@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/cloudwego/eino/components/embedding"
 	"github.com/cloudwego/eino/components/model"
@@ -332,6 +333,7 @@ func extractUsageFromMessage(msg *schema.Message) *model.TokenUsage {
 // ---------------------------------------------------------------------------
 
 // budgetStreamReader 包装 StreamReader，通过 Recv/Close 单一所有权终结 lease。
+// Fix 4: Close 时直接关闭 inner 以打断可能阻塞的 Recv，确保 goroutine 退出。
 type budgetStreamReader struct {
 	inner     *schema.StreamReader[*schema.Message]
 	lease     *AttemptLease
@@ -339,6 +341,7 @@ type budgetStreamReader struct {
 	closeOnce sync.Once
 	lastUsage *model.TokenUsage
 	mu        sync.Mutex
+	done      chan struct{} // 信号：goroutine 已退出
 }
 
 func (w *budgetStreamReader) Recv() (*schema.Message, error) {
@@ -361,8 +364,15 @@ func (w *budgetStreamReader) Recv() (*schema.Message, error) {
 
 func (w *budgetStreamReader) Close() {
 	w.closeOnce.Do(func() {
+		// Fix 4: 直接关闭 inner 以打断可能阻塞的 Recv，确保 goroutine 退出
 		w.inner.Close()
 	})
+	// 等待 goroutine 退出（有限等待，避免无限阻塞）
+	select {
+	case <-w.done:
+	case <-time.After(100 * time.Millisecond):
+		// 超时：goroutine 可能仍在阻塞，但 lease 仍需终结
+	}
 	w.finalize(nil)
 }
 
@@ -380,15 +390,16 @@ func (w *budgetStreamReader) finalize(err error) {
 }
 
 // wrapBudgetStreamReader 包装 StreamReader，使用 budgetStreamReader 单一所有权终结。
-// 所有权链：下游 Close/取消 → writer.Send 返回 true → 源 Close → lease 终结 → goroutine 退出。
-// Fix 2: goroutine 退出时确保源 reader 被关闭，避免连接泄漏。
+// Fix 4: goroutine 退出时终结 lease，不依赖消费者调用 Close。
 func wrapBudgetStreamReader(sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
 	reader, writer := schema.Pipe[*schema.Message](1)
-	bsr := &budgetStreamReader{inner: sr, lease: lease}
+	bsr := &budgetStreamReader{inner: sr, lease: lease, done: make(chan struct{})}
 
 	go func() {
+		defer close(bsr.done)
 		defer writer.Close()
-		defer bsr.Close() // Fix 2: 确保源 reader 被关闭
+		defer bsr.inner.Close()
+		defer bsr.finalize(nil) // Fix 4: goroutine 退出时终结 lease
 		for {
 			chunk, err := bsr.Recv()
 			if err != nil {
@@ -397,9 +408,7 @@ func wrapBudgetStreamReader(sr *schema.StreamReader[*schema.Message], lease *Att
 				}
 				return
 			}
-			// Eino v0.6.0: Send 返回 true 表示 pipe 已关闭（下游 Close/取消）
 			if writer.Send(chunk, nil) {
-				// 下游已关闭
 				return
 			}
 		}

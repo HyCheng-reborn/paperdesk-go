@@ -1,5 +1,25 @@
 # 变更记录
 
+### Stage 2B 受控流会话方案（2026-10-20 第八轮）
+
+- **类型**：架构重构（基于 Eino v0.6.0 API 限制的真实关闭机制）
+- **基线**：db8ceede9bb0e7475a3bb5b5a82e853063da5d49
+- **核心设计**：
+  1. **StreamSession 受控会话**：Provider 返回显式拥有的流生命周期句柄
+  2. **Close 确定链路**：取消 derivedCtx → 中断 HTTP body read → 等待转发退出 → 终结 lease
+  3. **recv/转发 goroutine 分离**：recv goroutine 桥接阻塞 Recv 到 dataCh，转发 goroutine select 监听 dataCh 和 cancelSig
+  4. **移除 finalizer 作为正确性机制**
+  5. **移除 lease==nil 后台抢读 goroutine**：统一 Pipe 转发模式
+- **修改文件**：
+  - 新增 `core/providers/stream_session.go` — StreamSession 类型和 StreamSessioner 接口
+  - 新增 `core/providers/stream_session_test.go` — 9 个综合测试
+  - 重构 `core/providers/bailian/chat.go` — 统一 Pipe 转发、移除 finalizer
+  - 重构 `core/providers/budget_adapter.go` — recv/转发分离架构
+  - 重构 `internal/logic/chat/chat.go` — StreamSessioner 类型断言、setupSessionCoordinator
+  - 适配 `core/providers/stream_close_test.go` — 新签名
+- **验证**：gofmt/build/vet exit 0；真实关闭路径 10/10 PASS；StreamSession 综合 90 PASS（9 tests × 10 rounds）；受影响包 race 通过（8 包）；全项目 go test -p 1 ./... 通过（16 包）
+- **状态**：2B 受控流会话方案完成待再次复核
+
 ### Stage 2B 独立复核阻塞修复（2026-10-20 第七轮）
 
 - **类型**：定点修复（基于 Codex 独立复核报告）

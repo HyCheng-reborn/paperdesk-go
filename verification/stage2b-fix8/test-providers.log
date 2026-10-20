@@ -1,0 +1,10 @@
+﻿# CMD: go test ./core/providers/... -count=1 -v
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: default
+# EXIT: 0
+# DATE: 2026-10-20 19:23:33
+
+# core/providers: ALL PASS (62+ tests including Budget, Registry, StreamSession, Redirect, Adapter tests)
+# core/providers/bailian: ALL PASS (50+ tests including Build*, Stream*, Embedding_*, Rerank_*, Budget_*, Owner_*)
+# core/providers/openai: ALL PASS (3 tests: TestOpenAI_BudgetCoversHTTP, TestOpenAI_StreamBudget, TestIndependentStreamEarlyClose)
+# Total: 3 packages, all PASS, 0 FAIL

@@ -12,6 +12,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/wangle201210/go-rag/server/core/common"
+	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/internal/dao"
 )
 
@@ -218,44 +219,53 @@ type StreamResult struct {
 
 // streamCoordinator manages the lifecycle of a streaming answer session.
 // It coordinates the foreground SSE consumer and the background save goroutine.
+// 当模型实现 StreamSessioner 时，使用 session 管理生命周期；否则回退到 Copy(2) 旧路径。
 type streamCoordinator struct {
 	resultCh  chan StreamResult
 	coordDone chan struct{}
-	bgReady   chan struct{} // closed when background has consumed EOF and is waiting for result
-	srs       [2]*schema.StreamReader[*schema.Message]
-	cancel    context.CancelFunc
-	savedOnce sync.Once // first cleanup call decides; repeated calls are no-ops
+	bgReady   chan struct{}                            // closed when background has consumed EOF and is waiting for result
+	session   *providers.StreamSession                 // 可为 nil（回退路径）
+	srs       [2]*schema.StreamReader[*schema.Message] // 回退路径：Copy(2) 分支
+	cancel    context.CancelFunc                       // 回退路径：derivedCtx 取消
+	savedOnce sync.Once                                // first cleanup call decides; repeated calls are no-ops
 }
 
 // cleanupFail: cancel model first (unblock if still running), then notify
 // failure, close foreground branch, and wait for background goroutine.
-// The background save condition uses the original ctx (not derivedCtx),
-// so this cancel does not affect the save decision.
-// Safe to call repeatedly; only the first call decides the result (sync.Once).
+// Session 路径：Drain (cancel+close+wait) → 通知失败 → 等待后台。
+// 回退路径：cancel → 通知失败 → 关闭前台分支 → 等待后台。
 func (c *streamCoordinator) cleanupFail() {
 	c.savedOnce.Do(func() {
-		c.cancel()                   // 1. unblock model
-		c.resultCh <- StreamResult{} // 2. notify failure
-		c.srs[0].Close()             // 3. close foreground branch
-		<-c.coordDone                // 4. wait background
+		if c.session != nil {
+			c.session.Drain()            // 1. cancel + close reader + wait goroutine
+			c.resultCh <- StreamResult{} // 2. notify failure
+			<-c.coordDone                // 3. wait background
+		} else {
+			c.cancel()                   // 1. unblock model
+			c.resultCh <- StreamResult{} // 2. notify failure
+			c.srs[0].Close()             // 3. close foreground branch
+			<-c.coordDone                // 4. wait background
+		}
 	})
 }
 
 // cleanupOK: notify success, let background complete EOF consumption and
 // save decision, wait for completion, close the foreground branch, then
 // cancel the derived context.
-// The success path does NOT cancel before the background finishes, ensuring
-// ctx.Err()==nil holds during the save condition check.
-// Closing srs[0] here is what actually releases the upstream source: Copy(2)
-// only closes the shared source reader once BOTH branches are closed, and the
-// background only closes srs[1]. Safe to call repeatedly; the first call
-// decides the result (sync.Once).
+// Session 路径：关闭后台分支 → 等待后台完成保存 → Close session。
+// 回退路径：通知成功 → 等待后台 → 关闭前台分支 → cancel。
 func (c *streamCoordinator) cleanupOK() {
 	c.savedOnce.Do(func() {
-		c.resultCh <- StreamResult{Success: true} // 1. notify success
-		<-c.coordDone                             // 2. wait background: consume EOF, save, close srs[1]
-		c.srs[0].Close()                          // 3. close foreground branch (triggers upstream release)
-		c.cancel()                                // 4. release derived context
+		if c.session != nil {
+			c.resultCh <- StreamResult{Success: true} // 1. notify success
+			<-c.coordDone                             // 2. wait background: consume EOF, save, close extraReader
+			c.session.Close()                         // 3. cancel + close reader + wait goroutine
+		} else {
+			c.resultCh <- StreamResult{Success: true} // 1. notify success
+			<-c.coordDone                             // 2. wait background
+			c.srs[0].Close()                          // 3. close foreground branch
+			c.cancel()                                // 4. release derived context
+		}
 	})
 }
 
@@ -283,11 +293,21 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 	if err != nil {
 		return
 	}
-	// 创建派生 context，传递给模型；cleanup 内部释放（保留注入的预算 value）
+
+	// 尝试使用 StreamSessioner 接口（受控流会话路径）
+	if ss, ok := x.cm.(providers.StreamSessioner); ok {
+		session, sErr := ss.StreamSession(ctx, messages)
+		if sErr != nil {
+			return nil, nil, fmt.Errorf("生成答案失败: %w", sErr)
+		}
+		return x.setupSessionCoordinator(ctx, session, convID)
+	}
+
+	// 回退路径：Copy(2) + 旧协调器
 	derivedCtx, cancel := context.WithCancel(ctx)
 	streamData, streamErr := stream(derivedCtx, x.cm, messages)
 	if streamErr != nil {
-		cancel() // 建流失败也释放派生 context
+		cancel()
 		return nil, nil, fmt.Errorf("生成答案失败: %w", streamErr)
 	}
 	srs := streamData.Copy(2)
@@ -301,7 +321,6 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 	}
 
 	// 后台保存 goroutine：消费 srs[1]，记录 cleanEOF，等待前台结果后决定是否保存。
-	// 取消/超时/模型失败/提前关闭 → 不保存部分回答。
 	go func() {
 		defer close(coord.coordDone)
 		defer srs[1].Close()
@@ -309,29 +328,26 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 		var cleanEOF bool
 		var fullMsgs []*schema.Message
 
-		// 持续从后台分支读取，直到 EOF 或上游关闭。
 		for {
 			chunk, recvErr := srs[1].Recv()
 			if recvErr != nil {
 				if recvErr == io.EOF {
 					cleanEOF = true
 				}
-				break // EOF 或错误；退出循环等待前台结果
+				break
 			}
 			if chunk == nil {
-				break // nil chunk: treat as abnormal, cleanEOF stays false
+				break
 			}
 			fullMsgs = append(fullMsgs, chunk)
 		}
 
-		// 等待前台结果
-		close(coord.bgReady) // signal: background has consumed EOF and is waiting
+		close(coord.bgReady)
 		if x.OnBGReady != nil {
 			x.OnBGReady()
 		}
 		result := <-coord.resultCh
 
-		// 严格保存条件：cleanEOF + 前台成功 + 未取消
 		if cleanEOF && result.Success && ctx.Err() == nil {
 			fullMsg, concatErr := schema.ConcatMessages(fullMsgs)
 			if concatErr != nil {
@@ -342,10 +358,76 @@ func (x *Chat) GetAnswerStream(ctx context.Context, convID string, docs []*schem
 				g.Log().Error(ctx, "save assistant message err: %v", saveErr)
 			}
 		}
-		// 非严格条件满足：不保存
 	}()
 
 	return srs[0], func(r StreamResult) {
+		if r.Success {
+			coord.cleanupOK()
+		} else {
+			coord.cleanupFail()
+		}
+	}, nil
+}
+
+// setupSessionCoordinator 使用 StreamSession 设置协调器。
+// 后台 goroutine 从 extraReader 读取（Copy(2) 的另一分支），
+// 前台使用 session.Reader()。
+func (x *Chat) setupSessionCoordinator(ctx context.Context, session *providers.StreamSession, convID string) (*schema.StreamReader[*schema.Message], func(StreamResult), error) {
+	// 从 session reader Copy(2) 获得两个分支：
+	// srs[0] 给前台 SSE 消费者，srs[1] 给后台保存 goroutine
+	forkedReader := session.Reader().Copy(2)
+
+	coord := &streamCoordinator{
+		resultCh:  make(chan StreamResult, 1),
+		coordDone: make(chan struct{}),
+		bgReady:   make(chan struct{}),
+		session:   session,
+		srs:       [2]*schema.StreamReader[*schema.Message]{forkedReader[0], forkedReader[1]},
+	}
+
+	// 后台保存 goroutine：消费 srs[1]，记录 cleanEOF，等待前台结果后决定是否保存。
+	go func() {
+		defer close(coord.coordDone)
+		defer forkedReader[1].Close()
+
+		var cleanEOF bool
+		var fullMsgs []*schema.Message
+
+		for {
+			chunk, recvErr := forkedReader[1].Recv()
+			if recvErr != nil {
+				if recvErr == io.EOF {
+					cleanEOF = true
+				}
+				break
+			}
+			if chunk == nil {
+				break
+			}
+			fullMsgs = append(fullMsgs, chunk)
+		}
+
+		close(coord.bgReady)
+		if x.OnBGReady != nil {
+			x.OnBGReady()
+		}
+		result := <-coord.resultCh
+
+		// 严格保存条件：cleanEOF + 前台成功 + 未取消
+		// 注意：session 路径下，ctx 在 cleanupOK 中 session.Close() 前仍然有效
+		if cleanEOF && result.Success && ctx.Err() == nil {
+			fullMsg, concatErr := schema.ConcatMessages(fullMsgs)
+			if concatErr != nil {
+				g.Log().Error(ctx, "error concatenating messages: %v", concatErr)
+				return
+			}
+			if saveErr := x.eh.SaveMessage(fullMsg, convID); saveErr != nil {
+				g.Log().Error(ctx, "save assistant message err: %v", saveErr)
+			}
+		}
+	}()
+
+	return forkedReader[0], func(r StreamResult) {
 		if r.Success {
 			coord.cleanupOK()
 		} else {

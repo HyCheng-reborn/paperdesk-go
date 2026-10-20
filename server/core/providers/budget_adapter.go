@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"sync"
 
 	"github.com/cloudwego/eino/components/embedding"
@@ -64,6 +63,16 @@ func (b *budgetChatRole) Generate(ctx context.Context, messages []*schema.Messag
 }
 
 func (b *budgetChatRole) Stream(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	session, err := b.StreamSession(ctx, messages, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return session.Reader(), nil
+}
+
+// StreamSession 返回受控流会话，管理预算 lease 生命周期。
+// 内层 ChatRole 若实现 StreamSessioner，则使用其会话；否则回退到普通 Stream。
+func (b *budgetChatRole) StreamSession(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*StreamSession, error) {
 	if len(messages) == 0 {
 		return nil, fmt.Errorf("providers: empty messages")
 	}
@@ -79,31 +88,39 @@ func (b *budgetChatRole) Stream(ctx context.Context, messages []*schema.Message,
 		lease.Commit()
 	}
 
-	// Fix 7: 派生可取消 ctx，传递给 inner Stream。
-	// 转发 goroutine 退出时 cancel()，中断底层 HTTP 请求（安全网）。
+	// 创建派生 ctx，传递给内层 Stream/StreamSession。
+	// cancel 时取消此 ctx → 内层 writer 关闭 → 转发 goroutine 的 Recv 解除阻塞。
 	streamCtx, streamCancel := context.WithCancel(ctx)
-	sr, err := b.inner.Stream(streamCtx, messages, opts...)
-	if err != nil {
-		streamCancel()
-		if lease != nil {
-			lease.Abort(err)
-		}
-		return nil, err
-	}
-	if lease == nil {
-		// 无 lease 时仍需保证 goroutine 退出后 cancel
-		go func() {
-			defer streamCancel()
-			for {
-				_, recvErr := sr.Recv()
-				if recvErr != nil {
-					return
-				}
+
+	// 获取内层 reader：优先使用 StreamSessioner 接口
+	var innerReader *schema.StreamReader[*schema.Message]
+	var innerSession *StreamSession
+	if ss, ok := b.inner.(StreamSessioner); ok {
+		var sErr error
+		innerSession, sErr = ss.StreamSession(streamCtx, messages, opts...)
+		if sErr != nil {
+			streamCancel()
+			if lease != nil {
+				lease.Abort(sErr)
 			}
-		}()
-		return sr, nil
+			return nil, sErr
+		}
+		innerReader = innerSession.Reader()
+	} else {
+		// 回退：直接调用 inner.Stream
+		var rErr error
+		innerReader, rErr = b.inner.Stream(streamCtx, messages, opts...)
+		if rErr != nil {
+			streamCancel()
+			if lease != nil {
+				lease.Abort(rErr)
+			}
+			return nil, rErr
+		}
 	}
-	return wrapBudgetStreamReader(streamCtx, streamCancel, sr, lease), nil
+
+	// 包装 Pipe 转发，附加预算 lease 追踪
+	return wrapBudgetStreamReader(streamCancel, innerReader, lease, innerSession), nil
 }
 
 func (b *budgetChatRole) reserveBudget(ctx context.Context, est *TokenEstimate) (*AttemptLease, error) {
@@ -376,6 +393,9 @@ func (w *budgetStreamReader) Recv() (*schema.Message, error) {
 
 func (w *budgetStreamReader) finalize(err error) {
 	w.once.Do(func() {
+		if w.lease == nil {
+			return // 无 lease 时 finalize 为 no-op
+		}
 		w.mu.Lock()
 		usage := w.lastUsage
 		w.mu.Unlock()
@@ -387,42 +407,98 @@ func (w *budgetStreamReader) finalize(err error) {
 	})
 }
 
-// wrapBudgetStreamReader 包装 StreamReader，返回 pipe reader 供业务消费。
-// 转发 goroutine 在后台从 bsr.Recv() 读取数据并写入 pipe writer；
-// 当 writer.Send 返回 false（消费者已关闭）或源 EOF 时退出。
-// lease 终结由转发 goroutine 的 defer 保证，不依赖消费者调用 Close。
+// wrapBudgetStreamReader 包装 StreamReader，返回 *StreamSession 供业务消费。
 //
-// streamCancel 是派生 ctx 的取消函数；转发 goroutine 退出时调用，
-// 中断底层 HTTP 请求（安全网：确保 body read 不悬挂）。
-func wrapBudgetStreamReader(_ context.Context, streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease) *schema.StreamReader[*schema.Message] {
+// 架构：recv goroutine + 转发 goroutine 分离模式。
+//   - recv goroutine：阻塞在 inner Recv，将结果发送到 dataCh（buffer=1，永不阻塞）。
+//     当 inner 返回 EOF/错误时退出。
+//   - 转发 goroutine：select { dataCh → budgetWriter; done → return }。
+//     当 cancel 关闭 done 时立即退出，不阻塞在 inner Recv。
+//
+// 这解决了 Eino StreamReader.Recv() 只响应 writer 关闭（closeSend），
+// 不响应 reader 关闭（closeRecv）或 ctx 取消的问题。
+//
+// streamCancel 是派生 ctx 的取消函数。cancel 时：
+//  1. streamCancel → 取消内层 ctx（生产环境中断 HTTP body read）
+//  2. 关闭内层 session（若有）释放底层 HTTP 连接
+//  3. 关闭 done → 转发 goroutine 立即退出
+//
+// recv goroutine 在 inner producer 响应 ctx 取消后自然退出。
+// 不使用 runtime.SetFinalizer，正确性由 StreamSession.Close/Drain 保证。
+func wrapBudgetStreamReader(streamCancel context.CancelFunc, sr *schema.StreamReader[*schema.Message], lease *AttemptLease, innerSession *StreamSession) *StreamSession {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	bsr := &budgetStreamReader{inner: sr, lease: lease}
+	done := make(chan struct{})      // 转发 goroutine 退出信号
+	cancelSig := make(chan struct{}) // cancel 信号，独立于 done
 
+	// closeInnerOnce 保护内层 reader 幂等关闭（innerSession.Close 和转发 goroutine defer 均可调用）。
+	var closeInnerOnce sync.Once
+	closeInner := func() {
+		closeInnerOnce.Do(func() { sr.Close() })
+	}
+
+	// cancel：仅取消派生 ctx + 关闭 cancelSig 解除转发 goroutine。
+	// 内层 session 由转发 goroutine 的 defer 关闭（避免与 closeInner 双重关闭同一 reader）。
+	cancel := func() {
+		streamCancel()
+		select {
+		case <-cancelSig:
+		default:
+			close(cancelSig)
+		}
+	}
+
+	// recv goroutine：桥接阻塞 Recv 到 dataCh。
+	type recvItem struct {
+		chunk *schema.Message
+		err   error
+	}
+	dataCh := make(chan recvItem, 1)
 	go func() {
-		defer streamCancel() // 安全网：goroutine 退出时取消 ctx，中断底层 HTTP 请求
-		defer writer.Close()
-		defer bsr.inner.Close()
-		defer bsr.finalize(nil)
 		for {
 			chunk, err := bsr.Recv()
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					writer.Send(nil, err)
-				}
+			select {
+			case dataCh <- recvItem{chunk, err}:
+			case <-cancelSig:
 				return
 			}
-			if writer.Send(chunk, nil) {
+			if err != nil {
 				return
 			}
 		}
 	}()
 
-	// Finalizer: 当 consumer 调用 Close 后释放 reader 引用，GC 回收时触发 streamCancel。
-	// reader 仅被 consumer 持有（goroutine 持有 writer，不持有 reader），
-	// consumer Close 后 reader 不可达 → finalizer 运行 → cancel → 源中断。
-	runtime.SetFinalizer(reader, func(_ *schema.StreamReader[*schema.Message]) {
-		streamCancel()
-	})
+	// 转发 goroutine：select 监听数据和 cancelSig。
+	go func() {
+		defer close(done)    // 通知 StreamSession 转发已完成
+		defer writer.Close() // 关闭 pipe writer，通知消费者流结束
+		// 关闭内层 session（级联取消 HTTP ctx + 关闭内层 reader + 等待内层 goroutine）。
+		// 若 innerSession 为 nil，则直接关闭内层 reader。
+		defer func() {
+			if innerSession != nil {
+				innerSession.Close() // 内部已包含 reader 关闭，不重复调用 closeInner
+			} else {
+				closeInner() // 无 session 时直接关闭 reader
+			}
+		}()
+		defer bsr.finalize(nil) // 终结 lease（nil lease 时为 no-op）
+		for {
+			select {
+			case item := <-dataCh:
+				if item.err != nil {
+					if !errors.Is(item.err, io.EOF) {
+						writer.Send(nil, item.err)
+					}
+					return
+				}
+				if writer.Send(item.chunk, nil) {
+					return
+				}
+			case <-cancelSig:
+				return
+			}
+		}
+	}()
 
-	return reader
+	return NewStreamSession(reader, cancel, done, lease)
 }

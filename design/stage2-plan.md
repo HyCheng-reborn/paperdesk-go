@@ -419,6 +419,8 @@ type RequestBudget struct {
 
 权威解析入口为 `config.ResolveEmbeddingDimensions`：旧模式 `embedding.dimensions`；Provider Embedding 模式优先 `provider.embedding_dimensions`，缺失时仅接受显式 legacy 维度作为 fallback。两处显式值不同拒绝；新 Provider 模型两处都缺失拒绝，不借用旧模型默认。仅旧模式缺失时在此边界默认 1024。YAML 显式零、负数、浮点、字符串和布尔拒绝；Go 配置结构的零表示未指定。Provider 只有 Chat 等角色而没有 Embedding 时不改变旧 Embedding 来源；孤立的 provider embedding_dimensions 报错。
 
+默认 GoFrame 文件入口另检查原始来源的 YAML 标量类型，不能把归一化后的整数 json.Number 当作原文本一定为整数的证据。使用公开 GetContent/GetFilePath/gres API 保持 SetContent→资源→磁盘优先级，以锁定 gyaml 解码保留 float 类型（JSON/TOML 正整数兼容）；原始来源与有效维度不同报冲突，不静默采用 AdapterFile.Set 的维度覆盖。自定义非文件适配器只提供 typed values，不存在可恢复的原始 YAML 信息，仍按严格 typed-value 契约；其原始输入校验由适配器提供方负责，本批未新增该类生产入口。
+
 解析结果 → RagConfig → VectorCfg / core.Config（Copy 保留）→ Profile 声明、Embedding 请求、同步/异步 Qdrant VectorDim、query/document embedder、共享 ESMapping/QdrantCollection。InitWith 在任何工厂调用前拒绝下游 VectorCfg 显式冲突。模型不支持可选 dimensions 参数时保留旧请求协议，返回长度必须符合声明，否则在写入/检索前失败；这不证明模型身份兼容。
 
 实际创建主链为 `defaultRagFactory → core.New → Config.IndexExists/CreateIndex`。`vector.*.CreateIndex` 是另一公开路径；`common.CreateIndexIfNotExists` 是仓内未被生产调用的 deprecated 入口。三者都调用配置包共享 schema，不再各自选择 1024。Qdrant SDK 在 indexer 构造时还有 ensureCollection 路径，其 VectorDim 也已贯通。同步、异步、检索当前分别构造 embedder，但使用同一已解析配置；不是假定全程只有一个 embedder 对象。

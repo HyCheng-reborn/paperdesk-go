@@ -732,5 +732,12 @@ func readEmbeddingDimensions(ctx context.Context, getter configGetter) (int, int
 			return 0, 0, fmt.Errorf("%s: %w", key, err)
 		}
 	}
+	// Only the production default getter has an original file source to validate.
+	// Fake/programmatic getters retain the typed-value contract.
+	if _, ok := getter.(*defaultConfigGetter); ok {
+		if err := verifyFileDimensionSource(g.Cfg().GetAdapter(), values); err != nil {
+			return 0, 0, err
+		}
+	}
 	return values[0], values[1], nil
 }

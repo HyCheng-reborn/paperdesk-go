@@ -1,5 +1,12 @@
 # 变更记录
 
+### Stage 2C-1 原始 YAML 类型边界修复（2026-10-21，待独立复核）
+
+- 基线 `8611750bb89dbf0de268b04a212ca873d500cb6f`。默认文件适配器的 YAML→JSON 重编码会把整数值浮点/指数变成整数 json.Number；现在通过公开原始内容 API，在 JSON 归一化之外检查 YAML 原始类型，并核对来源值与有效值。
+- 覆盖磁盘文件、SetContent、YAML alias/merge；保留 JSON/TOML 正整数配置与程序化 typed-value 解析。新增真实链测试验证两入口 768.0/1e3/1.0e3 拒绝，原 P1 合法整数仍通过。证据另存 verification/stage2c1-fix2/。
+- 未修改 schema、预算/流、门禁或 fingerprint；2C-1 待独立复核，2C-2 仍仅设计建议。
+
+
 ### Stage 2C-1 真实 YAML 数值入口修复（2026-10-21，待独立复核）
 
 - 基线 `1850da1fcff2e66c1ed61594139e7e2e068fd775`。共享解析器严格支持 GoFrame 文件适配器的 `json.Number`，保留普通字符串、小数/指数、布尔、零/负数及溢出拒绝。

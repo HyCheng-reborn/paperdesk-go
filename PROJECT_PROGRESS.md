@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-21
-**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2A 已闭合 race 验收（E1）；Stage 2B 已在既定离线范围内通过独立复核**（被验收完整 SHA `c15287a71a61f2b3c0d619c071265d08c76d3555`，修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`，未发现剩余阻塞）。2C-1 维度配置单源贯通及真实 YAML json.Number 入口修复实施完成，待独立复核；2C-2 设计建议待确认（design/stage2-plan.md §5.8）；2C-3/2D 未实施，2C 未整体完成；**不宣布整个 Stage 2 完成**。
+**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2A 已闭合 race 验收（E1）；Stage 2B 已在既定离线范围内通过独立复核**（被验收完整 SHA `c15287a71a61f2b3c0d619c071265d08c76d3555`，修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`，未发现剩余阻塞）。2C-1 维度配置单源贯通及真实 YAML json.Number 及原始小数/指数类型边界修复实施完成，待独立复核；2C-2 设计建议待确认（design/stage2-plan.md §5.8）；2C-3/2D 未实施，2C 未整体完成；**不宣布整个 Stage 2 完成**。
 **复核方式**：1-Pre/1A/1B/1C/1D-1/1D-2 为源码及提交日志复核，复核方未独立重跑测试；**1D-3 由本地 Codex 在干净工作树独立重跑**（普通/race/关键用例十轮/串行全量/build/vet，见 1D-3 验收记录）
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`；**Stage 2A 目标 `df260ddfb12694e7064d74fb63cc1c228f8ebbfe`（E1 race 已闭合，见 verification/stage2a-race-evidence-r2/）**；**Stage 2B 已验收 `c15287a71a61f2b3c0d619c071265d08c76d3555`（修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`）**
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`

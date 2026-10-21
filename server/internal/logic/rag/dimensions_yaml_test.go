@@ -91,7 +91,7 @@ func TestDimensions_YAMLFileProductionChain(t *testing.T) {
 }
 func TestDimensions_YAMLFileInvalidAndConflict(t *testing.T) {
 	for _, key := range []string{"legacy", "provider"} {
-		for _, value := range []string{"0", "-1", `"768"`, "1.5", "true", "9223372036854775808"} {
+		for _, value := range []string{"0", "-1", `"768"`, "1.5", "768.0", "1e3", "1.0e3", "true", "9223372036854775808"} {
 			t.Run(fmt.Sprintf("%s/%s", key, value), func(t *testing.T) {
 				legacy, provider := "", ""
 				if key == "legacy" {
@@ -117,4 +117,117 @@ func TestDimensions_YAMLFileInvalidAndConflict(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+// SetContent has precedence over any disk path in AdapterFile. It must be
+// checked using original bytes too; checking only files would leave a bypass.
+func dimensionsSourceContent(t *testing.T, content string) *gcfg.AdapterFile {
+	t.Helper()
+	name := filepath.Join(t.TempDir(), "content.yaml")
+	a, err := gcfg.NewAdapterFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.SetContent(content, name)
+	old := g.Cfg().GetAdapter()
+	g.Cfg().SetAdapter(a)
+	t.Cleanup(func() { g.Cfg().SetAdapter(old); a.RemoveContent(name) })
+	return a
+}
+func TestDimensions_YAMLSetContentTypes(t *testing.T) {
+	for _, key := range []string{"embedding", "provider"} {
+		for _, value := range []string{"768", "768.0", "1e3", "1.0e3"} {
+			t.Run(key+"/"+value, func(t *testing.T) {
+				field := "dimensions"
+				if key == "provider" {
+					field = "embedding_dimensions"
+				}
+				dimensionsSourceContent(t, "vector:\n  type: es\n  indexName: offline\n"+key+":\n  "+field+": "+value+"\n")
+				c, err := readRagConfig()
+				if value != "768" {
+					if !errors.Is(err, config.ErrEmbeddingDimensions) {
+						t.Fatal("normalized float accepted", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := c.EmbeddingDimensions
+				if key == "provider" {
+					got = c.Provider.EmbeddingDimensions
+				}
+				if got != 768 {
+					t.Fatal(got)
+				}
+			})
+		}
+	}
+}
+func TestDimensions_YAMLAliasesAndMerge(t *testing.T) {
+	for _, key := range []string{"embedding", "provider"} {
+		for _, value := range []string{"768", "768.0", "1e3", "1.0e3"} {
+			t.Run(key+"/"+value, func(t *testing.T) {
+				field := "dimensions"
+				if key == "provider" {
+					field = "embedding_dimensions"
+				}
+				content := "defaults: &settings\n  " + field + ": " + value + "\nvector:\n  type: es\n  indexName: offline\n" + key + ":\n  <<: *settings\n"
+				dimensionsSourceContent(t, content)
+				c, err := readRagConfig()
+				if value != "768" {
+					if !errors.Is(err, config.ErrEmbeddingDimensions) {
+						t.Fatal("merged float accepted", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := c.EmbeddingDimensions
+				if key == "provider" {
+					got = c.Provider.EmbeddingDimensions
+				}
+				if got != 768 {
+					t.Fatal(got)
+				}
+			})
+		}
+	}
+}
+func TestDimensions_SourceEffectiveMismatch(t *testing.T) {
+	a := dimensionsSourceContent(t, "vector:\n  type: es\n  indexName: offline\nembedding:\n  dimensions: 768\n")
+	if _, err := readRagConfig(); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Set("embedding.dimensions", 512); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readRagConfig(); !errors.Is(err, config.ErrEmbeddingDimensionConflict) {
+		t.Fatal("source/effective conflict ignored", err)
+	}
+}
+
+func TestDimensions_JSONTOMLSourceCompatibility(t *testing.T) {
+	for _, format := range []string{"json", "toml"} {
+		for _, value := range []string{"768", "768.0", "1e3"} {
+			t.Run(format+"/"+value, func(t *testing.T) {
+				content := `{"vector":{"type":"es","indexName":"offline"},"embedding":{"dimensions":` + value + `}}`
+				if format == "toml" {
+					content = "[vector]\ntype = \"es\"\nindexName = \"offline\"\n[embedding]\ndimensions = " + value + "\n"
+				}
+				dimensionsSourceContent(t, content)
+				c, err := readRagConfig()
+				if value != "768" {
+					if !errors.Is(err, config.ErrEmbeddingDimensions) {
+						t.Fatal("non-integer source accepted", err)
+					}
+					return
+				}
+				if err != nil || c.EmbeddingDimensions != 768 {
+					t.Fatal(c, err)
+				}
+			})
+		}
+	}
 }

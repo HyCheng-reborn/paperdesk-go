@@ -1,5 +1,12 @@
 # 变更记录
 
+### Stage 2C-1 真实 YAML 数值入口修复（2026-10-21，待独立复核）
+
+- 基线 `1850da1fcff2e66c1ed61594139e7e2e068fd775`。共享解析器严格支持 GoFrame 文件适配器的 `json.Number`，保留普通字符串、小数/指数、布尔、零/负数及溢出拒绝。
+- 新增真实临时 YAML 文件 → 默认 AdapterFile → g.Cfg → readRagConfig → normalizeDimensions/InitWith 门禁回归：legacy/provider 合法值、缺失、非法、冲突。修复前失败与修复后结果分别保存于 verification/stage2c1-fix1/。
+- 方案 §5.8 细化 manifest 双写恢复、唯一物理名、alias 固定和受控创建规则，仅后续设计约束，未实现或解除门禁。
+
+
 ### Stage 2C-1 维度单源贯通（2026-10-21，实施完成，待独立复核）
 
 - 基线 `8d2c21225d4627a2668cad788cc254f78f2e04e4`，独立实现分支 `codex/stage2c1-dimensions`，保护主仓 retriever_test.go 等未提交文件。

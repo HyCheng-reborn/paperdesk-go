@@ -438,6 +438,13 @@ type RequestBudget struct {
 5. **旧索引及外部变更**：人工选择新物理名，从原始论文/chunks 重新 Embedding，校验身份与数量后人工切配置/alias；保留旧索引供回退，不改旧向量、不自动删除。Qdrant 无通用物理 generation 可验证字段，外部同名删除重建可能使 manifest 失真：首版要求独占管理、不可复用随机 generation 物理名、人工恢复必须连同 manifest；若部署不能保证这一点，Qdrant guard 不得解除，需另行确认服务升级/原生 metadata 方案。此限制不能写成已解决。
 6. **guard 入口与解除**：未来集中在 core.New 的 exists/create/read-back 发布前、vector 公开 CreateIndex、同步/异步 Store 前及两个 Retriever 查询前。Qdrant SDK.ensureCollection 是隐式第二创建点，2C-2 必须去掉/约束其自动创建，不能在指纹检查后悄悄造无身份集合。后台任务复用同一身份但仍检查目标，不刷新预算或吞取消。只有两后端共享比较、并发创建/失败、不匹配/缺失阻断、真实装配离线测试及所选存储约束通过独立复核后，才讨论 2C-3 guard 解除；在线可用性由 2D 独立授权。
 
+
+**独立复核后的约束细化（仍仅为 2C-2 设计建议，2026-10-21）**：
+- **唯一物理名与 alias 固定**：未来入口必须区分逻辑名与物理名，受控创建生成不可复用的 generation 物理名，不能把任意既存名字认作本次创建。ES alias 首版建议仅允许单目标且无过滤/路由语义，解析验证物理名/UUID 后，本次索引、后台任务和查询固定同一物理资源；多目标/write-index 歧义拒绝。Qdrant 同样固定物理 collection，alias 不作 manifest 主键。alias 改指向或同名删除重建不能靠一次 read-back 永久证明安全，仍须受控管理、权限和不可复用名称约束。
+- **manifest 双写与恢复**：DB 唯一键含稳定 store namespace/实际集群身份和物理名；owner token/fencing generation 经 CAS 获得，Creating 不对外服务。DB 不可用时不开始创建；成功创建后须完成两个 named vectors、payload index 等全部必需步骤并读回验证，最终 CAS Ready 才发布。DB 与向量库没有原子事务；field-index 失败、最后 CAS 失败、超时或回执丢失均保持非 Ready，拒绝写入/查询。
+- **崩溃窗口**：Creating 已写但确认资源尚未创建时，取得新 fencing token 的 owner 才可启动新的受控创建。资源已存在但原 owner/创建回执证明丢失，或进程在创建后 Ready 前崩溃时，不得凭“存在且维度正确”升 Ready；保留失败记录/隔离资源，人工核实或新物理名重建，资源清理另行授权。过期记录不代表可无条件接管，旧 owner 后续 CAS 必须失败。Ready 但资源缺失、资源有而 manifest 缺失、备份恢复不一致均失败关闭，不补写身份。
+- **现有入口尚无这些保证**：Config.IndexName、公开 vector.CreateIndex 和 SDK.ensureCollection 未强制唯一名、owner fencing 或创建约束，2C-2 必须覆盖全部入口并约束隐式第二创建点。manifest 本身不能识别外部同名替换；无法保证独占管理、不可复用名及一致备份恢复时，Qdrant guard 保持关闭。ES `_meta` 可变，需要限制覆盖权限，不能改 metadata 迎合冲突。本批不新增 manifest 表、不实施恢复或数据迁移。
+
 **需要确认的最小决策**：接受上述 ES/Qdrant 存储分流；接受 Qdrant 唯一物理名/独占管理约束（否则保持禁用）；确认 fingerprint v1 字段与 revision/alias 人工证明规则。任何决定不自动授权迁移真实数据或付费探针。
 
 资料核实日期 2026-10-21：

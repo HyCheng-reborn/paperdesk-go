@@ -1,9 +1,11 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 )
 
 // DefaultEmbeddingDimensions is the legacy configuration default, not a schema default.
@@ -17,6 +19,24 @@ var ErrEmbeddingDimensionConflict = errors.New("conflicting embedding dimensions
 func ParseEmbeddingDimensions(value any) (int, error) {
 	if value == nil {
 		return 0, nil
+	}
+	// GoFrame's YAML/file adapter preserves numeric values as json.Number.
+	// Keep ordinary strings invalid and do not coerce decimal/exponent forms.
+	if number, ok := value.(json.Number); ok {
+		text := string(number)
+		if len(text) == 0 || text[0] < '1' || text[0] > '9' {
+			return 0, fmt.Errorf("%w: expected positive integer json.Number", ErrEmbeddingDimensions)
+		}
+		for i := 1; i < len(text); i++ {
+			if text[i] < '0' || text[i] > '9' {
+				return 0, fmt.Errorf("%w: expected integer json.Number", ErrEmbeddingDimensions)
+			}
+		}
+		n, err := strconv.ParseInt(text, 10, strconv.IntSize)
+		if err != nil {
+			return 0, fmt.Errorf("%w: json.Number outside int range", ErrEmbeddingDimensions)
+		}
+		return int(n), nil
 	}
 	v := reflect.ValueOf(value)
 	var n int64

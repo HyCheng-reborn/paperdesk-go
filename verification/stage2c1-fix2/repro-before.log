@@ -1,0 +1,53 @@
+BASELINE: 8611750bb89dbf0de268b04a212ca873d500cb6f + new YAML boundary cases
+CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CMD: go test ./internal/logic/rag -run ^TestDimensions_YAMLFileInvalidAndConflict$ -count=1 -timeout=120s -v
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/0
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/-1
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/"768"
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/1.5
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/768.0
+    dimensions_yaml_test.go:105: wanted dimension rejection, got <nil>
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/1e3
+    dimensions_yaml_test.go:105: wanted dimension rejection, got <nil>
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/1.0e3
+    dimensions_yaml_test.go:105: wanted dimension rejection, got <nil>
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/true
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/9223372036854775808
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/0
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/-1
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/"768"
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/1.5
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/768.0
+    dimensions_yaml_test.go:105: wanted dimension rejection, got <nil>
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/1e3
+    dimensions_yaml_test.go:105: wanted dimension rejection, got <nil>
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/1.0e3
+    dimensions_yaml_test.go:105: wanted dimension rejection, got <nil>
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/true
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/9223372036854775808
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/conflict
+--- FAIL: TestDimensions_YAMLFileInvalidAndConflict (0.06s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/0 (0.01s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/-1 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/"768" (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/1.5 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/legacy/768.0 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/legacy/1e3 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/legacy/1.0e3 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/true (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/9223372036854775808 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/0 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/-1 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/"768" (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/1.5 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/provider/768.0 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/provider/1e3 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/provider/1.0e3 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/true (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/9223372036854775808 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/conflict (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/rag	0.274s
+FAIL
+EXIT: 1

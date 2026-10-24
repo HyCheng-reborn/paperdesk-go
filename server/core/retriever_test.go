@@ -127,7 +127,7 @@ func newTestRag(cm model.BaseChatModel, dr docRetriever) *Rag {
 	}
 	
 	// Pre-populate cache with valid fingerprint
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	
 	return r
 }

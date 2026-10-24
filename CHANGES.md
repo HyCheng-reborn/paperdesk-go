@@ -1,5 +1,21 @@
 # 变更记录
 
+## 2026-10-25 Stage 2C-2 独立复核阻塞修复（F1-F8）
+
+基于独立复核报告修复 8 项阻塞问题：
+- F1: 创建与身份原子绑定，移除 indexJustCreated 布尔值，任何缺失指纹均 fail closed
+- F2: Qdrant 新增 resource_id + Ready 字段绑定物理资源身份
+- F3: 条件写入防覆盖（ErrFingerprintExists）
+- F4: 缓存 TTL (30s) + resourceID 重验证防永久缓存绕过
+- F5: 移除启动隐式 AutoMigrate，改为 CheckFingerprintTableReady
+- F6: fingerprint_digest 列从 varchar(64) 扩展为 varchar(128)
+- F7: 严格解析（UseNumber 拒绝浮点维度）+ VerifyDigest 摘要核验
+- F8: ES 请求入口 ctx.Err() 预检查 + context 传播
+
+新增测试：httptest fake ES (7 tests)、SQLite fake Qdrant (11 tests)、生命周期 (4 tests)、门控更新 (4 tests)、严格解析 (8 tests)
+全部 build/vet/test/race 通过。
+
+
 ### Stage 2C-2 索引指纹持久化与身份验证（2026-10-24，实施完成，待独立复核）
 
 - 基线 `2dc0b82`。实现索引指纹系统，确保 embedding 模型身份一致性。

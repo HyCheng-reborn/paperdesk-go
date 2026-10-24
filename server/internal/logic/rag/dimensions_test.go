@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
 	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/vector"
-	"net/http"
-	"net/http/httptest"
-	"sync/atomic"
-	"testing"
 )
 
 type dimensionGetter map[string]any
@@ -101,7 +102,21 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 
 func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	var requests atomic.Int32
-	var storedMeta string = `{}` // Start with empty _meta
+	// F1: Pre-populate valid fingerprint in _meta (no auto-backfill).
+	// The fingerprint must match the config: model=text-embedding-3-large, dims=768, provider=openai.
+	initFP, _ := vector.NewFingerprint("v1", "text-embedding-3-large", 768, "openai", "cosine")
+	initFPMeta, _ := json.Marshal(map[string]any{
+		"go-rag-fingerprint": map[string]any{
+			"version":            initFP.Version,
+			"embedding_model_id": initFP.EmbeddingModelID,
+			"dimensions":         initFP.Dimensions,
+			"provider_name":      initFP.ProviderName,
+			"similarity":         initFP.Similarity,
+			"digest":             initFP.Digest(),
+		},
+		"go-rag-resource-id": "test-uuid-123",
+	})
+	var storedMeta string = string(initFPMeta)
 	var indexCreated bool = false // Track whether index has been created
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)

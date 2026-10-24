@@ -3,7 +3,9 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/cloudwego/eino/schema"
@@ -13,10 +15,13 @@ import (
 
 // fakeVectorStore implements vector.VectorStore for testing fingerprint gates.
 type fakeVectorStore struct {
+	mu          sync.Mutex
 	fingerprint *vector.Fingerprint
+	resourceID  string
 	readErr     error
 	writeErr    error
 	indexExists bool
+	writeCalls  int
 }
 
 func (f *fakeVectorStore) CreateIndex(ctx context.Context, indexName string) error {
@@ -39,22 +44,32 @@ func (f *fakeVectorStore) SearchDocuments(ctx context.Context, req *vector.Searc
 	return &vector.SearchResponse{}, nil
 }
 
-func (f *fakeVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
+func (f *fakeVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *vector.Fingerprint, resourceID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.writeCalls++
 	if f.writeErr != nil {
 		return f.writeErr
 	}
+	// F3: Conditional write — refuse if already exists
+	if f.fingerprint != nil {
+		return fmt.Errorf("index %q: %w", indexName, vector.ErrFingerprintExists)
+	}
 	f.fingerprint = fp
+	f.resourceID = resourceID
 	return nil
 }
 
-func (f *fakeVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*vector.Fingerprint, error) {
+func (f *fakeVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*vector.Fingerprint, string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.readErr != nil {
-		return nil, f.readErr
+		return nil, "", f.readErr
 	}
 	if f.fingerprint == nil {
-		return nil, vector.ErrFingerprintMissing
+		return nil, "", vector.ErrFingerprintMissing
 	}
-	return f.fingerprint, nil
+	return f.fingerprint, f.resourceID, nil
 }
 
 func (f *fakeVectorStore) Close() error {
@@ -79,22 +94,22 @@ func newTestRagWithFingerprint(
 	return r
 }
 
-// newTestRagWithFingerprintAndCreationFlag creates a Rag with fingerprint infrastructure and indexJustCreated flag.
+// newTestRagWithFingerprintAndCreationFlag creates a Rag with fingerprint infrastructure.
+// NOTE: indexJustCreated parameter is retained for test compatibility but no longer used (F1).
 func newTestRagWithFingerprintAndCreationFlag(
 	cm *fakeChatModel,
 	dr *fakeDocRetriever,
 	vs *fakeVectorStore,
 	conf *config.Config,
-	indexJustCreated bool,
+	_ bool, // indexJustCreated — no longer used (F1)
 ) *Rag {
 	r := &Rag{
-		docRet:           dr,
-		rwModel:          cm,
-		cm:               cm,
-		conf:             conf,
-		fpCache:          newFingerprintCache(),
-		vectorStore:      vs,
-		indexJustCreated: indexJustCreated,
+		docRet:      dr,
+		rwModel:     cm,
+		cm:          cm,
+		conf:        conf,
+		fpCache:     newFingerprintCache(),
+		vectorStore: vs,
 	}
 	return r
 }
@@ -117,7 +132,7 @@ func TestCheckFingerprint_ValidCacheHit(t *testing.T) {
 		ProviderName:     "test",
 		Similarity:       "cosine",
 	}
-	r.fpCache.set("unknown:test-index", fp)
+	r.fpCache.set("unknown:test-index", fp, "")
 
 	// Test: checkFingerprint should succeed
 	err := r.checkFingerprint(context.Background())
@@ -457,45 +472,31 @@ func TestVerifyFingerprint_ExistingIndexMismatchedFingerprint_NotOverwritten(t *
 	}
 }
 
-// TestVerifyFingerprint_NewIndex_WritesFingerprint verifies that
-// a newly created index (indexJustCreated=true) without fingerprint gets it written.
-func TestVerifyFingerprint_NewIndex_WritesFingerprint(t *testing.T) {
+// TestVerifyFingerprint_NewIndexMissingFingerprint_FailClosed verifies that
+// F1: a newly created index without fingerprint fails closed (no auto-backfill).
+func TestVerifyFingerprint_NewIndexMissingFingerprint_FailClosed(t *testing.T) {
 	vs := &fakeVectorStore{indexExists: true}
 	conf := &config.Config{
 		IndexName:           "test-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
 	}
-	// New index (indexJustCreated=true)
 	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, true)
 
 	// No fingerprint in store (vs.fingerprint is nil)
 
-	// Test: VerifyFingerprint should succeed and write fingerprint
+	// Test: VerifyFingerprint should fail with ErrFingerprintMissing (F1: no auto-backfill)
 	err := r.VerifyFingerprint(context.Background(), vs)
-	if err != nil {
-		t.Fatalf("VerifyFingerprint() on new index should succeed, got: %v", err)
+	if err == nil {
+		t.Fatal("VerifyFingerprint() on new index without fingerprint should fail")
+	}
+	if !errors.Is(err, vector.ErrFingerprintMissing) {
+		t.Errorf("VerifyFingerprint() should return ErrFingerprintMissing, got: %v", err)
 	}
 
-	// Verify fingerprint was written
-	if vs.fingerprint == nil {
-		t.Fatal("VerifyFingerprint() should write fingerprint to new index")
-	}
-
-	// Verify the written fingerprint matches expected
-	if vs.fingerprint.EmbeddingModelID != "text-embedding-v4" {
-		t.Errorf("Written fingerprint model = %q, want %q",
-			vs.fingerprint.EmbeddingModelID, "text-embedding-v4")
-	}
-	if vs.fingerprint.Dimensions != 1024 {
-		t.Errorf("Written fingerprint dimensions = %d, want %d",
-			vs.fingerprint.Dimensions, 1024)
-	}
-
-	// Verify fingerprint was cached
-	cachedFP := r.GetFingerprint()
-	if cachedFP == nil {
-		t.Error("VerifyFingerprint() should cache the verified fingerprint")
+	// CRITICAL: Verify fingerprint was NOT written (no auto-backfill)
+	if vs.fingerprint != nil {
+		t.Error("VerifyFingerprint() must NOT auto-write fingerprint")
 	}
 }
 
@@ -531,5 +532,142 @@ func TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds(t *testing.
 	cachedFP := r.GetFingerprint()
 	if cachedFP == nil {
 		t.Error("VerifyFingerprint() should cache the verified fingerprint")
+	}
+}
+
+// --- F4: Cache TTL and resourceID re-verification ---
+
+// TestCheckFingerprint_CacheTTL_Expiry verifies that the cache expires after TTL
+// and re-reads from the vector store.
+func TestCheckFingerprint_CacheTTL_Expiry(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "res-1"
+
+	// First call: cache miss, reads from store
+	err := r.checkFingerprint(context.Background())
+	if err != nil {
+		t.Fatalf("first checkFingerprint should succeed: %v", err)
+	}
+
+	// Verify cache was populated
+	entry, ok := r.fpCache.get("unknown:test-index")
+	if !ok || entry == nil {
+		t.Fatal("cache should be populated after first check")
+	}
+
+	// Manually expire the cache by setting verifiedAt to the past
+	r.fpCache.mu.Lock()
+	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - 1)
+	r.fpCache.mu.Unlock()
+
+	// Second call: cache expired, should re-read from store
+	err = r.checkFingerprint(context.Background())
+	if err != nil {
+		t.Fatalf("second checkFingerprint after TTL should succeed: %v", err)
+	}
+}
+
+// TestCheckFingerprint_ResourceID_Mismatch verifies that when the cached resourceID
+// differs from the stored resourceID, an ErrResourceReplaced error is returned.
+func TestCheckFingerprint_ResourceID_Mismatch(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+
+	// Pre-populate cache with old resourceID
+	r.fpCache.set("unknown:test-index", fp, "old-resource-id")
+	// Manually expire the cache to force re-read
+	entry, _ := r.fpCache.get("unknown:test-index")
+	r.fpCache.mu.Lock()
+	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - 1)
+	r.fpCache.mu.Unlock()
+
+	// Store has different resourceID (index was replaced)
+	vs.fingerprint = fp
+	vs.resourceID = "new-resource-id"
+
+	// checkFingerprint should detect resourceID mismatch
+	err := r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("checkFingerprint should fail when resourceID changes")
+	}
+	if !errors.Is(err, vector.ErrResourceReplaced) {
+		t.Errorf("expected ErrResourceReplaced, got: %v", err)
+	}
+}
+
+// TestVerifyFingerprint_ConcurrentWrite_OnlyOneSucceeds verifies that
+// concurrent writes to the same index result in only one succeeding.
+func TestVerifyFingerprint_ConcurrentWrite_OnlyOneSucceeds(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "test",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = nil // No fingerprint yet
+
+	// Two goroutines try to write simultaneously
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			errs[idx] = vs.WriteFingerprint(context.Background(), "test-index", fp, fmt.Sprintf("res-%d", idx))
+		}(i)
+	}
+	wg.Wait()
+
+	// Count successes and failures
+	successes := 0
+	for _, err := range errs {
+		if err == nil {
+			successes++
+		}
+	}
+	if successes != 1 {
+		t.Errorf("exactly 1 write should succeed, got %d successes", successes)
+	}
+
+	// The failing one should get ErrFingerprintExists
+	failures := 0
+	for _, err := range errs {
+		if err != nil && errors.Is(err, vector.ErrFingerprintExists) {
+			failures++
+		}
+	}
+	if failures != 1 {
+		t.Errorf("exactly 1 write should get ErrFingerprintExists, got %d", failures)
 	}
 }

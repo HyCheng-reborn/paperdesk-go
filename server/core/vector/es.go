@@ -57,7 +57,11 @@ func (s *ESVectorStore) GetClient() *elasticsearch.Client {
 }
 
 // CreateIndex 创建索引
+// F8: context propagation via typed API.
 func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	mapping, err := config.ESMapping(s.dimensions)
 	if err != nil {
 		return err
@@ -67,7 +71,11 @@ func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string) error
 }
 
 // IndexExists 检查索引是否存在
+// F8: context propagation.
 func (s *ESVectorStore) IndexExists(ctx context.Context, indexName string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	return exists.NewExistsFunc(s.client)(indexName).Do(ctx)
 }
 
@@ -90,6 +98,9 @@ func (s *ESVectorStore) DeleteDocument(ctx context.Context, indexName, documentI
 
 // GetKnowledgeBaseList 获取知识库列表
 func (s *ESVectorStore) GetKnowledgeBaseList(ctx context.Context, indexName string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	names := "distinct_knowledge_names"
 	query := search.NewRequest()
 	query.Size = of(0)
@@ -130,6 +141,9 @@ func (s *ESVectorStore) GetKnowledgeBaseList(ctx context.Context, indexName stri
 
 // SearchDocuments 搜索文档
 func (s *ESVectorStore) SearchDocuments(ctx context.Context, req *SearchRequest) (*SearchResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	sreq := search.NewRequest()
 	sreq.Query = req.Query.(*types.Query)
 	sreq.Size = of(req.Size)
@@ -208,10 +222,27 @@ func (s *ESVectorStore) Close() error {
 }
 
 // WriteFingerprint writes the fingerprint to ES _meta field.
-func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint) error {
+// F3: Conditional write — refuses to overwrite if _meta already contains go-rag-fingerprint.
+// F8: Full context propagation.
+func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint, resourceID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if fp == nil {
 		return fmt.Errorf("nil fingerprint")
 	}
+
+	// F3: Check if fingerprint already exists in _meta
+	existingFP, _, readErr := s.ReadFingerprint(ctx, indexName)
+	if readErr == nil && existingFP != nil {
+		// Fingerprint already exists — refuse to overwrite
+		return fmt.Errorf("index %q: %w", indexName, ErrFingerprintExists)
+	}
+	if readErr != nil && !errors.Is(readErr, ErrFingerprintMissing) {
+		// Unexpected read error (not "missing")
+		return fmt.Errorf("check existing fingerprint: %w", readErr)
+	}
+
 	// Serialize fingerprint to JSON
 	fpJSON, err := fp.MarshalJSON()
 	if err != nil {
@@ -222,15 +253,16 @@ func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, 
 	if err := sonic.Unmarshal(fpJSON, &fpMap); err != nil {
 		return fmt.Errorf("unmarshal fingerprint: %w", err)
 	}
-	// Build _meta with fingerprint under "go-rag-fingerprint" key
+	// Build _meta with fingerprint and resourceID
 	meta := map[string]any{
 		"go-rag-fingerprint": fpMap,
+		"go-rag-resource-id": resourceID,
 	}
 	metaJSON, err := sonic.Marshal(meta)
 	if err != nil {
 		return fmt.Errorf("marshal meta: %w", err)
 	}
-	// Use put mapping API to update _meta
+	// Use put mapping API to update _meta with context
 	body := fmt.Sprintf(`{"_meta": %s}`, string(metaJSON))
 	res, err := s.client.Indices.PutMapping(
 		[]string{indexName},
@@ -247,24 +279,33 @@ func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, 
 }
 
 // ReadFingerprint reads the fingerprint from ES _meta field.
-func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, error) {
+// F4: Returns both fingerprint and resourceID.
+// F8: Full context propagation.
+func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, "", err
+	}
 	// Use get index API to read mapping with _meta
 	res, err := s.client.Indices.Get([]string{indexName})
 	if err != nil {
-		return nil, fmt.Errorf("get index: %w", err)
+		return nil, "", fmt.Errorf("get index: %w", err)
 	}
 	defer res.Body.Close()
-	if res.IsError() {
-		if res.StatusCode == 404 {
-			return nil, ErrFingerprintMissing
-		}
-		return nil, fmt.Errorf("get index failed: %s", res.String())
-	}
+
 	// Read body
 	var bodyBytes []byte
 	if bodyBytes, err = io.ReadAll(res.Body); err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
+		return nil, "", fmt.Errorf("read response body: %w", err)
 	}
+
+	// Check HTTP status from response
+	if res.StatusCode == 404 {
+		return nil, "", ErrFingerprintMissing
+	}
+	if res.IsError() {
+		return nil, "", fmt.Errorf("get index failed: %s", res.String())
+	}
+
 	// Parse response
 	var result map[string]struct {
 		Mappings struct {
@@ -272,27 +313,71 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 		} `json:"mappings"`
 	}
 	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
-		return nil, fmt.Errorf("%w: decode response: %v", ErrFingerprintCorrupted, err)
+		return nil, "", fmt.Errorf("%w: decode response: %v", ErrFingerprintCorrupted, err)
 	}
-	// Extract _meta for the index
+	// Extract _meta of the index
 	indexState, ok := result[indexName]
 	if !ok {
-		return nil, ErrFingerprintMissing
+		return nil, "", ErrFingerprintMissing
 	}
 	if indexState.Mappings.Meta == nil {
-		return nil, ErrFingerprintMissing
+		return nil, "", ErrFingerprintMissing
 	}
 	// Extract "go-rag-fingerprint" from _meta
 	fpData, ok := indexState.Mappings.Meta["go-rag-fingerprint"]
 	if !ok || fpData == nil {
-		return nil, ErrFingerprintMissing
+		return nil, "", ErrFingerprintMissing
 	}
 	// Serialize back to JSON for parsing
 	fpJSON, err := sonic.Marshal(fpData)
 	if err != nil {
-		return nil, fmt.Errorf("%w: marshal fingerprint: %v", ErrFingerprintCorrupted, err)
+		return nil, "", fmt.Errorf("%w: marshal fingerprint: %v", ErrFingerprintCorrupted, err)
 	}
-	return ParseFingerprint(fpJSON)
+	fp, err := ParseFingerprint(fpJSON)
+	if err != nil {
+		return nil, "", err
+	}
+	// Extract resourceID (may be empty for old records)
+	var resourceID string
+	if rid, ok := indexState.Mappings.Meta["go-rag-resource-id"].(string); ok {
+		resourceID = rid
+	}
+	return fp, resourceID, nil
+}
+
+// ReadESIndexUUID reads the ES-assigned UUID for the given index.
+// F1: Used to bind physical resource identity after creation.
+func (s *ESVectorStore) ReadESIndexUUID(ctx context.Context, indexName string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	res, err := s.client.Indices.Get([]string{indexName})
+	if err != nil {
+		return "", fmt.Errorf("get index for UUID: %w", err)
+	}
+	defer res.Body.Close()
+	if res.IsError() {
+		return "", fmt.Errorf("get index for UUID failed: %s", res.String())
+	}
+	var bodyBytes []byte
+	if bodyBytes, err = io.ReadAll(res.Body); err != nil {
+		return "", fmt.Errorf("read response body: %w", err)
+	}
+	var result map[string]struct {
+		Settings struct {
+			Index struct {
+				UUID string `json:"uuid"`
+			} `json:"index"`
+		} `json:"settings"`
+	}
+	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
+		return "", fmt.Errorf("unmarshal index settings: %w", err)
+	}
+	state, ok := result[indexName]
+	if !ok {
+		return "", fmt.Errorf("index %q not found in response", indexName)
+	}
+	return state.Settings.Index.UUID, nil
 }
 
 // withRetry 包装函数，添加重试机制

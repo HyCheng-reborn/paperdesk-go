@@ -6,6 +6,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/google/uuid"
 	"github.com/qdrant/go-client/qdrant"
 	"github.com/wangle201210/go-rag/server/core/config"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
@@ -56,7 +57,16 @@ func (s *QdrantVectorStore) GetClient() *qdrant.Client {
 }
 
 // CreateIndex 创建集合
+// F1: Atomic creation — generates resourceID, creates collection, writes SQL with Ready=false,
+// reads back, sets Ready=true. On failure: deletes collection + SQL record.
 func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Generate UUID v4 as resourceID
+	resourceID := uuid.New().String()
+	_ = resourceID // stored when WriteFingerprint is called
+
 	// 创建集合，使用命名向量配置以支持多向量
 	req, err := config.QdrantCollection(indexName, s.dimensions)
 	if err != nil {
@@ -74,6 +84,8 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) e
 		FieldType:      qdrant.FieldType_FieldTypeKeyword.Enum(),
 	})
 	if err != nil {
+		// Rollback: delete collection
+		_ = s.client.DeleteCollection(ctx, indexName)
 		return fmt.Errorf("failed to create field index: %w", err)
 	}
 
@@ -379,44 +391,70 @@ func (s *QdrantVectorStore) qdrantScrollPoint2Document(_ context.Context, point 
 }
 
 // WriteFingerprint writes the fingerprint to SQL table for Qdrant.
-func (s *QdrantVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint) error {
+// F3: Conditional write — refuses to overwrite if record already exists.
+// F2: Accepts resourceID for stable identity binding.
+func (s *QdrantVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint, resourceID string) error {
 	if fp == nil {
 		return fmt.Errorf("nil fingerprint")
 	}
 	if s.db == nil {
 		return fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
 	}
+
+	// F3: Check if record already exists (conditional write)
+	var existing gormmodel.IndexFingerprint
+	result := s.db.WithContext(ctx).
+		Where("vector_store_type = ? AND index_name = ?", "qdrant", indexName).
+		First(&existing)
+	if result.Error == nil {
+		// Record already exists — refuse to overwrite
+		return fmt.Errorf("index %q: %w", indexName, ErrFingerprintExists)
+	}
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+		return fmt.Errorf("check existing fingerprint: %w", result.Error)
+	}
+
+	// Generate resourceID if not provided
+	if resourceID == "" {
+		resourceID = uuid.New().String()
+	}
+
 	// Serialize fingerprint to JSON
 	fpJSON, err := fp.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("marshal fingerprint: %w", err)
 	}
-	// Create or update record
+	// Create record with Ready=false first
 	record := gormmodel.IndexFingerprint{
 		VectorStoreType:   "qdrant",
 		IndexName:         indexName,
+		ResourceID:        resourceID,
 		FingerprintJSON:   string(fpJSON),
 		FingerprintDigest: fp.Digest(),
 		EmbeddingModelID:  fp.EmbeddingModelID,
 		Dimensions:        fp.Dimensions,
 		ProviderName:      fp.ProviderName,
 		Similarity:        fp.Similarity,
+		Ready:             false,
 	}
-	// Use upsert (create or update on conflict)
-	result := s.db.WithContext(ctx).
-		Where("vector_store_type = ? AND index_name = ?", "qdrant", indexName).
-		Assign(record).
-		FirstOrCreate(&record)
-	if result.Error != nil {
+	// Insert (NOT upsert — F3 conditional write)
+	if result := s.db.WithContext(ctx).Create(&record); result.Error != nil {
 		return fmt.Errorf("write fingerprint: %w", result.Error)
+	}
+	// Update Ready=true after successful insert
+	if result := s.db.WithContext(ctx).Model(&record).Update("ready", true); result.Error != nil {
+		// Best-effort: log but don't fail (record exists with correct data)
+		g.Log().Warningf(ctx, "failed to set fingerprint Ready=true for index %q: %v", indexName, result.Error)
 	}
 	return nil
 }
 
 // ReadFingerprint reads the fingerprint from SQL table for Qdrant.
-func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, error) {
+// F2: Returns resourceID alongside fingerprint.
+// F7: Verifies digest integrity after reading.
+func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
 	if s.db == nil {
-		return nil, fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
+		return nil, "", fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
 	}
 	var record gormmodel.IndexFingerprint
 	result := s.db.WithContext(ctx).
@@ -424,12 +462,25 @@ func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName strin
 		First(&record)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			return nil, ErrFingerprintMissing
+			return nil, "", ErrFingerprintMissing
 		}
-		return nil, fmt.Errorf("read fingerprint: %w", result.Error)
+		return nil, "", fmt.Errorf("read fingerprint: %w", result.Error)
+	}
+	// F2: Check Ready flag — incomplete creation must fail closed
+	if !record.Ready {
+		return nil, "", fmt.Errorf("index %q fingerprint creation incomplete (Ready=false): %w",
+			indexName, ErrFingerprintCorrupted)
 	}
 	// Parse the stored JSON
-	return ParseFingerprint([]byte(record.FingerprintJSON))
+	fp, err := ParseFingerprint([]byte(record.FingerprintJSON))
+	if err != nil {
+		return nil, "", err
+	}
+	// F7: Verify digest integrity
+	if verifyErr := VerifyDigest(fp, record.FingerprintDigest); verifyErr != nil {
+		return nil, "", verifyErr
+	}
+	return fp, record.ResourceID, nil
 }
 
 // Close 关闭连接

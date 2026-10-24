@@ -2,6 +2,7 @@ package vector
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -430,5 +431,138 @@ func TestVerifyFingerprint(t *testing.T) {
 	invalid := &Fingerprint{Version: "v99"}
 	if err := VerifyFingerprint(invalid, fp1); err == nil {
 		t.Error("VerifyFingerprint(invalid stored) should return error")
+	}
+}
+
+// --- F7: Strict parsing tests ---
+
+func TestParseFingerprint_RejectsFloatDimensions(t *testing.T) {
+	// dimensions as float (1024.9) must be rejected, not silently truncated
+	data := `{"version":"v1","embedding_model_id":"test","dimensions":1024.9,"provider_name":"test","similarity":"cosine","digest":"sha256:abc"}`
+	_, err := ParseFingerprint([]byte(data))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject float dimensions")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got %v", err)
+	}
+}
+
+func TestParseFingerprint_RejectsBlankProvider(t *testing.T) {
+	// empty provider_name
+	data := `{"version":"v1","embedding_model_id":"test","dimensions":1024,"provider_name":"","similarity":"cosine","digest":"sha256:abc"}`
+	_, err := ParseFingerprint([]byte(data))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject blank provider")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got %v", err)
+	}
+
+	// whitespace-only provider_name
+	data2 := `{"version":"v1","embedding_model_id":"test","dimensions":1024,"provider_name":"   ","similarity":"cosine","digest":"sha256:abc"}`
+	_, err2 := ParseFingerprint([]byte(data2))
+	if err2 == nil {
+		t.Fatal("ParseFingerprint should reject whitespace-only provider")
+	}
+	if !errors.Is(err2, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted for whitespace provider, got %v", err2)
+	}
+}
+
+func TestParseFingerprint_RejectsBlankSimilarity(t *testing.T) {
+	data := `{"version":"v1","embedding_model_id":"test","dimensions":1024,"provider_name":"test","similarity":"","digest":"sha256:abc"}`
+	_, err := ParseFingerprint([]byte(data))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject blank similarity")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got %v", err)
+	}
+}
+
+func TestParseFingerprint_RejectsUnknownVersion(t *testing.T) {
+	data := `{"version":"v2","embedding_model_id":"test","dimensions":1024,"provider_name":"test","similarity":"cosine","digest":"sha256:abc"}`
+	_, err := ParseFingerprint([]byte(data))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject unknown version")
+	}
+	if !errors.Is(err, ErrFingerprintUnknownVersion) {
+		t.Errorf("expected ErrFingerprintUnknownVersion, got %v", err)
+	}
+}
+
+func TestVerifyDigest_Match(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	digest := fp.Digest()
+	if err := VerifyDigest(fp, digest); err != nil {
+		t.Errorf("VerifyDigest should succeed for matching digest, got: %v", err)
+	}
+}
+
+func TestVerifyDigest_Mismatch(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	err := VerifyDigest(fp, "sha256:tampered-digest-value-000000000000000000000000000000000000")
+	if err == nil {
+		t.Fatal("VerifyDigest should fail for mismatched digest")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got %v", err)
+	}
+}
+
+func TestVerifyDigest_NilFingerprint(t *testing.T) {
+	err := VerifyDigest(nil, "sha256:abc")
+	if err == nil {
+		t.Fatal("VerifyDigest should fail for nil fingerprint")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got %v", err)
+	}
+}
+
+func TestNewFingerprint_RejectsInvalidFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		version    string
+		modelID    string
+		dims       int
+		provider   string
+		similarity string
+		wantErr    string
+	}{
+		{"zero dims", "v1", "model", 0, "provider", "cosine", "dimensions must be positive"},
+		{"negative dims", "v1", "model", -5, "provider", "cosine", "dimensions must be positive"},
+		{"empty model", "v1", "", 1024, "provider", "cosine", "embedding_model_id must not be empty"},
+		{"empty provider", "v1", "model", 1024, "", "cosine", "provider_name must not be empty"},
+		{"whitespace provider", "v1", "model", 1024, "   ", "cosine", "provider_name must not be empty"},
+		{"empty similarity", "v1", "model", 1024, "provider", "", "similarity must not be empty"},
+		{"invalid similarity", "v1", "model", 1024, "provider", "hamming", "not in"},
+		{"unknown version", "v2", "model", 1024, "provider", "cosine", "unknown version"},
+		{"empty version", "", "model", 1024, "provider", "cosine", "version must not be empty"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewFingerprint(tt.version, tt.modelID, tt.dims, tt.provider, tt.similarity)
+			if err == nil {
+				t.Fatalf("NewFingerprint(%s) should fail", tt.name)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("NewFingerprint(%s) error = %v, want to contain %q", tt.name, err, tt.wantErr)
+			}
+		})
 	}
 }

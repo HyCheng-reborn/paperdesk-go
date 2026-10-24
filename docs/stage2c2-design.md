@@ -27,6 +27,18 @@ type Fingerprint struct {
 }
 ```
 
+### 1.5 ResourceID（物理资源身份）
+
+ResourceID 是不可复用的物理资源标识符，与 Fingerprint（向量空间身份）分离存储：
+
+- ES: 索引 UUID（从 GetIndex API 获取），存储在 `_meta.go-rag-resource-id`
+- Qdrant: 创建时生成的 UUID v4，存储在 SQL `resource_id` 列
+
+用途：
+- 检测同名资源替换（外部 delete+recreate 导致 UUID 变化）
+- 缓存条目绑定 resourceID，过期后重验证
+- resourceID 不匹配 = 资源被替换 = fail closed
+
 ### 规范化 JSON
 
 指纹的规范化 JSON 格式用于计算 SHA-256 摘要：
@@ -44,20 +56,21 @@ digest = "sha256:" + hex(SHA-256(canonical_json))
 
 ### Elasticsearch
 
-指纹存储在 index mapping 的 `_meta.fingerprint` 字段：
+指纹存储在 index mapping 的 `_meta` 字段：
 
 ```json
 {
   "mappings": {
     "_meta": {
-      "fingerprint": {
+      "go-rag-fingerprint": {
         "version": "v1",
         "embedding_model_id": "text-embedding-v4",
         "dimensions": 1024,
         "provider_name": "bailian",
         "similarity": "cosine",
-        "digest": "sha256:..."
-      }
+        "digest": "sha256:abcdef..."
+      },
+      "go-rag-resource-id": "es-index-uuid-xxxxx"
     },
     "properties": {
       ...
@@ -69,6 +82,7 @@ digest = "sha256:" + hex(SHA-256(canonical_json))
 **API**：
 - `PUT /<index>/_mapping` - 写入指纹
 - `GET /<index>/_mapping` - 读取指纹
+- `GET /<index>` - 获取索引 UUID（resourceID）
 
 ### Qdrant
 
@@ -76,16 +90,27 @@ digest = "sha256:" + hex(SHA-256(canonical_json))
 
 ```sql
 CREATE TABLE index_fingerprints (
-    index_name VARCHAR(255) PRIMARY KEY,
-    fingerprint JSON NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+  vector_store_type VARCHAR(16) NOT NULL,
+  index_name       VARCHAR(255) NOT NULL,
+  resource_id      VARCHAR(36) NOT NULL,         -- 物理资源 UUID
+  fingerprint_json TEXT NOT NULL,
+  fingerprint_digest VARCHAR(128) NOT NULL,       -- sha256: 前缀 + 64 hex
+  embedding_model_id VARCHAR(255) NOT NULL,
+  dimensions       INT NOT NULL,
+  provider_name    VARCHAR(64) NOT NULL,
+  similarity       VARCHAR(16) NOT NULL,
+  ready            TINYINT NOT NULL DEFAULT 0,    -- 身份验证完成标志
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_store_index (vector_store_type, index_name)
 );
 ```
 
 **API**：
-- `INSERT ... ON DUPLICATE KEY UPDATE` - 写入指纹
-- `SELECT ... WHERE index_name = ?` - 读取指纹
+- `WriteFingerprint` - 条件写入：已有记录返回 `ErrFingerprintExists`，不执行更新
+- `ReadFingerprint` - 读取指纹 + resourceID
+- `CheckFingerprintTableReady` - 只检查表是否存在且可用，不修改 schema
 
 ## 验证流程
 
@@ -144,14 +169,16 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 
 ## 缓存机制
 
-指纹缓存使用 `fingerprintCache` 结构：
+### 5.2 Fingerprint 缓存（TTL + UUID 重验证）
 
-```go
-type fingerprintCache struct {
-    mu    sync.RWMutex
-    items map[string]*vector.Fingerprint
-}
-```
+- 内存缓存条目：`{fingerprint, resourceID, verifiedAt}`
+- TTL = 30 秒
+- 缓存未过期：快速通过
+- 缓存过期：从存储重读 fingerprint + resourceID
+  - resourceID 不匹配 → ErrResourceReplaced（资源被替换）
+  - fingerprint 不匹配 → ErrFingerprintMismatch
+  - digest 验证失败 → ErrFingerprintCorrupted
+- 条件写入：WriteFingerprint 使用先读后写语义，已有记录返回 ErrFingerprintExists
 
 **缓存键格式**：`<vector_store_type>:<index_name>`
 - 示例：`es:rag-index`、`qdrant:rag-index`
@@ -200,4 +227,19 @@ type fingerprintCache struct {
 
 ## 状态
 
-2C-2 实施完成，待独立复核。
+2C-2 修复完成，待独立复核。
+
+## 附录：独立复核阻塞修复记录（F1-F8）
+
+| 编号 | 问题 | 修复方式 |
+|------|------|----------|
+| F1 | 创建与身份发布分离 | 创建时原子写入 fingerprint + resourceID；回读验证 schema 维度 |
+| F2 | Qdrant 身份仅绑定名称 | 新增 resource_id 列绑定物理资源 UUID；Ready 标志标记完成状态 |
+| F3 | 指纹可覆盖 | 条件写入：已有记录返回 ErrFingerprintExists，不执行更新 |
+| F4 | 永久缓存跳过验证 | 30s TTL + resourceID 重验证；resourceID 变化 = 资源替换 |
+| F5 | 启动隐式 AutoMigrate | 替换为 CheckFingerprintTableReady()，只检查不修改 |
+| F6 | varchar(64) 不足 | 扩展为 varchar(128)，容纳 sha256: 前缀 + 64 hex |
+| F7 | 容忍损坏数据 | 严格 JSON 解析（UseNumber 拒绝浮点维度）；VerifyDigest 重算核验 |
+| F8 | ES 请求忽略取消 | 入口 ctx.Err() 预检查；typed API 通过 .Do(ctx) 传播 |
+
+状态：2C-2 修复完成，待独立复核。

@@ -24,14 +24,16 @@ type VectorStore interface {
 	SearchDocuments(ctx context.Context, req *SearchRequest) (*SearchResponse, error)
 
 	// WriteFingerprint writes the fingerprint to the vector store's source of truth.
-	// ES: writes to _meta field in index mapping.
-	// Qdrant: writes to SQL table index_fingerprints.
-	WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint) error
+	// ES: writes to _meta field in index mapping (conditional: fails if already exists).
+	// Qdrant: writes to SQL table index_fingerprints (conditional: fails if already exists).
+	// resourceID: stable physical resource identifier (e.g. ES index UUID, Qdrant collection UUID).
+	WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint, resourceID string) error
 
 	// ReadFingerprint reads the fingerprint from the vector store's source of truth.
 	// Returns ErrFingerprintMissing if no fingerprint exists.
 	// Returns ErrFingerprintCorrupted if fingerprint data is unparseable.
-	ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, error)
+	// Returns the fingerprint, the resourceID, and any error.
+	ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error)
 
 	// Close 关闭连接
 	Close() error

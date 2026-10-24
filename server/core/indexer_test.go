@@ -108,7 +108,7 @@ func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 	}
 	
 	// Pre-populate cache with valid fingerprint to avoid store reads in tests
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	
 	return r
 }
@@ -591,7 +591,7 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 			Provider:            &config.ProviderConfig{Name: "test"},
 		},
 	}
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	r.asyncWait = func(ctx context.Context) {}
 
 	t.Cleanup(func() {
@@ -1386,7 +1386,7 @@ func newOrchestrationTestRag(
 		},
 	}
 	// Pre-populate cache with valid fingerprint
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	return r
 }
 
@@ -1988,7 +1988,7 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 			Provider:            &config.ProviderConfig{Name: "test"},
 		},
 	}
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	r.asyncWait = func(ctx context.Context) {}
 	r.markFailed = func(ctx context.Context, docID int64, err error) {
 		markFailedCalled <- struct{}{}
@@ -2421,7 +2421,7 @@ func newFullChainTestRag(
 		},
 	}
 	// Pre-populate cache with valid fingerprint
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	// asyncIndexer 委派给真实 indexAsyncByDocsID（等价于 prodAsyncIndexer）
 	r.asyncIndexer = &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {

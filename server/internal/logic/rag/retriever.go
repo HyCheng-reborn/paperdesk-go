@@ -502,10 +502,14 @@ func InitWithRealDeps() error {
 	if err != nil {
 		return fmt.Errorf("rag: %w", err)
 	}
-	// Migrate fingerprint table for Qdrant (must happen after dao.InitDBWithConfig)
+	// F5: Check fingerprint table readiness for Qdrant (no implicit AutoMigrate)
 	if cfg.VectorCfg.Type == "qdrant" {
-		if migrateErr := dao.MigrateFingerprintTable(); migrateErr != nil {
-			return fmt.Errorf("rag: migrate fingerprint table: %w", migrateErr)
+		gormDB, dbErr := dao.GetGormDB()
+		if dbErr != nil {
+			return fmt.Errorf("rag: get gorm db: %w", dbErr)
+		}
+		if checkErr := dao.CheckFingerprintTableReady(gormDB); checkErr != nil {
+			return fmt.Errorf("rag: %w", checkErr)
 		}
 	}
 	return InitWith(cfg, &defaultVectorStoreFactory{}, &defaultRagFactory{})

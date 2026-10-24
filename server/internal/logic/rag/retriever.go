@@ -116,6 +116,17 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		return nil, err
 	}
 
+	// Stage 2C-2: Verify fingerprint after Rag creation
+	if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+		// Fingerprint verification failed - cleanup and return error
+		g.Log().Errorf(ctx, "Fingerprint verification failed: %v", verifyErr)
+		closeErr := vs.Close()
+		if closeErr != nil {
+			g.Log().Errorf(ctx, "Failed to close VectorStore after fingerprint verification error: %v", closeErr)
+		}
+		return nil, fmt.Errorf("fingerprint verification: %w", verifyErr)
+	}
+
 	// B5: core.New 成功后才发布 Registry
 	if reg != nil {
 		common.SetRegistry(reg)

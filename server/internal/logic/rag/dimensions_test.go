@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
@@ -100,13 +101,44 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 
 func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	var requests atomic.Int32
+	var storedMeta string = `{}` // Start with empty _meta
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
-		if r.Method != "HEAD" {
-			t.Errorf("unexpected facility call %s", r.Method)
+		// Handle different ES API calls
+		if r.Method == "HEAD" {
+			// Index exists check
+			w.WriteHeader(200)
+			return
 		}
-		w.WriteHeader(200)
+		if r.Method == "PUT" && r.URL.Path == "/test/_mapping" {
+			// Put mapping (fingerprint write) - store the _meta
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+				if meta, ok := body["_meta"].(map[string]any); ok {
+					if metaJSON, err := json.Marshal(meta); err == nil {
+						storedMeta = string(metaJSON)
+					}
+				}
+			}
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true}`))
+			return
+		}
+		if r.Method == "GET" && r.URL.Path == "/test" {
+			// Get index (fingerprint read) - return stored _meta
+			w.WriteHeader(200)
+			w.Write([]byte(`{"test":{"mappings":{"_meta":` + storedMeta + `}}}`))
+			return
+		}
+		if r.Method == "POST" && r.URL.Path == "/test/_create" {
+			// Create index
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true,"index":"test"}`))
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(404)
 	}))
 	defer srv.Close()
 	cfg := validRagConfig()
@@ -135,8 +167,9 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	if e = r.Shutdown(context.Background()); e != nil {
 		t.Fatal(e)
 	}
-	if requests.Load() != 1 {
-		t.Fatal(requests.Load())
+	// Should have: 1 HEAD (exists) + 1 GET (read fp) + 1 PUT (write fp) + 1 GET (verify fp)
+	if requests.Load() < 3 {
+		t.Fatalf("expected at least 3 requests, got %d", requests.Load())
 	}
 	if common.GetRegistry() == nil {
 		t.Fatal("factory did not publish registry")

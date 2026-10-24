@@ -40,6 +40,18 @@ func (f *fakeVectorStore) GetKnowledgeBaseList(ctx context.Context, indexName st
 func (f *fakeVectorStore) SearchDocuments(ctx context.Context, req *vector.SearchRequest) (*vector.SearchResponse, error) {
 	return &vector.SearchResponse{}, nil
 }
+func (f *fakeVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
+	return nil
+}
+func (f *fakeVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*vector.Fingerprint, error) {
+	return &vector.Fingerprint{
+		Version:          vector.FingerprintVersion,
+		EmbeddingModelID: "test-model",
+		Dimensions:       1024,
+		ProviderName:     "test",
+		Similarity:       "cosine",
+	}, nil
+}
 func (f *fakeVectorStore) Close() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

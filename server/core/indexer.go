@@ -86,6 +86,12 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 	if budgetErr != nil {
 		return nil, fmt.Errorf("create task budget: %w", budgetErr)
 	}
+
+	// Stage 2C-2: Fingerprint validation gate before embedding operations
+	if fpErr := x.checkFingerprint(ctx); fpErr != nil {
+		return nil, fmt.Errorf("fingerprint check failed: %w", fpErr)
+	}
+
 	// === 同步前准入 ===
 	x.mu.Lock()
 	if x.closed {
@@ -240,6 +246,11 @@ func (x *Rag) Index(ctx context.Context, req *IndexReq) (ids []string, err error
 // IndexAsync
 // 通过 schema.Document 异步 生成QA&embedding
 func (x *Rag) IndexAsync(ctx context.Context, req *IndexAsyncReq) (ids []string, err error) {
+	// Stage 2C-2: Fingerprint validation gate before embedding operations
+	if fpErr := x.checkFingerprint(ctx); fpErr != nil {
+		return nil, fmt.Errorf("fingerprint check failed: %w", fpErr)
+	}
+
 	ctx = context.WithValue(ctx, coretypes.KnowledgeName, req.KnowledgeName)
 	ids, err = x.idxerAsync.Invoke(ctx, req.Docs)
 	if err != nil {

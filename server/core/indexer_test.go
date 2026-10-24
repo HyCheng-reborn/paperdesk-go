@@ -16,6 +16,8 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
+	"github.com/wangle201210/go-rag/server/core/config"
+	"github.com/wangle201210/go-rag/server/core/vector"
 	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
@@ -72,7 +74,21 @@ func (f *fakeAsyncIndexer) getCallCount() int {
 
 func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
-	return &Rag{
+	
+	// Stage 2C-2: Setup fingerprint infrastructure for tests
+	// Use a fake vector store that always returns a valid fingerprint
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+	}
+	
+	r := &Rag{
 		syncIndexer:   syncIdx,
 		asyncIndexer:  asyncIdx,
 		bgRootCtx:     bgRootCtx,
@@ -81,7 +97,20 @@ func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 		done:          make(chan struct{}),
 		taskTimeout:   5 * time.Minute,
 		maxBackground: 8,
+		fpCache:       newFingerprintCache(),
+		vectorStore:   fakeVS,
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
 	}
+	
+	// Pre-populate cache with valid fingerprint to avoid store reads in tests
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	
+	return r
 }
 
 // closeOnce 幂等关闭无缓冲信号 channel，用于 cleanup 释放阻塞的后台任务
@@ -531,6 +560,19 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 
 	// 创建容量为 1 的 Rag
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	
+	// Stage 2C-2: Setup fingerprint infrastructure
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+	}
+	
 	r := &Rag{
 		syncIndexer:   &fakeSyncIndexer{ids: []string{"id1"}},
 		asyncIndexer:  fakeAsync,
@@ -540,7 +582,16 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 		done:          make(chan struct{}),
 		taskTimeout:   5 * time.Minute,
 		maxBackground: 1,
+		fpCache:       newFingerprintCache(),
+		vectorStore:   fakeVS,
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
 	}
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
 	r.asyncWait = func(ctx context.Context) {}
 
 	t.Cleanup(func() {
@@ -1308,12 +1359,35 @@ func newOrchestrationTestRag(
 	updateFn func(ctx context.Context, docID int64, status int) error,
 	asyncRunnable compose.Runnable[[]*schema.Document, []string],
 ) *Rag {
-	return &Rag{
+	// Stage 2C-2: Setup fingerprint infrastructure
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+	}
+	
+	r := &Rag{
 		docSearch:       searcher,
 		saveChunksFn:    saveFn,
 		updateDocStatus: updateFn,
 		idxerAsync:      asyncRunnable,
+		fpCache:         newFingerprintCache(),
+		vectorStore:     fakeVS,
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
 	}
+	// Pre-populate cache with valid fingerprint
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	return r
 }
 
 var errSentinel = fmt.Errorf("sentinel test error")
@@ -1883,6 +1957,19 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 	}
 
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	
+	// Stage 2C-2: Setup fingerprint infrastructure
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+	}
+	
 	r := &Rag{
 		syncIndexer:   &fakeSyncIndexer{ids: []string{"id1"}},
 		asyncIndexer:  fakeAsync,
@@ -1892,7 +1979,16 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 		done:          make(chan struct{}),
 		taskTimeout:   100 * time.Millisecond, // 短超时触发超时
 		maxBackground: 8,
+		fpCache:       newFingerprintCache(),
+		vectorStore:   fakeVS,
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
 	}
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
 	r.asyncWait = func(ctx context.Context) {}
 	r.markFailed = func(ctx context.Context, docID int64, err error) {
 		markFailedCalled <- struct{}{}
@@ -2286,6 +2382,19 @@ func newFullChainTestRag(
 	asyncRunnable compose.Runnable[[]*schema.Document, []string],
 ) *Rag {
 	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	
+	// Stage 2C-2: Setup fingerprint infrastructure for tests
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+	}
+	
 	r := &Rag{
 		syncIndexer: syncIdx,
 		docSearch:   docSearch,
@@ -2302,7 +2411,17 @@ func newFullChainTestRag(
 		done:          make(chan struct{}),
 		taskTimeout:   5 * time.Minute,
 		maxBackground: 8,
+		fpCache:       newFingerprintCache(),
+		vectorStore:   fakeVS,
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
 	}
+	// Pre-populate cache with valid fingerprint
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
 	// asyncIndexer 委派给真实 indexAsyncByDocsID（等价于 prodAsyncIndexer）
 	r.asyncIndexer = &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {

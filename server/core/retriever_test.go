@@ -13,6 +13,8 @@ import (
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
+	"github.com/wangle201210/go-rag/server/core/config"
+	"github.com/wangle201210/go-rag/server/core/vector"
 )
 
 // fakeChatModel 测试用 fake chat model，实现 model.BaseChatModel
@@ -98,11 +100,36 @@ func (f *fakeDocRetriever) retrieveDoOnce(ctx context.Context, req *RetrieveReq)
 
 // newTestRag 创建用于测试的 Rag 实例（跳过 New() 的副作用）
 func newTestRag(cm model.BaseChatModel, dr docRetriever) *Rag {
-	return &Rag{
-		docRet:  dr,
-		rwModel: cm,
-		cm:      cm,
+	// Stage 2C-2: Setup fingerprint infrastructure for tests
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
 	}
+	
+	r := &Rag{
+		docRet:      dr,
+		rwModel:     cm,
+		cm:          cm,
+		fpCache:     newFingerprintCache(),
+		vectorStore: fakeVS,
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
+	}
+	
+	// Pre-populate cache with valid fingerprint
+	r.fpCache.set("unknown:test-index", fakeVS.fingerprint)
+	
+	return r
 }
 
 func TestRetrieve_NilRequest(t *testing.T) {

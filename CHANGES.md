@@ -1,5 +1,18 @@
 # 变更记录
 
+### Stage 2C-2 索引指纹持久化与身份验证（2026-10-24，实施完成，待独立复核）
+
+- 基线 `2dc0b82`。实现索引指纹系统，确保 embedding 模型身份一致性。
+- **指纹类型**：`Fingerprint` 结构包含版本、模型 ID、维度、provider、相似度；规范化 JSON + SHA-256 摘要。
+- **持久化存储**：ES 存储在 `_meta.fingerprint`；Qdrant 存储在 SQL 表 `index_fingerprints`。
+- **启动验证**：`VerifyFingerprint()` 在 Rag 创建后验证指纹一致性；新索引自动写入期望指纹。
+- **运行时验证**：`checkFingerprint()` 在 Retrieve/Index/IndexAsync 入口验证指纹，失败则拒绝操作。
+- **失败关闭**：指纹缺失/不匹配/损坏时返回明确错误码（FINGERPRINT_MISSING/MISMATCH/CORRUPTED）。
+- **测试覆盖**：新增 `fingerprint_test.go`（类型测试）和 `fingerprint_gate_test.go`（门控测试）；更新现有测试 helper 支持指纹基础设施。
+- **保留约束**：2A/2B 预算生命周期、2C-1 维度单源、ErrEmbeddingGuardNotReady 门禁均保持不变。
+- 设计文档：`docs/stage2c2-design.md`。
+
+
 ### Stage 2C-1 原始 YAML 类型边界修复（2026-10-21，待独立复核）
 
 - 基线 `8611750bb89dbf0de268b04a212ca873d500cb6f`。默认文件适配器的 YAML→JSON 重编码会把整数值浮点/指数变成整数 json.Number；现在通过公开原始内容 API，在 JSON 归一化之外检查 YAML 原始类型，并核对来源值与有效值。

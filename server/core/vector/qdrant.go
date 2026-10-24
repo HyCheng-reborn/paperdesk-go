@@ -9,12 +9,15 @@ import (
 	"github.com/qdrant/go-client/qdrant"
 	"github.com/wangle201210/go-rag/server/core/config"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
+	gormmodel "github.com/wangle201210/go-rag/server/internal/model/gorm"
+	"gorm.io/gorm"
 )
 
 // QdrantVectorStore Qdrant 向量存储实现
 type QdrantVectorStore struct {
 	dimensions int
 	client     *qdrant.Client
+	db         *gorm.DB // SQL database for fingerprint storage (Qdrant has no collection-level metadata)
 }
 
 // NewQdrantVectorStore 创建 Qdrant 向量存储实例
@@ -367,6 +370,60 @@ func (s *QdrantVectorStore) qdrantScrollPoint2Document(_ context.Context, point 
 	}
 
 	return doc, nil
+}
+
+// WriteFingerprint writes the fingerprint to SQL table for Qdrant.
+func (s *QdrantVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint) error {
+	if fp == nil {
+		return fmt.Errorf("nil fingerprint")
+	}
+	if s.db == nil {
+		return fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
+	}
+	// Serialize fingerprint to JSON
+	fpJSON, err := fp.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("marshal fingerprint: %w", err)
+	}
+	// Create or update record
+	record := gormmodel.IndexFingerprint{
+		VectorStoreType:   "qdrant",
+		IndexName:         indexName,
+		FingerprintJSON:   string(fpJSON),
+		FingerprintDigest: fp.Digest(),
+		EmbeddingModelID:  fp.EmbeddingModelID,
+		Dimensions:        fp.Dimensions,
+		ProviderName:      fp.ProviderName,
+		Similarity:        fp.Similarity,
+	}
+	// Use upsert (create or update on conflict)
+	result := s.db.WithContext(ctx).
+		Where("vector_store_type = ? AND index_name = ?", "qdrant", indexName).
+		Assign(record).
+		FirstOrCreate(&record)
+	if result.Error != nil {
+		return fmt.Errorf("write fingerprint: %w", result.Error)
+	}
+	return nil
+}
+
+// ReadFingerprint reads the fingerprint from SQL table for Qdrant.
+func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
+	}
+	var record gormmodel.IndexFingerprint
+	result := s.db.WithContext(ctx).
+		Where("vector_store_type = ? AND index_name = ?", "qdrant", indexName).
+		First(&record)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, ErrFingerprintMissing
+		}
+		return nil, fmt.Errorf("read fingerprint: %w", result.Error)
+	}
+	// Parse the stored JSON
+	return ParseFingerprint([]byte(record.FingerprintJSON))
 }
 
 // Close 关闭连接

@@ -60,6 +60,11 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 		return nil, ctx.Err()
 	}
 
+	// Stage 2C-2: Fingerprint validation gate before embedding operations
+	if fpErr := x.checkFingerprint(ctx); fpErr != nil {
+		return nil, fmt.Errorf("fingerprint check failed: %w", fpErr)
+	}
+
 	// B5: 注入请求级预算 owner
 	ctx = common.WithRequestBudget(ctx)
 

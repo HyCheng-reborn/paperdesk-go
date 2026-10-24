@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -203,6 +205,94 @@ func (s *ESVectorStore) esHit2Document(ctx context.Context, hit types.Hit) (*sch
 func (s *ESVectorStore) Close() error {
 	// ES client 不需要显式关闭
 	return nil
+}
+
+// WriteFingerprint writes the fingerprint to ES _meta field.
+func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint) error {
+	if fp == nil {
+		return fmt.Errorf("nil fingerprint")
+	}
+	// Serialize fingerprint to JSON
+	fpJSON, err := fp.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("marshal fingerprint: %w", err)
+	}
+	// Parse back to map for _meta structure
+	var fpMap map[string]any
+	if err := sonic.Unmarshal(fpJSON, &fpMap); err != nil {
+		return fmt.Errorf("unmarshal fingerprint: %w", err)
+	}
+	// Build _meta with fingerprint under "go-rag-fingerprint" key
+	meta := map[string]any{
+		"go-rag-fingerprint": fpMap,
+	}
+	metaJSON, err := sonic.Marshal(meta)
+	if err != nil {
+		return fmt.Errorf("marshal meta: %w", err)
+	}
+	// Use put mapping API to update _meta
+	body := fmt.Sprintf(`{"_meta": %s}`, string(metaJSON))
+	res, err := s.client.Indices.PutMapping(
+		[]string{indexName},
+		strings.NewReader(body),
+	)
+	if err != nil {
+		return fmt.Errorf("put mapping: %w", err)
+	}
+	defer res.Body.Close()
+	if res.IsError() {
+		return fmt.Errorf("put mapping failed: %s", res.String())
+	}
+	return nil
+}
+
+// ReadFingerprint reads the fingerprint from ES _meta field.
+func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, error) {
+	// Use get index API to read mapping with _meta
+	res, err := s.client.Indices.Get([]string{indexName})
+	if err != nil {
+		return nil, fmt.Errorf("get index: %w", err)
+	}
+	defer res.Body.Close()
+	if res.IsError() {
+		if res.StatusCode == 404 {
+			return nil, ErrFingerprintMissing
+		}
+		return nil, fmt.Errorf("get index failed: %s", res.String())
+	}
+	// Read body
+	var bodyBytes []byte
+	if bodyBytes, err = io.ReadAll(res.Body); err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+	// Parse response
+	var result map[string]struct {
+		Mappings struct {
+			Meta map[string]any `json:"_meta"`
+		} `json:"mappings"`
+	}
+	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, fmt.Errorf("%w: decode response: %v", ErrFingerprintCorrupted, err)
+	}
+	// Extract _meta for the index
+	indexState, ok := result[indexName]
+	if !ok {
+		return nil, ErrFingerprintMissing
+	}
+	if indexState.Mappings.Meta == nil {
+		return nil, ErrFingerprintMissing
+	}
+	// Extract "go-rag-fingerprint" from _meta
+	fpData, ok := indexState.Mappings.Meta["go-rag-fingerprint"]
+	if !ok || fpData == nil {
+		return nil, ErrFingerprintMissing
+	}
+	// Serialize back to JSON for parsing
+	fpJSON, err := sonic.Marshal(fpData)
+	if err != nil {
+		return nil, fmt.Errorf("%w: marshal fingerprint: %v", ErrFingerprintCorrupted, err)
+	}
+	return ParseFingerprint(fpJSON)
 }
 
 // withRetry 包装函数，添加重试机制

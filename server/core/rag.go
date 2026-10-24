@@ -19,6 +19,7 @@ import (
 	"github.com/wangle201210/go-rag/server/core/indexer"
 	"github.com/wangle201210/go-rag/server/core/retriever"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
+	"github.com/wangle201210/go-rag/server/core/vector"
 	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
@@ -39,6 +40,35 @@ const (
 // docSearcher 文档检索边界：按 ID 集合从向量库/ES 取回文档，支持测试注入。
 type docSearcher interface {
 	SearchDocumentsByIDs(ctx context.Context, knowledgeName string, docIDs []string, size int) ([]*schema.Document, error)
+}
+
+// fingerprintCache stores verified fingerprints keyed by (vector_store_type, index_name).
+type fingerprintCache struct {
+	mu    sync.RWMutex
+	items map[string]*vector.Fingerprint
+}
+
+func newFingerprintCache() *fingerprintCache {
+	return &fingerprintCache{items: make(map[string]*vector.Fingerprint)}
+}
+
+func (c *fingerprintCache) get(key string) (*vector.Fingerprint, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	fp, ok := c.items[key]
+	return fp, ok
+}
+
+func (c *fingerprintCache) set(key string, fp *vector.Fingerprint) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items[key] = fp
+}
+
+func (c *fingerprintCache) invalidate(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.items, key)
 }
 
 type Rag struct {
@@ -77,6 +107,10 @@ type Rag struct {
 
 	// 统一终结处理：后台失败时标记文档状态（Stage 1D-3-B）
 	markFailed func(ctx context.Context, docID int64, err error)
+
+	// Stage 2C-2: Fingerprint cache and vector store reference
+	fpCache     *fingerprintCache  // Verified fingerprint cache
+	vectorStore vector.VectorStore // Vector store for fingerprint operations
 }
 
 func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
@@ -199,6 +233,180 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	}
 
 	return rag, nil
+}
+
+// VerifyFingerprint performs fingerprint verification after Rag creation.
+// Called by the factory after New() returns successfully.
+// vectorStore: the VectorStore instance for fingerprint read/write operations.
+// Returns error if fingerprint verification fails (missing/mismatch/corrupted).
+func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) error {
+	if vs == nil {
+		return fmt.Errorf("nil VectorStore")
+	}
+	x.vectorStore = vs
+	x.fpCache = newFingerprintCache()
+
+	// Compute expected fingerprint from config
+	expectedFP, err := x.computeExpectedFingerprint()
+	if err != nil {
+		return fmt.Errorf("compute expected fingerprint: %w", err)
+	}
+
+	// Determine vector store type for cache key
+	vsType := "unknown"
+	switch vs.(type) {
+	case *vector.ESVectorStore:
+		vsType = "es"
+	case *vector.QdrantVectorStore:
+		vsType = "qdrant"
+	}
+	cacheKey := vsType + ":" + x.conf.IndexName
+
+	// Check if index exists
+	exists, err := vs.IndexExists(ctx, x.conf.IndexName)
+	if err != nil {
+		return fmt.Errorf("check index exists: %w", err)
+	}
+
+	if !exists {
+		// This shouldn't happen - New() should have created the index
+		return fmt.Errorf("index %q does not exist after New()", x.conf.IndexName)
+	}
+
+	// Try to read existing fingerprint
+	storedFP, err := vs.ReadFingerprint(ctx, x.conf.IndexName)
+	if err != nil {
+		if errors.Is(err, vector.ErrFingerprintMissing) {
+			// No fingerprint exists - this is a new index or old index without fingerprint
+			// Write the expected fingerprint
+			if writeErr := vs.WriteFingerprint(ctx, x.conf.IndexName, expectedFP); writeErr != nil {
+				return fmt.Errorf("write fingerprint: %w", writeErr)
+			}
+			// Read back to verify
+			verifyFP, readErr := vs.ReadFingerprint(ctx, x.conf.IndexName)
+			if readErr != nil {
+				return fmt.Errorf("verify fingerprint after write: %w", readErr)
+			}
+			if verifyErr := vector.VerifyFingerprint(verifyFP, expectedFP); verifyErr != nil {
+				return fmt.Errorf("fingerprint verification after write failed: %w", verifyErr)
+			}
+			// Cache the verified fingerprint
+			x.fpCache.set(cacheKey, verifyFP)
+			g.Log().Infof(ctx, "Fingerprint written and verified for index %q", x.conf.IndexName)
+			return nil
+		}
+		// Other error (corrupted, etc.)
+		return fmt.Errorf("read fingerprint: %w", err)
+	}
+
+	// Fingerprint exists - verify it matches expected
+	if verifyErr := vector.VerifyFingerprint(storedFP, expectedFP); verifyErr != nil {
+		return fmt.Errorf("fingerprint verification failed for index %q: %w", x.conf.IndexName, verifyErr)
+	}
+
+	// Cache the verified fingerprint
+	x.fpCache.set(cacheKey, storedFP)
+	g.Log().Infof(ctx, "Fingerprint verified for index %q", x.conf.IndexName)
+	return nil
+}
+
+// computeExpectedFingerprint builds the expected fingerprint from current config.
+func (x *Rag) computeExpectedFingerprint() (*vector.Fingerprint, error) {
+	// Extract provider name and model ID from config
+	providerName := "unknown"
+	modelID := x.conf.EmbeddingModel
+	if x.conf.Provider != nil {
+		providerName = x.conf.Provider.Name
+		if x.conf.Provider.EmbeddingModel != "" {
+			modelID = x.conf.Provider.EmbeddingModel
+		}
+	}
+	if modelID == "" {
+		return nil, fmt.Errorf("embedding model not configured")
+	}
+
+	dims := x.conf.EmbeddingDimensions
+	if dims <= 0 {
+		return nil, fmt.Errorf("invalid embedding dimensions: %d", dims)
+	}
+
+	// Similarity is always "cosine" for now (could be made configurable later)
+	return vector.NewFingerprint(
+		vector.FingerprintVersion,
+		modelID,
+		dims,
+		providerName,
+		"cosine",
+	)
+}
+
+// GetFingerprint returns the cached fingerprint for the current index.
+// Returns nil if not cached.
+func (x *Rag) GetFingerprint() *vector.Fingerprint {
+	if x.fpCache == nil || x.vectorStore == nil {
+		return nil
+	}
+	vsType := "unknown"
+	switch x.vectorStore.(type) {
+	case *vector.ESVectorStore:
+		vsType = "es"
+	case *vector.QdrantVectorStore:
+		vsType = "qdrant"
+	}
+	cacheKey := vsType + ":" + x.conf.IndexName
+	fp, _ := x.fpCache.get(cacheKey)
+	return fp
+}
+
+// checkFingerprint validates the cached fingerprint before embedding operations.
+// Returns error if fingerprint is missing, invalid, or cannot be verified.
+// This is a lightweight check using the cache; full verification happens at startup.
+func (x *Rag) checkFingerprint(ctx context.Context) error {
+	// Ensure fingerprint infrastructure is initialized
+	if x.fpCache == nil {
+		return fmt.Errorf("fingerprint cache not initialized: VerifyFingerprint must be called after New()")
+	}
+	if x.vectorStore == nil {
+		return fmt.Errorf("vector store not set: VerifyFingerprint must be called after New()")
+	}
+
+	// Compute cache key for current index
+	vsType := "unknown"
+	switch x.vectorStore.(type) {
+	case *vector.ESVectorStore:
+		vsType = "es"
+	case *vector.QdrantVectorStore:
+		vsType = "qdrant"
+	}
+	cacheKey := vsType + ":" + x.conf.IndexName
+
+	// Check cache first
+	cachedFP, ok := x.fpCache.get(cacheKey)
+	if ok && cachedFP != nil && cachedFP.Valid() {
+		// Cache hit with valid fingerprint
+		return nil
+	}
+
+	// Cache miss or invalid: read from vector store and verify
+	storedFP, err := x.vectorStore.ReadFingerprint(ctx, x.conf.IndexName)
+	if err != nil {
+		return fmt.Errorf("read fingerprint from vector store: %w", err)
+	}
+
+	// Compute expected fingerprint from config
+	expectedFP, err := x.computeExpectedFingerprint()
+	if err != nil {
+		return fmt.Errorf("compute expected fingerprint: %w", err)
+	}
+
+	// Verify match
+	if verifyErr := vector.VerifyFingerprint(storedFP, expectedFP); verifyErr != nil {
+		return fmt.Errorf("fingerprint verification failed for index %q: %w", x.conf.IndexName, verifyErr)
+	}
+
+	// Update cache with verified fingerprint
+	x.fpCache.set(cacheKey, storedFP)
+	return nil
 }
 
 // GetKnowledgeBaseList 获取知识库列表

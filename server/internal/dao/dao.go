@@ -7,10 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
 	database "github.com/wangle201210/go-rag/server/internal/dao/db"
+	gormmodel "github.com/wangle201210/go-rag/server/internal/model/gorm"
 	"gorm.io/gorm"
 )
 
@@ -130,21 +130,7 @@ func MigrateFingerprintTable() error {
 	if gormDB == nil {
 		return fmt.Errorf("dao: GORM DB not available")
 	}
-	// Import the model here to avoid circular dependency
-	type IndexFingerprint struct {
-		ID                int64     `gorm:"primaryKey;autoIncrement"`
-		VectorStoreType   string    `gorm:"type:varchar(16);not null;uniqueIndex:uk_store_index"`
-		IndexName         string    `gorm:"type:varchar(255);not null;uniqueIndex:uk_store_index"`
-		FingerprintJSON   string    `gorm:"type:text;not null;column:fingerprint_json"`
-		FingerprintDigest string    `gorm:"type:varchar(64);not null;column:fingerprint_digest"`
-		EmbeddingModelID  string    `gorm:"type:varchar(255);not null"`
-		Dimensions        int       `gorm:"type:int;not null"`
-		ProviderName      string    `gorm:"type:varchar(64);not null"`
-		Similarity        string    `gorm:"type:varchar(16);not null"`
-		CreatedAt         time.Time `gorm:"autoCreateTime"`
-		UpdatedAt         time.Time `gorm:"autoUpdateTime"`
-	}
-	return gormDB.AutoMigrate(&IndexFingerprint{})
+	return gormDB.AutoMigrate(&gormmodel.IndexFingerprint{})
 }
 
 // InitWithMigrate 连接数据库并执行迁移（兼容入口，等价于 InitDB + Migrate）。

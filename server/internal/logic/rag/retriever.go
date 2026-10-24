@@ -18,6 +18,7 @@ import (
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/vector"
+	"github.com/wangle201210/go-rag/server/internal/dao"
 
 	// 导入百炼适配包，触发 init() 注册 builder hooks
 	_ "github.com/wangle201210/go-rag/server/core/providers/bailian"
@@ -118,8 +119,11 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 
 	// Stage 2C-2: Verify fingerprint after Rag creation
 	if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
-		// Fingerprint verification failed - cleanup and return error
+		// Fingerprint verification failed - cleanup Rag background context, then VectorStore
 		g.Log().Errorf(ctx, "Fingerprint verification failed: %v", verifyErr)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = rag.Shutdown(shutdownCtx)
+		shutdownCancel()
 		closeErr := vs.Close()
 		if closeErr != nil {
 			g.Log().Errorf(ctx, "Failed to close VectorStore after fingerprint verification error: %v", closeErr)
@@ -309,7 +313,19 @@ type VectorStoreFactory interface {
 type defaultVectorStoreFactory struct{}
 
 func (f *defaultVectorStoreFactory) Create(cfg *vector.Config) (vector.VectorStore, error) {
-	return vector.NewVectorStore(cfg)
+	vs, err := vector.NewVectorStore(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// Inject SQL database for Qdrant fingerprint storage
+	if _, ok := vs.(*vector.QdrantVectorStore); ok {
+		gormDB, dbErr := dao.GetGormDB()
+		if dbErr != nil {
+			return nil, fmt.Errorf("qdrant requires SQL database for fingerprint storage: %w", dbErr)
+		}
+		vs.(*vector.QdrantVectorStore).SetDB(gormDB)
+	}
+	return vs, nil
 }
 
 // cfgGet 安全读取配置，传播错误而非忽略。
@@ -485,6 +501,12 @@ func InitWithRealDeps() error {
 	cfg, err := readRagConfig()
 	if err != nil {
 		return fmt.Errorf("rag: %w", err)
+	}
+	// Migrate fingerprint table for Qdrant (must happen after dao.InitDBWithConfig)
+	if cfg.VectorCfg.Type == "qdrant" {
+		if migrateErr := dao.MigrateFingerprintTable(); migrateErr != nil {
+			return fmt.Errorf("rag: migrate fingerprint table: %w", migrateErr)
+		}
 	}
 	return InitWith(cfg, &defaultVectorStoreFactory{}, &defaultRagFactory{})
 }

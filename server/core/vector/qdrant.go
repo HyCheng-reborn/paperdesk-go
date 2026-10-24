@@ -44,6 +44,12 @@ func NewQdrantVectorStore(cfg *QdrantConfig, dimensions ...int) (*QdrantVectorSt
 	}, nil
 }
 
+// SetDB injects the *gorm.DB for fingerprint storage.
+// Must be called after NewQdrantVectorStore when using Qdrant (which has no native SQL metadata).
+func (s *QdrantVectorStore) SetDB(db *gorm.DB) {
+	s.db = db
+}
+
 // GetClient 获取 Qdrant 客户端（用于兼容现有代码）
 func (s *QdrantVectorStore) GetClient() *qdrant.Client {
 	return s.client

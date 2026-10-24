@@ -1,0 +1,8 @@
+SHA: 3e24a533f99aaa8578b848ae550dfd2e10292723
+BASE: 735786966e3e8e8e0f1eb238045ca49209410505
+CWD: C:/Zhy/code/go-rag-review-1d3/server
+GO: go version go1.27.1 windows/amd64
+GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=gcc CXX=g++ GOFLAGS=(empty) GOTOOLCHAIN=auto
+MinGW GCC 8.1.0 (unchanged)
+GOPROXY=off GOSUMDB=off; no online/integration tags
+Target core tests fail to compile; no uncommitted production helper imported

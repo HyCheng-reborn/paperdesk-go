@@ -1,0 +1,38 @@
+SHA: 02d6bae0ce75f7f6207d9bf37d672dc6033285c8
+LAYER: target + review test; NO overlay
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/bailian -run ^TestIndependentOpenAIStreamEarlyCloseFinalizes$ -count=10 -timeout=60s -v
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.11s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestIndependentOpenAIStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:107: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIStreamEarlyCloseFinalizes (0.10s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian	1.201s
+FAIL
+EXIT: 1

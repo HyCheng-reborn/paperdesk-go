@@ -102,13 +102,18 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	var requests atomic.Int32
 	var storedMeta string = `{}` // Start with empty _meta
+	var indexCreated bool = false // Track whether index has been created
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
 		// Handle different ES API calls
 		if r.Method == "HEAD" {
-			// Index exists check
-			w.WriteHeader(200)
+			// Index exists check - return 404 until index is created
+			if indexCreated {
+				w.WriteHeader(200)
+			} else {
+				w.WriteHeader(404)
+			}
 			return
 		}
 		if r.Method == "PUT" && r.URL.Path == "/test/_mapping" {
@@ -133,6 +138,14 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 		}
 		if r.Method == "POST" && r.URL.Path == "/test/_create" {
 			// Create index
+			indexCreated = true
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true,"index":"test"}`))
+			return
+		}
+		if r.Method == "PUT" && r.URL.Path == "/test" {
+			// Create index (PUT method)
+			indexCreated = true
 			w.WriteHeader(200)
 			w.Write([]byte(`{"acknowledged":true,"index":"test"}`))
 			return

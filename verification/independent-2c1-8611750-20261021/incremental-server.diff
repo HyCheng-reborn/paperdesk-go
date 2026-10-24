@@ -1,0 +1,202 @@
+diff --git a/server/core/config/dimensions.go b/server/core/config/dimensions.go
+index cdf53ac..5bff936 100644
+--- a/server/core/config/dimensions.go
++++ b/server/core/config/dimensions.go
+@@ -1,9 +1,11 @@
+ package config
+ 
+ import (
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"reflect"
++	"strconv"
+ )
+ 
+ // DefaultEmbeddingDimensions is the legacy configuration default, not a schema default.
+@@ -18,6 +20,24 @@ func ParseEmbeddingDimensions(value any) (int, error) {
+ 	if value == nil {
+ 		return 0, nil
+ 	}
++	// GoFrame's YAML/file adapter preserves numeric values as json.Number.
++	// Keep ordinary strings invalid and do not coerce decimal/exponent forms.
++	if number, ok := value.(json.Number); ok {
++		text := string(number)
++		if len(text) == 0 || text[0] < '1' || text[0] > '9' {
++			return 0, fmt.Errorf("%w: expected positive integer json.Number", ErrEmbeddingDimensions)
++		}
++		for i := 1; i < len(text); i++ {
++			if text[i] < '0' || text[i] > '9' {
++				return 0, fmt.Errorf("%w: expected integer json.Number", ErrEmbeddingDimensions)
++			}
++		}
++		n, err := strconv.ParseInt(text, 10, strconv.IntSize)
++		if err != nil {
++			return 0, fmt.Errorf("%w: json.Number outside int range", ErrEmbeddingDimensions)
++		}
++		return int(n), nil
++	}
+ 	v := reflect.ValueOf(value)
+ 	var n int64
+ 	switch v.Kind() {
+diff --git a/server/core/config/dimensions_json_test.go b/server/core/config/dimensions_json_test.go
+new file mode 100644
+index 0000000..fcd49a2
+--- /dev/null
++++ b/server/core/config/dimensions_json_test.go
+@@ -0,0 +1,29 @@
++package config
++
++import (
++	"encoding/json"
++	"errors"
++	"strconv"
++	"testing"
++)
++
++func TestDimensions_JSONNumber(t *testing.T) {
++	max := uint64(^uint(0) >> 1)
++	for _, n := range []string{"768", strconv.FormatUint(max, 10)} {
++		got, err := ParseEmbeddingDimensions(json.Number(n))
++		want, _ := strconv.ParseInt(n, 10, strconv.IntSize)
++		if err != nil || got != int(want) {
++			t.Errorf("json.Number(%q): got %d, %v", n, got, err)
++		}
++	}
++	for _, n := range []string{"", "0", "-1", "+768", "0768", " 768", "768 ", "768.0", "1.5", "1e3", "NaN", "Inf", strconv.FormatUint(max+1, 10), "999999999999999999999999999"} {
++		t.Run(n, func(t *testing.T) {
++			if _, err := ParseEmbeddingDimensions(json.Number(n)); !errors.Is(err, ErrEmbeddingDimensions) {
++				t.Fatalf("accepted invalid json.Number %q: %v", n, err)
++			}
++		})
++	}
++	if _, err := ParseEmbeddingDimensions("768"); !errors.Is(err, ErrEmbeddingDimensions) {
++		t.Fatal("ordinary string accepted", err)
++	}
++}
+diff --git a/server/internal/logic/rag/dimensions_yaml_test.go b/server/internal/logic/rag/dimensions_yaml_test.go
+new file mode 100644
+index 0000000..80c5f0a
+--- /dev/null
++++ b/server/internal/logic/rag/dimensions_yaml_test.go
+@@ -0,0 +1,120 @@
++package rag
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/gogf/gf/v2/frame/g"
++	"github.com/gogf/gf/v2/os/gcfg"
++	"github.com/wangle201210/go-rag/server/core/common"
++	"github.com/wangle201210/go-rag/server/core/config"
++)
++
++// No t.Parallel: readRagConfig uses the production default GoFrame instance.
++// Restore its adapter, never replace production parsing functions or use fake getters.
++func dimensionsYAMLFile(t *testing.T, legacy, provider string) {
++	t.Helper()
++	// Build a single embedding mapping: duplicate YAML keys must not decide precedence.
++	content := "vector:\n  type: es\n  indexName: offline\nembedding:\n  model: text-embedding-3-large\n"
++	if legacy != "" {
++		content += "  dimensions: " + legacy + "\n"
++	}
++	content += "chat:\n  model: offline\n"
++	if provider != "" {
++		content += "provider:\n  name: openai\n  embedding_model: offline\n  embedding_dimensions: " + provider + "\n"
++	}
++	path := filepath.Join(t.TempDir(), "config.yaml")
++	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
++		t.Fatal(err)
++	}
++	a, err := gcfg.NewAdapterFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	old := g.Cfg().GetAdapter()
++	g.Cfg().SetAdapter(a)
++	t.Cleanup(func() { g.Cfg().SetAdapter(old) })
++}
++func TestDimensions_YAMLFileProductionChain(t *testing.T) {
++	for _, c := range []struct {
++		name, legacy, provider string
++		want                   int
++	}{{"missing", "", "", 1024}, {"legacy", "768", "", 768}, {"provider", "", "768", 768}, {"agree", "768", "768", 768}, {"explicitDefault", "1024", "", 1024}} {
++		t.Run(c.name, func(t *testing.T) {
++			dimensionsYAMLFile(t, c.legacy, c.provider)
++			key := "embedding.dimensions"
++			if c.provider != "" {
++				key = "provider.embedding_dimensions"
++			}
++			if c.legacy != "" || c.provider != "" {
++				v, err := g.Cfg().Get(context.Background(), key)
++				if err != nil {
++					t.Fatal(err)
++				}
++				if _, ok := v.Val().(json.Number); !ok {
++					t.Fatalf("fixture did not exercise GoFrame json.Number: %T", v.Val())
++				}
++			}
++			raw, err := readRagConfig()
++			if err != nil {
++				t.Fatal(err)
++			}
++			normalized, err := normalizeDimensions(raw)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if normalized.EmbeddingDimensions != c.want || normalized.VectorCfg.EmbeddingDimensions != c.want {
++				t.Fatalf("not propagated: %+v", normalized)
++			}
++			if c.provider != "" {
++				resetState()
++				t.Cleanup(resetState)
++				if normalized.Provider.EmbeddingDimensions != c.want {
++					t.Fatal(normalized.Provider)
++				}
++				vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
++				rf := &dimensionRagFactory{}
++				if err = InitWith(raw, vf, rf); !errors.Is(err, common.ErrEmbeddingGuardNotReady) {
++					t.Fatal("provider gate bypassed", err)
++				}
++				if vf.got != 0 || rf.got != 0 {
++					t.Fatal("gate contacted factories")
++				}
++			}
++		})
++	}
++}
++func TestDimensions_YAMLFileInvalidAndConflict(t *testing.T) {
++	for _, key := range []string{"legacy", "provider"} {
++		for _, value := range []string{"0", "-1", `"768"`, "1.5", "true", "9223372036854775808"} {
++			t.Run(fmt.Sprintf("%s/%s", key, value), func(t *testing.T) {
++				legacy, provider := "", ""
++				if key == "legacy" {
++					legacy = value
++				} else {
++					provider = value
++				}
++				dimensionsYAMLFile(t, legacy, provider)
++				_, err := readRagConfig()
++				if !errors.Is(err, config.ErrEmbeddingDimensions) {
++					t.Fatalf("wanted dimension rejection, got %v", err)
++				}
++			})
++		}
++	}
++	t.Run("conflict", func(t *testing.T) {
++		dimensionsYAMLFile(t, "512", "768")
++		raw, err := readRagConfig()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if _, err = normalizeDimensions(raw); !errors.Is(err, config.ErrEmbeddingDimensionConflict) {
++			t.Fatal(err)
++		}
++	})
++}

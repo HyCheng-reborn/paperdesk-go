@@ -1,0 +1,11 @@
+SHA: be28e918f4962e88906919e6f45ce39707cb9a50
+LAYER: target + three uncommitted dependency snapshots via overlay + review test
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -overlay=C:/Zhy/code/go-rag/verification/independent-2b-be28e91/overlay.json ./core/providers/bailian -run ^TestSupplementEmbeddingSettlesKnownUsage$ -count=1 -timeout=30s -v
+=== RUN   TestSupplementEmbeddingSettlesKnownUsage
+    review_fix_behaviors_test.go:92: known response usage ignored in favor of estimate: {AttemptsUsed:1 CommittedAttempts:1 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:1 OutputUsed:0}
+--- FAIL: TestSupplementEmbeddingSettlesKnownUsage (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian	0.111s
+FAIL
+EXIT: 1

@@ -1,0 +1,199 @@
+SHA: fbbaeb4c12ab48db68c778ac38bb64676ddcb5d1
+LAYER: target + review tests; NO overlay
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/openai ./internal/logic/chat -run ^TestReview(Managed(RealClose|NoBudgetABC|CloseWaitsReceiver|ParentCancelUnderBackpressure|ChatFailureBackpressure)|SessionEarlyFrontendClose)$ -count=10 -timeout=60s -v
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.01s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.01s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:53: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+    review_managed_session_test.go:68: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedParentCancelUnderBackpressure (0.10s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/openai	1.269s
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.01s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+    review_managed_session_test.go:48: failure cleanup deadlocked on full foreground queue until caller additionally closed reader
+--- FAIL: TestReviewManagedChatFailureBackpressure (0.10s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/chat	1.146s
+FAIL
+EXIT: 1

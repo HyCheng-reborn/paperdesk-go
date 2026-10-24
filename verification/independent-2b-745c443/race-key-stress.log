@@ -1,0 +1,18 @@
+SHA: 745c4433b4a99542c441b7a3d6fe958f88688caa
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -run ^(TestBudget_(RealHTTPSend|StreamFinish|RetryNoRefresh|ConcurrentReserve_MaxRequests|ConcurrentFinalize)|TestBuilder_(ConcurrentRegistration|UnknownProviderRejected|NilBuilderRejected|DuplicateRegistrationRejected|FrozenAfterRegistryBuild)|TestEmbedding_(RawIndices_(OutOfOrder|Duplicate|Missing|Valid)|UsageMissing)|TestRegistry_GetSetConcurrency|TestStream_(EarlyCloseFinalizes|CancelFinalizes|ErrorFinalizes|ConcurrentCloseFinalizes)|TestBudget_(RedirectCountsAttempts|OutputCapMatches|EmbeddingSettlesUsage|LocalErrorNoCommit|OwnerReuseViaCtx))$ -count=10 -timeout=180s -v
+DATE: 2026-10-20T00:55:36.6575545+08:00
+# github.com/wangle201210/go-rag/server/core/providers/bailian [github.com/wangle201210/go-rag/server/core/providers/bailian.test]
+core\providers\bailian\chat.go:139:18: undefined: providers.RequestBudgetFromContext
+core\providers\bailian\embedding.go:155:18: undefined: providers.RequestBudgetFromContext
+core\providers\bailian\rerank.go:86:18: undefined: providers.RequestBudgetFromContext
+core\providers\bailian\integration_test.go:173:31: undefined: providers.ErrRedirectProhibited
+core\providers\bailian\integration_test.go:566:19: undefined: providers.ContextWithRequestBudget
+# github.com/wangle201210/go-rag/server/core/providers [github.com/wangle201210/go-rag/server/core/providers.test]
+core\providers\builder_sync_test.go:218:11: undefined: profileChat
+core\providers\builder_sync_test.go:227:11: undefined: profileChat
+FAIL	github.com/wangle201210/go-rag/server/core/providers [build failed]
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian [build failed]
+?   	github.com/wangle201210/go-rag/server/core/providers/openai	[no test files]
+FAIL
+EXIT: 1

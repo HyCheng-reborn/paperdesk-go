@@ -1,0 +1,24 @@
+
+Count Name
+----- ----
+   10 === RUN   TestBudget_ConcurrentFinalize
+   10 === RUN   TestBudget_ConcurrentReserve_MaxRequests
+   10 === RUN   TestBudget_DeadlineNotRefreshedByRetry
+   10 === RUN   TestBudget_DualScope_PartialFailure
+   10 === RUN   TestBudget_IdempotentFinalize
+   10 === RUN   TestBudget_NegativeProcessLimit
+   10 === RUN   TestBudget_NegativeUsageConservative
+   10 === RUN   TestBudget_OverflowSlotRelease
+   10 === RUN   TestBudget_OwnerCancelPropagates
+   10 === RUN   TestBudget_ReservationOverflow_CrossScope
+   10 === RUN   TestBudget_ReservationOverflow_Input
+   10 === RUN   TestBudget_ReservationOverflow_Output
+   10 === RUN   TestBudget_RetryNoRefresh
+   10 === RUN   TestBudget_SettlementOverflow
+   10 === RUN   TestBudget_TotalOnlyUsage
+   10 === RUN   TestBudget_TransferKeepsAbsoluteDeadline
+   10 === RUN   TestBudget_TransferToBackground
+   10 === RUN   TestRegistry_ResolverCannotMutateKeyOptions
+   10 === RUN   TestRegistry_ResolverCannotMutateProfile
+   10 === RUN   TestRegistry_ResolverHoldsCopy
+

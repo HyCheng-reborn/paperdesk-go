@@ -1,0 +1,48 @@
+SHA: 06ef59c68000059f29302710ea15ce93afdc88bd
+LAYER: race-overlay-init
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race -overlay=C:/Zhy/code/go-rag/verification/independent-2b-06ef59c/overlay.json ./internal/logic/rag -run ^TestIndependentInitRollbackPreservesNewerRegistry$ -count=10 -timeout=60s -v
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+=== RUN   TestIndependentInitRollbackPreservesNewerRegistry
+    review_init_race_test.go:20: initialization exposed unfinished Registry to concurrent reader
+    review_init_race_test.go:21: failed initialization rollback overwrote Registry published during its wait
+--- FAIL: TestIndependentInitRollbackPreservesNewerRegistry (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/rag	0.221s
+FAIL
+EXIT: 1

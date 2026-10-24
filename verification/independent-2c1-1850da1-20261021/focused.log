@@ -1,0 +1,24 @@
+TARGET: 1850da1fcff2e66c1ed61594139e7e2e068fd775 CMD: go test ./core/config ./core/common ./core/vector ./core/indexer ./core/retriever ./core ./internal/logic/rag -run ^TestDimensions_ -count=1 -v GOFLAGS: 
+FAIL	./core/config [setup failed]
+# ./core/config
+open C:\Users\zhy\AppData\Local\go-build\7b\7b21ea641a7b5838170b7175bf00548992435313b1e1b23ca27a9087dfa45de8-d: Access is denied.
+# ./core/common
+open C:\Users\zhy\AppData\Local\go-build\cf\cf3923250d91f9528981b36792c65c81fa3690057c087319e624f90c6adfd0a5-d: Access is denied.
+# ./core/vector
+open C:\Users\zhy\AppData\Local\go-build\27\274b35f2496b372b2b8b560bd14259c4f0c0150333446e3fd150b9477cbaaef6-d: Access is denied.
+# ./core/indexer
+open C:\Users\zhy\AppData\Local\go-build\92\92196a850381ba0aa04f82e6791bd6103d1cdc8d66bded0039ca45471103ce47-d: Access is denied.
+# ./core/retriever
+open C:\Users\zhy\AppData\Local\go-build\7b\7b49ee44966b971d69b46240ae305fa7997f52cabf93a2f152739e087193c4e7-d: Access is denied.
+# ./core
+open C:\Users\zhy\AppData\Local\go-build\56\567d808e49064557316c4daeedd7f1631de4e9dda729f950a1b94f94ec165d6b-d: Access is denied.
+# ./internal/logic/rag
+FAIL	./core/common [setup failed]
+open C:\Users\zhy\AppData\Local\go-build\f5\f5f7768e224e9760af40f436960a879fcb426766e54172ae57a4edde755d6061-d: Access is denied.
+FAIL	./core/vector [setup failed]
+FAIL	./core/indexer [setup failed]
+FAIL	./core/retriever [setup failed]
+FAIL	./core [setup failed]
+FAIL	./internal/logic/rag [setup failed]
+FAIL
+EXIT: 1

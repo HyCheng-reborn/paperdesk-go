@@ -1,0 +1,5 @@
+SHA: 4356f6547142de470c13b7af1368f6ccaa3bd4bc
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go build ./...
+DATE: 2026-10-20T16:34:23.2045203+08:00
+EXIT: 0

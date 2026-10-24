@@ -1,0 +1,9 @@
+
+Algorithm : SHA256
+Hash      : 619C8DB21FE64DA15AD5136343337E45FF23249A5D30827B66EBE86240C9848B
+Path      : C:\Zhy\code\go-rag\server\core\providers\fake.go
+
+Algorithm : SHA256
+Hash      : 619C8DB21FE64DA15AD5136343337E45FF23249A5D30827B66EBE86240C9848B
+Path      : C:\Zhy\code\go-rag\verification\independent-2b-be28e91\supplement-sources\core_providers_fake.go
+

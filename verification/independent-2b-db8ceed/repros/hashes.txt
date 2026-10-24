@@ -1,0 +1,55 @@
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          4E3000E552FC550CF72563B618890355D4EB120F60C878662D1078F8ED9EFC03       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          49833BB3AAFF5E63CC62C22C88FF2F272C4960AFD901C555485FAC1F0AC011F9       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          7AF3D344F4CE9E3E7CC42F547E76B27F90F9343E07F93151A4B60CC39268CCB4       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          049FB5F8AD02B3818FB3F1E4744BFF6F0CFEAD9BCBB9755142C9C674B2413FDC       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          3050DB5B81774ED1A234A33ED132B91869D727A35BBC6CCA35F60780F3ACB3AA       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          FE1F1356559A390FF594A64B2A46B1ADA23E1770D53F44F70A02EBD7D4DA3320       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          E97AC7263F0B61E8ECE842F2A4731354750B91D8A4699AF2D8A4FB109D59C522       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          0AEA4DE2A67999802342AF35CEC9223A30D24601032401E989AE853778B63077       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          A0E35F0FCE08191242DFDF9ED1AE3B9B90FB75F538F21842FAD50E319D3E1D98       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          29F8CC115CC5240EA773B3402069056E00072256BD084E27865A5852F67D86EE       C:\Zhy\code\go-rag-review-1d3\se…
+
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          C4E2F5FBA55CA4FDBFB331FA30ABA421A02337E8B852AE7F0421659ED6DEB2BC       C:\Zhy\code\go-rag-review-1d3\se…
+

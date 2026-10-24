@@ -1,0 +1,21 @@
+SHA: 64aac44155414403d5d4e007863987e1f79acfe2
+LAYER: overlay-logic
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -overlay=C:/Zhy/code/go-rag/verification/independent-2b-64aac44/overlay.json ./internal/logic/rag ./internal/logic/chat -run ^Test(Review|Supplement|Independent) -count=1 -timeout=60s -v
+=== RUN   TestReviewEmbeddingProductionGate
+--- PASS: TestReviewEmbeddingProductionGate (0.00s)
+=== RUN   TestReviewRegistryPublicationOnInitFailure
+    review_rag_test.go:42: failed core.New published and retained replacement Registry
+--- FAIL: TestReviewRegistryPublicationOnInitFailure (0.00s)
+=== RUN   TestReviewUnknownProviderRejected
+--- PASS: TestReviewUnknownProviderRejected (0.00s)
+=== RUN   TestSupplementResetTimeoutPreservesRegistry
+--- PASS: TestSupplementResetTimeoutPreservesRegistry (5.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/rag	5.214s
+=== RUN   TestReviewChatFactoryPropagatesRegistryFailure
+--- PASS: TestReviewChatFactoryPropagatesRegistryFailure (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.208s
+FAIL
+EXIT: 1

@@ -1,0 +1,20 @@
+
+Count Name
+----- ----
+   10 === RUN   TestBudget_ConcurrentFinalize
+   10 === RUN   TestBudget_ConcurrentReserve_MaxRequests
+   10 === RUN   TestBudget_DualScope_PartialFailure
+   10 === RUN   TestBudget_IdempotentFinalize
+   10 === RUN   TestBudget_SlotRelease_NonStream
+   10 === RUN   TestBudget_SlotRelease_StreamPaths
+   10 === RUN   TestBuildChat_NormalResponse
+   10 === RUN   TestBuildChat_StreamInterrupted
+   10 === RUN   TestBuildChat_StreamNormal
+   10 === RUN   TestBuildEmbed_NormalResponse
+   10 === RUN   TestBuildRerank_NormalResponse
+   10 === RUN   TestRegistry_FailedInit
+   10 === RUN   TestRegistry_ProfileIsolation
+   10 === RUN   TestRegistry_ResolverCannotMutateKeyOptions
+   10 === RUN   TestRegistry_ResolverCannotMutateProfile
+   10 === RUN   TestRegistry_ResolverHoldsCopy
+

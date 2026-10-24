@@ -1,0 +1,409 @@
+SHA: a24cb8d609e6c4580b0726cb7de0ccd21d2efdd1
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -run ^(TestBudget_(ConcurrentReserve_MaxRequests|DualScope_PartialFailure|IdempotentFinalize|ConcurrentFinalize|SlotRelease_NonStream|SlotRelease_StreamPaths)|TestRegistry_(ProfileIsolation|FailedInit|ResolverCannotMutateProfile|ResolverCannotMutateKeyOptions|ResolverHoldsCopy)|TestBuildChat_(NormalResponse|StreamNormal|StreamInterrupted)|TestBuildEmbed_NormalResponse|TestBuildRerank_NormalResponse)$ -count=10 -timeout=180s -v
+DATE: 2026-10-19T18:52:04.1107162+08:00
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.249s
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.01s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.03s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.297s
+EXIT: 0

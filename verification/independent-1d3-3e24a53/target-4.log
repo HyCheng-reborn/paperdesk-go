@@ -1,0 +1,189 @@
+SHA: 3e24a533f99aaa8578b848ae550dfd2e10292723
+LAYER: clean target
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./internal/logic/rag -count=10 -v -timeout=180s -run ^TestReset_
+GOPROXY=off GOSUMDB=off
+START: 2026-10-18T18:09:22.9226688+08:00
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.02s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.02s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+=== RUN   TestReset_ClosesVectorStore
+--- PASS: TestReset_ClosesVectorStore (0.00s)
+=== RUN   TestReset_VectorStoreCloseError
+--- PASS: TestReset_VectorStoreCloseError (0.00s)
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.01s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (5.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	153.404s
+EXIT: 0

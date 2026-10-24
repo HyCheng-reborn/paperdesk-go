@@ -1,0 +1,103 @@
+SHA: 735786966e3e8e8e0f1eb238045ca49209410505
+LAYER: clean target
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test ./core ./internal/logic/rag ./internal/logic/knowledge -count=1 -v -timeout=120s -run ^(TestReset_(Concurrent_NoRaceOrPanic|DuringWait_GetRagSvrCallable|ShutdownTimeout_PreservesExactObjects|AfterTaskCompletion_SecondResetSucceeds|ConcurrentInitDoesNotCloseNewInstance)|TestIndex_Background(Chunks.*|CleanupBeforeDone)|TestSaveChunks_(IndexingOnlyUpdater_SkipsFailed|PublicEntry_Compatibility)|TestShutdownCoordinator_.*)$
+GOPROXY=off GOSUMDB=off
+START: 2026-10-18T16:51:49.5218278+08:00
+=== RUN   TestIndex_BackgroundChunksFailure_RealChain
+2026-10-18T16:51:55.275+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T16:51:55.275+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T16:51:55.275+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func1
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:2256
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:60
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T16:51:55.275+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundChunksFailure_RealChain (0.01s)
+=== RUN   TestIndex_BackgroundChunksSuccess_WritesIndexing
+2026-10-18T16:51:55.275+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T16:51:55.275+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+--- PASS: TestIndex_BackgroundChunksSuccess_WritesIndexing (0.20s)
+=== RUN   TestIndex_BackgroundChunksStatusWriteFailure_Propagated
+2026-10-18T16:51:55.476+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T16:51:55.476+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T16:51:55.476+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=status write failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func1
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:2256
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:60
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T16:51:55.476+08:00 [ERRO] indexAsyncByDocsID failed, err=status write failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundChunksStatusWriteFailure_Propagated (0.20s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T16:51:55.676+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:51:55.776+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.10s)
+=== RUN   TestShutdownCoordinator_ShutdownSuccess_ThenCleanup
+--- PASS: TestShutdownCoordinator_ShutdownSuccess_ThenCleanup (0.00s)
+=== RUN   TestShutdownCoordinator_ShutdownTimeout_NoCleanup
+2026-10-18T16:51:55.776+08:00 [ERRO] Index background panic: close of closed channel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3.2
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:180
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundCleanupBeforeDone.func1
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:2477
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:60
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T16:51:55.776+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestShutdownCoordinator_ShutdownTimeout_NoCleanup (0.10s)
+=== RUN   TestShutdownCoordinator_CleanupPartialFailure_ContinuesOthers
+--- PASS: TestShutdownCoordinator_CleanupPartialFailure_ContinuesOthers (0.00s)
+=== RUN   TestShutdownCoordinator_NoResources
+--- PASS: TestShutdownCoordinator_NoResources (0.00s)
+=== RUN   TestShutdownCoordinator_NilCloser
+--- PASS: TestShutdownCoordinator_NilCloser (0.00s)
+=== RUN   TestShutdownCoordinator_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T16:51:55.877+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestShutdownCoordinator_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestShutdownCoordinator_CleanupFailsBeforeConverged
+2026-10-18T16:51:55.977+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestShutdownCoordinator_CleanupFailsBeforeConverged (0.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	1.060s
+=== RUN   TestReset_Concurrent_NoRaceOrPanic
+--- PASS: TestReset_Concurrent_NoRaceOrPanic (0.00s)
+=== RUN   TestReset_DuringWait_GetRagSvrCallable
+--- PASS: TestReset_DuringWait_GetRagSvrCallable (0.10s)
+=== RUN   TestReset_ShutdownTimeout_PreservesExactObjects
+--- PASS: TestReset_ShutdownTimeout_PreservesExactObjects (5.00s)
+=== RUN   TestReset_AfterTaskCompletion_SecondResetSucceeds
+--- PASS: TestReset_AfterTaskCompletion_SecondResetSucceeds (0.00s)
+=== RUN   TestReset_ConcurrentInitDoesNotCloseNewInstance
+--- PASS: TestReset_ConcurrentInitDoesNotCloseNewInstance (0.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	5.452s
+=== RUN   TestSaveChunks_IndexingOnlyUpdater_SkipsFailed
+--- PASS: TestSaveChunks_IndexingOnlyUpdater_SkipsFailed (0.00s)
+=== RUN   TestSaveChunks_PublicEntry_Compatibility
+--- PASS: TestSaveChunks_PublicEntry_Compatibility (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.205s
+EXIT: 0

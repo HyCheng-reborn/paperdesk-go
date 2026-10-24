@@ -1,0 +1,457 @@
+SHA: cd1a7acf9b2a381dc12471aa45ac9dff50475447
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -run ^(TestBudget_(RealHTTPSend|StreamFinish|RetryNoRefresh|ConcurrentReserve_MaxRequests|ConcurrentFinalize)|TestBuilder_(ConcurrentRegistration|UnknownProviderRejected|NilBuilderRejected|DuplicateRegistrationRejected|FrozenAfterRegistryBuild)|TestEmbedding_(RawIndices_(OutOfOrder|Duplicate|Missing|Valid)|UsageMissing)|TestRegistry_GetSetConcurrency|TestStream_(EarlyCloseFinalizes|CancelFinalizes|ErrorFinalizes|ConcurrentCloseFinalizes|MultiChunkComplete|BlockedSourceClose|ConcurrentClose|CancelNotEOF)|TestBudget_(RedirectCountsAttempts|OutputCapMatches|EmbeddingSettlesUsage|LocalErrorNoCommit|OwnerReuseViaCtx|OutputOptsMatchReservation|OutputOptsRejected)|TestOpenAI_(BudgetCoversHTTP|StreamBudget)|TestOwner_.*|TestRedirect_.*|TestEmbedding_ConcurrentUsageIsolated|TestStreamSession_.*)$ -count=10 -timeout=180s -v
+DATE: 2026-10-20T19:51:16.3261714+08:00
+# github.com/wangle201210/go-rag/server/core/providers/bailian [github.com/wangle201210/go-rag/server/core/providers/bailian.test]
+core\providers\bailian\integration_test.go:330:20: wrapped.Recv undefined (type *providers.StreamSession has no field or method Recv)
+core\providers\bailian\integration_test.go:365:21: wrapped.Recv undefined (type *providers.StreamSession has no field or method Recv)
+core\providers\bailian\integration_test.go:396:21: wrapped.Recv undefined (type *providers.StreamSession has no field or method Recv)
+core\providers\bailian\stage2b_stream_test.go:206:21: wrapped.Recv undefined (type *providers.StreamSession has no field or method Recv)
+core\providers\bailian\stage2b_stream_test.go:247:20: wrapped.Recv undefined (type *providers.StreamSession has no field or method Recv)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestStreamSession_NoBudgetFullContent
+--- PASS: TestStreamSession_NoBudgetFullContent (0.00s)
+=== RUN   TestStreamSession_EOFSettles
+--- PASS: TestStreamSession_EOFSettles (0.00s)
+=== RUN   TestStreamSession_ReadError
+--- PASS: TestStreamSession_ReadError (0.00s)
+=== RUN   TestStreamSession_EarlyClose
+--- PASS: TestStreamSession_EarlyClose (0.00s)
+=== RUN   TestStreamSession_ConcurrentCloseEOF
+--- PASS: TestStreamSession_ConcurrentCloseEOF (0.00s)
+=== RUN   TestStreamSession_ParentCtxCancel
+--- PASS: TestStreamSession_ParentCtxCancel (0.00s)
+=== RUN   TestStreamSession_BuildFailReleasesResources
+--- PASS: TestStreamSession_BuildFailReleasesResources (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_WithInnerSessionCascade
+--- PASS: TestStreamSession_WithInnerSessionCascade (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.287s
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian [build failed]
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.02s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.249s
+FAIL
+EXIT: 1

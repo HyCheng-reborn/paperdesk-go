@@ -1,0 +1,29 @@
+SHA: c15287a71a61f2b3c0d619c071265d08c76d3555
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+LAYER: target + independent review tests
+CMD: go test ./core/providers/openai ./internal/logic/chat -run ^TestReview(Managed(RealClose|NoBudgetABC|CloseWaitsReceiver|ParentCancelUnderBackpressure|ChatFailureBackpressure)|RegistryBailianParentCancelUnderBackpressure|BailianNilBudgetParentCancel|SessionEarlyFrontendClose)$ -count=1 -timeout=60s -v
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.01s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.01s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+--- PASS: TestReviewRegistryBailianParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewBailianNilBudgetParentCancel
+--- PASS: TestReviewBailianNilBudgetParentCancel (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	0.187s
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.144s
+EXIT: 0

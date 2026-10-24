@@ -1,0 +1,29 @@
+SHA: cd1a7acf9b2a381dc12471aa45ac9dff50475447
+LAYER: target + independent managed-session tests; NO overlay
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test ./core/providers/openai ./internal/logic/chat -run ^TestReviewManaged -count=1 -timeout=30s -v
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.01s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+    review_managed_session_test.go:52: Close/Done returned while provider receiver was still blocked behind HTTP Read completion
+--- FAIL: TestReviewManagedCloseWaitsReceiver (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/openai	0.128s
+=== RUN   TestReviewManagedChatCleanupOwnsFrontend
+=== RUN   TestReviewManagedChatCleanupOwnsFrontend/true
+    review_managed_session_test.go:25: cleanup left frontend Copy branch open: Recv error=EOF
+=== RUN   TestReviewManagedChatCleanupOwnsFrontend/false
+    review_managed_session_test.go:25: cleanup left frontend Copy branch open: Recv error=EOF
+--- FAIL: TestReviewManagedChatCleanupOwnsFrontend (0.00s)
+    --- FAIL: TestReviewManagedChatCleanupOwnsFrontend/true (0.00s)
+    --- FAIL: TestReviewManagedChatCleanupOwnsFrontend/false (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/chat	0.134s
+FAIL
+EXIT: 1

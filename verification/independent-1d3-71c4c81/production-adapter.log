@@ -1,0 +1,427 @@
+SHA: 71c4c81cb6a3eae060365e1f59f6dfe79aed83ce
+LAYER: target + independent production-adapter verification
+CWD: C:/Zhy/code/go-rag-review-1d3/server
+CMD: go test -race ./core -count=10 -v -timeout=60s -run ^TestReviewProductionAdapterChunksLifecycle$
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.786+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.786+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.790+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.790+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.791+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.791+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.791+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.791+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.791+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.791+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.01s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.01s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.791+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.792+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.792+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.792+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.792+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.792+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.793+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.793+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.793+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.793+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.793+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.793+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.793+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.793+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.793+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.793+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.793+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.793+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.794+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.794+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.794+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.794+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.794+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.794+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.794+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.794+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.795+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.795+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.795+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.795+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.795+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.795+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.795+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.795+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.796+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.796+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.796+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.796+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.796+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.796+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.796+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.796+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.796+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.796+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.797+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.797+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.797+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.797+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.797+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.797+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.797+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.797+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.797+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.797+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.798+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.798+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.798+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.798+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.798+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.798+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.798+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.798+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.799+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.799+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.800+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.800+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.800+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.800+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.800+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.800+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.800+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.800+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.800+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.800+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+=== RUN   TestReviewProductionAdapterChunksLifecycle
+=== RUN   TestReviewProductionAdapterChunksLifecycle/chunk_failure
+2026-10-18T20:45:15.801+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.801+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.801+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.801+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+=== RUN   TestReviewProductionAdapterChunksLifecycle/success
+2026-10-18T20:45:15.801+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.801+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+=== RUN   TestReviewProductionAdapterChunksLifecycle/indexing_status_failure
+2026-10-18T20:45:15.801+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T20:45:15.801+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb, IDs: [d1]
+2026-10-18T20:45:15.801+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.(*prodAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:66
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:210
+
+2026-10-18T20:45:15.801+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: review sentinel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestReviewProductionAdapterChunksLifecycle (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/chunk_failure (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/success (0.00s)
+    --- PASS: TestReviewProductionAdapterChunksLifecycle/indexing_status_failure (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	1.283s
+EXIT: 0

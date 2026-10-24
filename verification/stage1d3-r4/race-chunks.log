@@ -1,0 +1,60 @@
+﻿# CMD: go test -race ./core -count=1 -v -run "TestIndex_BackgroundChunks"
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-18 18:47:50
+
+=== RUN   TestIndex_BackgroundChunksFailure_RealChain
+2026-10-18T18:47:44.754+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:47:44.754+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:47:44.758+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert chunk failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundChunksFailure_RealChain.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2350
+5.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+6.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:47:44.758+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert chunk failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundChunksFailure_RealChain (0.01s)
+=== RUN   TestIndex_BackgroundChunksSuccess_WritesIndexing
+2026-10-18T18:47:44.759+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:47:44.759+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+--- PASS: TestIndex_BackgroundChunksSuccess_WritesIndexing (0.10s)
+=== RUN   TestIndex_BackgroundChunksStatusWriteFailure_Propagated
+2026-10-18T18:47:44.859+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:47:44.859+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:47:44.860+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=update doc 42 status: status write failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundChunksStatusWriteFailure_Propagated.func4
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2478
+5.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+6.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:47:44.860+08:00 [ERRO] indexAsyncByDocsID failed, err=update doc 42 status: status write failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundChunksStatusWriteFailure_Propagated (0.20s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	1.576s
+

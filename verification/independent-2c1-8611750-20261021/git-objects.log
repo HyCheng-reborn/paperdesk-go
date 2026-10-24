@@ -1,0 +1,85 @@
+CMD: git worktree list --porcelain
+worktree C:/Zhy/code/go-rag
+HEAD 8d2c21225d4627a2668cad788cc254f78f2e04e4
+branch refs/heads/review/stage1a
+
+worktree C:/Users/zhy/.codex/worktrees/stage2c1-dimensions/go-rag
+HEAD 8611750bb89dbf0de268b04a212ca873d500cb6f
+branch refs/heads/codex/stage2c1-dimensions
+
+worktree C:/Zhy/code/go-rag/.review-stage2c1-1850da1
+HEAD 1850da1fcff2e66c1ed61594139e7e2e068fd775
+detached
+
+worktree C:/Zhy/code/go-rag/.review-stage2c1-8611750
+HEAD 8611750bb89dbf0de268b04a212ca873d500cb6f
+detached
+
+worktree C:/Zhy/code/go-rag-review-1d3
+HEAD c15287a71a61f2b3c0d619c071265d08c76d3555
+detached
+
+CMD: git rev-parse HEAD HEAD:server 562bc884bdd1a2913a0a557455de765308668719:server refs/heads/codex/stage2c1-dimensions
+8611750bb89dbf0de268b04a212ca873d500cb6f
+e891891c8040602374db3714ce49f731e770f099
+e891891c8040602374db3714ce49f731e770f099
+8611750bb89dbf0de268b04a212ca873d500cb6f
+git merge-base --is-ancestor 1850da1fcff2e66c1ed61594139e7e2e068fd775 HEAD EXIT: 0
+git merge-base --is-ancestor 8d2c21225d4627a2668cad788cc254f78f2e04e4 HEAD EXIT: 0
+8611750 docs(stage2c1): record YAML parser fix validation
+562bc88 fix(stage2c1): accept strict GoFrame JSON integers from YAML
+ CHANGES.md                                         |  17 +
+ PROJECT_PROGRESS.md                                |   2 +-
+ design/stage2-plan.md                              |  46 +-
+ server/core/common/dimensions_test.go              | 103 +++
+ server/core/common/embedding.go                    |  30 +-
+ server/core/common/es.go                           |  54 +-
+ server/core/config/config.go                       |  10 +-
+ server/core/config/dimensions.go                   | 101 +++
+ server/core/config/dimensions_json_test.go         |  29 +
+ server/core/config/dimensions_test.go              |  72 ++
+ server/core/config/helpers.go                      |  45 +-
+ server/core/config/vector_schema.go                |  47 ++
+ server/core/indexer/dimensions_test.go             | 112 +++
+ server/core/indexer/indexer.go                     |   8 +-
+ server/core/indexer/indexer_async.go               |   8 +-
+ server/core/rag.go                                 |   9 +
+ server/core/retriever/dimensions_test.go           |  90 +++
+ server/core/vector/dimensions_test.go              |  98 +++
+ server/core/vector/es.go                           |  41 +-
+ server/core/vector/factory.go                      |  23 +-
+ server/core/vector/interface.go                    |   9 +-
+ server/core/vector/qdrant.go                       |  34 +-
+ server/internal/logic/rag/dimensions_test.go       | 161 ++++
+ server/internal/logic/rag/dimensions_yaml_test.go  | 120 +++
+ server/internal/logic/rag/retriever.go             |  95 ++-
+ server/internal/testutil/dimensions.go             |  67 ++
+ server/manifest/config/config_demo.yaml            |   1 +
+ server/manifest/config/config_qd_demo.yaml         |   1 +
+ verification/stage2c1-fix1/README.md               |  47 ++
+ verification/stage2c1-fix1/TEST-NAMES.md           | 391 ++++++++++
+ verification/stage2c1-fix1/affected.log            |  12 +
+ verification/stage2c1-fix1/build.log               |   5 +
+ verification/stage2c1-fix1/environment.log         |  12 +
+ verification/stage2c1-fix1/focused.log             | 176 +++++
+ verification/stage2c1-fix1/full.log                |  36 +
+ .../stage2c1-fix1/independent-original.log         |  27 +
+ .../stage2c1-fix1/independent-original_test.go.txt |  26 +
+ verification/stage2c1-fix1/original-repro-hash.txt |   5 +
+ verification/stage2c1-fix1/race-affected.log       | 842 +++++++++++++++++++++
+ verification/stage2c1-fix1/repro-before.log        |  86 +++
+ verification/stage2c1-fix1/run.ps1                 |  29 +
+ verification/stage2c1-fix1/server-tree.txt         |   1 +
+ verification/stage2c1-fix1/vet.log                 |   5 +
+ verification/stage2c1/README.md                    |  61 ++
+ verification/stage2c1/TEST-NAMES.md                | 308 ++++++++
+ verification/stage2c1/affected.log                 |  12 +
+ verification/stage2c1/build.log                    |   5 +
+ verification/stage2c1/environment.log              |  12 +
+ verification/stage2c1/focused.log                  | 106 +++
+ verification/stage2c1/full.log                     |  36 +
+ verification/stage2c1/race-affected.log            | 772 +++++++++++++++++++
+ verification/stage2c1/run.ps1                      |  21 +
+ verification/stage2c1/server-tree.txt              |   1 +
+ verification/stage2c1/vet.log                      |   5 +
+ 54 files changed, 4345 insertions(+), 127 deletions(-)

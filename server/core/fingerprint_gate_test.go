@@ -79,6 +79,26 @@ func newTestRagWithFingerprint(
 	return r
 }
 
+// newTestRagWithFingerprintAndCreationFlag creates a Rag with fingerprint infrastructure and indexJustCreated flag.
+func newTestRagWithFingerprintAndCreationFlag(
+	cm *fakeChatModel,
+	dr *fakeDocRetriever,
+	vs *fakeVectorStore,
+	conf *config.Config,
+	indexJustCreated bool,
+) *Rag {
+	r := &Rag{
+		docRet:           dr,
+		rwModel:          cm,
+		cm:               cm,
+		conf:             conf,
+		fpCache:          newFingerprintCache(),
+		vectorStore:      vs,
+		indexJustCreated: indexJustCreated,
+	}
+	return r
+}
+
 func TestCheckFingerprint_ValidCacheHit(t *testing.T) {
 	// Setup: valid fingerprint in cache
 	vs := &fakeVectorStore{indexExists: true}
@@ -328,5 +348,188 @@ func TestIndexAsync_FingerprintGate(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "fingerprint check failed") {
 		t.Errorf("IndexAsync() error should mention fingerprint check, got: %v", err)
+	}
+}
+
+// TestVerifyFingerprint_ExistingIndexMissingFingerprint_FailClosed verifies that
+// an existing index (indexJustCreated=false) without fingerprint is rejected.
+func TestVerifyFingerprint_ExistingIndexMissingFingerprint_FailClosed(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	// Existing index (indexJustCreated=false)
+	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, false)
+
+	// No fingerprint in store (vs.fingerprint is nil)
+
+	// Test: VerifyFingerprint should fail with ErrFingerprintMissing
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err == nil {
+		t.Fatal("VerifyFingerprint() on existing index without fingerprint should fail")
+	}
+	if !errors.Is(err, vector.ErrFingerprintMissing) {
+		t.Errorf("VerifyFingerprint() should return ErrFingerprintMissing, got: %v", err)
+	}
+
+	// CRITICAL: Verify fingerprint was NOT written (no auto-backfill)
+	if vs.fingerprint != nil {
+		t.Error("VerifyFingerprint() must NOT auto-write fingerprint to existing index")
+	}
+}
+
+// TestVerifyFingerprint_ExistingIndexCorruptedFingerprint_FailClosed verifies that
+// an existing index with corrupted fingerprint is rejected.
+func TestVerifyFingerprint_ExistingIndexCorruptedFingerprint_FailClosed(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	// Existing index (indexJustCreated=false)
+	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, false)
+
+	// Put corrupted fingerprint in store (invalid version)
+	corruptedFP := &vector.Fingerprint{
+		Version:          "v99",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "test",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = corruptedFP
+
+	// Test: VerifyFingerprint should fail with ErrFingerprintCorrupted or ErrFingerprintUnknownVersion
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err == nil {
+		t.Fatal("VerifyFingerprint() on existing index with corrupted fingerprint should fail")
+	}
+	// The error should be about corrupted/unknown version fingerprint
+	if !strings.Contains(err.Error(), "FINGERPRINT_CORRUPTED") &&
+		!strings.Contains(err.Error(), "unknown version") &&
+		!strings.Contains(err.Error(), "verification failed") {
+		t.Errorf("VerifyFingerprint() should return corruption-related error, got: %v", err)
+	}
+
+	// CRITICAL: Verify fingerprint was NOT overwritten
+	if !vs.fingerprint.Equal(corruptedFP) {
+		t.Error("VerifyFingerprint() must NOT overwrite corrupted fingerprint")
+	}
+}
+
+// TestVerifyFingerprint_ExistingIndexMismatchedFingerprint_NotOverwritten verifies that
+// an existing index with mismatched fingerprint is rejected and NOT overwritten.
+func TestVerifyFingerprint_ExistingIndexMismatchedFingerprint_NotOverwritten(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	// Existing index (indexJustCreated=false)
+	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, false)
+
+	// Put mismatched fingerprint in store (different model)
+	mismatchedFP := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "different-model",
+		Dimensions:       1024,
+		ProviderName:     "test",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = mismatchedFP
+
+	// Test: VerifyFingerprint should fail with mismatch
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err == nil {
+		t.Fatal("VerifyFingerprint() on existing index with mismatched fingerprint should fail")
+	}
+	if !errors.Is(err, vector.ErrFingerprintMismatch) {
+		t.Errorf("VerifyFingerprint() should return ErrFingerprintMismatch, got: %v", err)
+	}
+
+	// CRITICAL: Verify fingerprint was NOT overwritten
+	if !vs.fingerprint.Equal(mismatchedFP) {
+		t.Error("VerifyFingerprint() must NOT overwrite mismatched fingerprint")
+	}
+}
+
+// TestVerifyFingerprint_NewIndex_WritesFingerprint verifies that
+// a newly created index (indexJustCreated=true) without fingerprint gets it written.
+func TestVerifyFingerprint_NewIndex_WritesFingerprint(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	// New index (indexJustCreated=true)
+	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, true)
+
+	// No fingerprint in store (vs.fingerprint is nil)
+
+	// Test: VerifyFingerprint should succeed and write fingerprint
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint() on new index should succeed, got: %v", err)
+	}
+
+	// Verify fingerprint was written
+	if vs.fingerprint == nil {
+		t.Fatal("VerifyFingerprint() should write fingerprint to new index")
+	}
+
+	// Verify the written fingerprint matches expected
+	if vs.fingerprint.EmbeddingModelID != "text-embedding-v4" {
+		t.Errorf("Written fingerprint model = %q, want %q",
+			vs.fingerprint.EmbeddingModelID, "text-embedding-v4")
+	}
+	if vs.fingerprint.Dimensions != 1024 {
+		t.Errorf("Written fingerprint dimensions = %d, want %d",
+			vs.fingerprint.Dimensions, 1024)
+	}
+
+	// Verify fingerprint was cached
+	cachedFP := r.GetFingerprint()
+	if cachedFP == nil {
+		t.Error("VerifyFingerprint() should cache the verified fingerprint")
+	}
+}
+
+// TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds verifies that
+// an existing index with matching fingerprint succeeds.
+func TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	// Existing index (indexJustCreated=false)
+	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, false)
+
+	// Put matching fingerprint in store
+	matchingFP := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = matchingFP
+
+	// Test: VerifyFingerprint should succeed
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint() on existing index with matching fingerprint should succeed, got: %v", err)
+	}
+
+	// Verify fingerprint was cached
+	cachedFP := r.GetFingerprint()
+	if cachedFP == nil {
+		t.Error("VerifyFingerprint() should cache the verified fingerprint")
 	}
 }

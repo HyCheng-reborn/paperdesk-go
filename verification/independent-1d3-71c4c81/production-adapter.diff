@@ -1,0 +1,57 @@
+diff --git a/core/review_production_chain_test.go b/core/review_production_chain_test.go
+new file mode 100644
+index 0000000..0298ed9
+--- /dev/null
++++ b/core/review_production_chain_test.go
+@@ -0,0 +1,51 @@
++package core
++
++import (
++ "context"
++ "errors"
++ "testing"
++ "time"
++ "github.com/cloudwego/eino/compose"
++ "github.com/cloudwego/eino/schema"
++ v1 "github.com/wangle201210/go-rag/server/api/rag/v1"
++)
++
++func TestReviewProductionAdapterChunksLifecycle(t *testing.T) {
++ for _,scenario:=range []string{"chunk_failure","success","indexing_status_failure"}{t.Run(scenario,func(t *testing.T){
++  sentinel:=errors.New("review sentinel")
++  store:=&fakeChunkStore{}
++  updater:=&fakeStatusUpdater{}
++  qaEntered:=make(chan struct{})
++  qaRelease:=make(chan struct{})
++  failure:=make(chan error,1)
++  runnable:=&fakeAsyncRunnable{onInvoke:func(context.Context,[]*schema.Document,...compose.Option)([]string,error){close(qaEntered);<-qaRelease;return []string{"indexed"},nil}}
++  if scenario=="chunk_failure"{store.insertErr=sentinel}
++  if scenario=="indexing_status_failure"{updater.errFn=func(status int)error{if status==int(v1.StatusIndexing){return sentinel};return nil}}
++  r:=newFullChainTestRag(&fakeSyncIndexer{ids:[]string{"d1"}},&fakeDocSearcher{result:[]*schema.Document{{ID:"d1",Content:"body",MetaData:map[string]any{}}}},store,updater,runnable)
++  r.asyncIndexer=&prodAsyncIndexer{rag:r}
++  r.asyncWait=func(context.Context){}
++  r.markFailed=func(ctx context.Context,docID int64,err error){
++   if docID!=42{t.Errorf("failed docID=%d",docID)}
++   if ctx.Err()!=nil{t.Errorf("cleanup context already canceled: %v",ctx.Err())}
++   _=updater.UpdateDocumentsStatus(ctx,docID,int(v1.StatusFailed))
++   failure<-err
++  }
++  t.Cleanup(func(){closeOnce(qaRelease);ctx,cancel:=context.WithTimeout(context.Background(),3*time.Second);defer cancel();if err:=r.Shutdown(ctx);err!=nil{t.Errorf("cleanup shutdown: %v",err)}})
++  if _,err:=r.Index(context.Background(),&IndexReq{URI:"fake",KnowledgeName:"kb",DocumentsId:42});err!=nil{t.Fatal(err)}
++  if scenario=="success"{
++   select{case <-qaEntered:case <-time.After(time.Second):t.Fatal("QA not reached")}
++   calls:=updater.getCalls()
++   if len(calls)!=1 || calls[0].docID!=42 || calls[0].status!=int(v1.StatusIndexing){t.Fatalf("before QA completion: %v",calls)}
++   closeOnce(qaRelease)
++  } else {
++   select{case err:=<-failure:if !errors.Is(err,sentinel){t.Errorf("original error lost: %v",err)};case <-time.After(time.Second):t.Fatal("failure cleanup not reached")}
++  }
++  // No more Add calls: wait for actual task registration to finish before stopping root.
++  complete:=make(chan struct{})
++  go func(){r.bgWG.Wait();close(complete)}()
++  select{case <-complete:case <-time.After(time.Second):t.Fatal("production registration did not finish")}
++  calls:=updater.getCalls();failed:=0;active:=0
++  for _,c:=range calls{if c.docID!=42{t.Errorf("status docID=%d",c.docID)};if c.status==int(v1.StatusFailed){failed++};if c.status==int(v1.StatusActive){active++}}
++  if scenario=="success"{if failed!=0 || active!=1{t.Errorf("success calls=%v",calls)}}else{if failed!=1 || active!=0 || runnable.called{t.Errorf("failure calls=%v QA-called=%v",calls,runnable.called)}}
++ })}
++}

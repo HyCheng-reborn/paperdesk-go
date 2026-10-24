@@ -1,0 +1,11 @@
+SHA: 735786966e3e8e8e0f1eb238045ca49209410505
+LAYER: clean target
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test ./core ./internal/logic/rag/... ./internal/logic/knowledge/... ./internal/cmd/... -count=1 -timeout=150s
+GOPROXY=off GOSUMDB=off
+START: 2026-10-18T16:52:00.8942256+08:00
+ok  	github.com/wangle201210/go-rag/server/core	3.837s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	10.466s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.191s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	2.220s
+EXIT: 0

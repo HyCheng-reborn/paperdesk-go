@@ -1,0 +1,38 @@
+SHA: 91ab52dd3f942da00fadcdbb8963a5537a0e4c9a
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+LAYER: target + independent reproduction (Registry -> bailian builder -> SDK -> local HTTP)
+CMD: go test -race ./core/providers/openai -run ^TestReviewRegistryBailianParentCancelUnderBackpressure$ -count=10 -timeout=60s -v
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.02s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.01s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+=== RUN   TestReviewRegistryBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:85: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewRegistryBailianParentCancelUnderBackpressure (1.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/openai	10.219s
+FAIL
+EXIT: 1

@@ -1,0 +1,9 @@
+SHA: 06ef59c68000059f29302710ea15ce93afdc88bd
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go build ./...
+DATE: 2026-10-20T11:53:24.0456084+08:00
+# github.com/wangle201210/go-rag/server/core
+core\rag.go:91:10: conf.Registry undefined (type *"github.com/wangle201210/go-rag/server/core/config".Config has no field or method Registry)
+core\rag.go:93:27: conf.Registry undefined (type *"github.com/wangle201210/go-rag/server/core/config".Config has no field or method Registry)
+core\rag.go:97:25: conf.Registry undefined (type *"github.com/wangle201210/go-rag/server/core/config".Config has no field or method Registry)
+EXIT: 1

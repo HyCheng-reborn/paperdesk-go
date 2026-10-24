@@ -1,0 +1,31 @@
+SHA: df260ddfb12694e7064d74fb63cc1c228f8ebbfe
+LAYER: 独立复现测试；非目标提交自带
+CWD: C:/Zhy/code/go-rag-review-1d3/server
+CMD: go test ./core/providers/... -run ^TestReview -count=1 -timeout=60s -v
+=== RUN   TestReviewBudget_InvalidUsageConservative
+=== RUN   TestReviewBudget_InvalidUsageConservative/negative-component
+=== RUN   TestReviewBudget_InvalidUsageConservative/total-only
+--- PASS: TestReviewBudget_InvalidUsageConservative (0.00s)
+    --- PASS: TestReviewBudget_InvalidUsageConservative/negative-component (0.00s)
+    --- PASS: TestReviewBudget_InvalidUsageConservative/total-only (0.00s)
+=== RUN   TestReviewBudget_SettlementOverflow
+--- PASS: TestReviewBudget_SettlementOverflow (0.00s)
+=== RUN   TestReviewBudget_NegativeProcessLimit
+--- PASS: TestReviewBudget_NegativeProcessLimit (0.00s)
+=== RUN   TestReviewBudget_OwnerCancellation
+--- PASS: TestReviewBudget_OwnerCancellation (0.00s)
+=== RUN   TestReviewBudget_AbsoluteDeadline
+--- PASS: TestReviewBudget_AbsoluteDeadline (0.02s)
+=== RUN   TestReviewProfile_RegistryOwnsSnapshot
+--- PASS: TestReviewProfile_RegistryOwnsSnapshot (0.00s)
+=== RUN   TestReviewProfile_CacheKeyCollision
+--- PASS: TestReviewProfile_CacheKeyCollision (0.00s)
+=== RUN   TestReviewFix_ReservationOverflow
+--- PASS: TestReviewFix_ReservationOverflow (0.00s)
+=== RUN   TestReviewFix_ResolverCannotMutateRegistryIdentity
+--- PASS: TestReviewFix_ResolverCannotMutateRegistryIdentity (0.00s)
+=== RUN   TestReviewFix_TaskRootOwnerSurvivesRequestCancel
+--- PASS: TestReviewFix_TaskRootOwnerSurvivesRequestCancel (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.128s
+EXIT: 0

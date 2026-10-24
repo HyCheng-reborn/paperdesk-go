@@ -1,0 +1,78 @@
+diff --git a/server/core/config/config.go b/server/core/config/config.go
+index 94ae5b4..7a68e4c 100644
+--- a/server/core/config/config.go
++++ b/server/core/config/config.go
+@@ -43,6 +43,12 @@ type ProviderConfig struct {
+ 	EmbeddingDimensions int    `yaml:"embedding_dimensions"` // 1024
+ 	RerankModel         string `yaml:"rerank_model"`         // qwen3-rerank
+ 	RerankURL           string `yaml:"rerank_url"`           // https://dashscope.aliyuncs.com/compatible-api/v1/reranks
++
++	// B1: 预算配置（可选，<=0 表示不限）
++	MaxRequests     int64 `yaml:"max_requests"`      // 最大请求数（0=不限）
++	MaxInputTokens  int64 `yaml:"max_input_tokens"`  // 最大输入 token（0=不限）
++	MaxOutputTokens int64 `yaml:"max_output_tokens"` // 最大输出 token（0=不限）
++	MaxConcurrency  int   `yaml:"max_concurrency"`   // 最大并发（0=不限）
+ }
+ 
+ func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
+diff --git a/server/core/providers/adapter.go b/server/core/providers/adapter.go
+index 7406297..27eebd4 100644
+--- a/server/core/providers/adapter.go
++++ b/server/core/providers/adapter.go
+@@ -26,10 +26,12 @@ var (
+ // 设计要点（stage2-plan §3.3.1）：APIKey 明文不进入 Profile，仅在构造期经此临时传递；
+ // Transport 在同一 Provider 的各角色间共享（生产共享链），复用连接池。
+ // 构造过程不发起网络请求（Eino 的 NewChatModel/NewEmbedder 仅装配 client）。
++// B1: ProcessBudget 由 Registry 注入，适配器可选接入预算。
+ type BuildConfig struct {
+ 	Profile   *ProviderProfile
+ 	APIKey    string
+ 	Transport *Transport
++	Budget    *ProcessBudget // B1: 进程预算，nil 时跳过预算接入
+ }
+ 
+ func (c BuildConfig) validate() error {
+diff --git a/server/core/providers/fake.go b/server/core/providers/fake.go
+index 95be30b..df67edd 100644
+--- a/server/core/providers/fake.go
++++ b/server/core/providers/fake.go
+@@ -104,6 +104,16 @@ func (f *FakeChat) LastInput() []*schema.Message {
+ 	return f.lastInput
+ }
+ 
++// Profile 返回固定 Profile（满足测试中的 Profile() 接口断言）。
++func (f *FakeChat) Profile() ProviderProfile {
++	return ProviderProfile{ProviderName: "fake", Protocol: "test", Model: "fake-model", Endpoint: "http://fake"}
++}
++
++// Capabilities 返回固定能力集。
++func (f *FakeChat) Capabilities() Capabilities {
++	return Capabilities{Stream: true, Usage: true}
++}
++
+ // FakeEmbed 是可配置的 EmbedRole fake，输出确定维度、有限数值的向量。
+ type FakeEmbed struct {
+ 	mu sync.Mutex
+@@ -242,6 +252,7 @@ type FakeRegistry struct {
+ 	Extract ChatRole
+ 	Embed   EmbedRole
+ 	Rerank  RerankRole
++	Budget  *ProcessBudget // B1: 测试可注入；nil 时 NewRequestBudget 创建不限预算
+ }
+ 
+ var _ ProviderRegistry = (*FakeRegistry)(nil)
+@@ -293,3 +304,14 @@ func (r *FakeRegistry) GetReranker(context.Context) (RerankRole, error) {
+ 	}
+ 	return r.Rerank, nil
+ }
++
++// NewRequestBudget 从绑定的 ProcessBudget 创建请求级预算（B1）。
++// Budget 为 nil 时创建不限额度预算。
++func (r *FakeRegistry) NewRequestBudget(ctx context.Context, opts ...BudgetOption) (*RequestBudget, error) {
++	pb := r.Budget
++	if pb == nil {
++		// 不限额度进程预算
++		pb, _ = NewProcessBudget(0, 0, 0, 0)
++	}
++	return pb.NewRequestBudget(ctx, opts...)
++}

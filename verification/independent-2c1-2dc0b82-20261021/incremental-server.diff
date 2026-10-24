@@ -1,0 +1,227 @@
+diff --git a/server/internal/logic/rag/dimensions_source.go b/server/internal/logic/rag/dimensions_source.go
+new file mode 100644
+index 0000000..87cdd77
+--- /dev/null
++++ b/server/internal/logic/rag/dimensions_source.go
+@@ -0,0 +1,74 @@
++package rag
++
++import (
++	"fmt"
++	"os"
++
++	"github.com/gogf/gf/v2/encoding/gtoml"
++	"github.com/gogf/gf/v2/encoding/gyaml"
++	"github.com/gogf/gf/v2/os/gcfg"
++	"github.com/gogf/gf/v2/os/gres"
++	"github.com/wangle201210/go-rag/server/core/config"
++)
++
++// verifyFileDimensionSource validates before YAML -> JSON normalization can erase
++// float/exponent types. It uses the same public source precedence as AdapterFile:
++// SetContent, resolved embedded resource, then disk. No private SDK state is read.
++// Non-file adapters supply already typed data and keep the shared strict parser.
++func verifyFileDimensionSource(adapter gcfg.Adapter, effective [2]int) error {
++	a, ok := adapter.(*gcfg.AdapterFile)
++	if !ok || effective == [2]int{} {
++		return nil
++	}
++	name := a.GetFileName()
++	content := a.GetContent(name)
++	if content == "" {
++		path, err := a.GetFilePath(name)
++		if err != nil || path == "" {
++			return fmt.Errorf("%w: cannot locate original dimension configuration", config.ErrEmbeddingDimensions)
++		}
++		if file := gres.Get(path); file != nil {
++			content = string(file.Content())
++		} else {
++			data, err := os.ReadFile(path)
++			if err != nil {
++				return fmt.Errorf("%w: cannot read original dimension configuration", config.ErrEmbeddingDimensions)
++			}
++			content = string(data)
++		}
++	}
++	// gyaml.Decode uses the pinned YAML decoder without a JSON marshal round-trip,
++	// preserving float64 even for 768.0/1e3. Aliases/merge keys use that decoder's
++	// normal semantics. JSON is a YAML subset; TOML file/content input is retained.
++	document, err := gyaml.Decode([]byte(content))
++	if err != nil {
++		decoded, tomlErr := gtoml.Decode([]byte(content))
++		if tomlErr != nil {
++			return fmt.Errorf("%w: cannot decode original dimension configuration", config.ErrEmbeddingDimensions)
++		}
++		var ok bool
++		document, ok = decoded.(map[string]any)
++		if !ok {
++			return fmt.Errorf("%w: dimension source must be a mapping", config.ErrEmbeddingDimensions)
++		}
++	}
++	paths := [2][2]string{{"embedding", "dimensions"}, {"provider", "embedding_dimensions"}}
++	for i, path := range paths {
++		var scalar any
++		if section := document[path[0]]; section != nil {
++			fields, ok := section.(map[string]any)
++			if !ok {
++				return fmt.Errorf("%w: %s must be a mapping", config.ErrEmbeddingDimensions, path[0])
++			}
++			scalar = fields[path[1]]
++		}
++		value, err := config.ParseEmbeddingDimensions(scalar)
++		if err != nil {
++			return fmt.Errorf("%s.%s source: %w", path[0], path[1], err)
++		}
++		if value != effective[i] {
++			return fmt.Errorf("%w: %s.%s source differs from effective configuration", config.ErrEmbeddingDimensionConflict, path[0], path[1])
++		}
++	}
++	return nil
++}
+diff --git a/server/internal/logic/rag/dimensions_yaml_test.go b/server/internal/logic/rag/dimensions_yaml_test.go
+index 80c5f0a..41c997a 100644
+--- a/server/internal/logic/rag/dimensions_yaml_test.go
++++ b/server/internal/logic/rag/dimensions_yaml_test.go
+@@ -91,7 +91,7 @@ func TestDimensions_YAMLFileProductionChain(t *testing.T) {
+ }
+ func TestDimensions_YAMLFileInvalidAndConflict(t *testing.T) {
+ 	for _, key := range []string{"legacy", "provider"} {
+-		for _, value := range []string{"0", "-1", `"768"`, "1.5", "true", "9223372036854775808"} {
++		for _, value := range []string{"0", "-1", `"768"`, "1.5", "768.0", "1e3", "1.0e3", "true", "9223372036854775808"} {
+ 			t.Run(fmt.Sprintf("%s/%s", key, value), func(t *testing.T) {
+ 				legacy, provider := "", ""
+ 				if key == "legacy" {
+@@ -118,3 +118,116 @@ func TestDimensions_YAMLFileInvalidAndConflict(t *testing.T) {
+ 		}
+ 	})
+ }
++
++// SetContent has precedence over any disk path in AdapterFile. It must be
++// checked using original bytes too; checking only files would leave a bypass.
++func dimensionsSourceContent(t *testing.T, content string) *gcfg.AdapterFile {
++	t.Helper()
++	name := filepath.Join(t.TempDir(), "content.yaml")
++	a, err := gcfg.NewAdapterFile(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	a.SetContent(content, name)
++	old := g.Cfg().GetAdapter()
++	g.Cfg().SetAdapter(a)
++	t.Cleanup(func() { g.Cfg().SetAdapter(old); a.RemoveContent(name) })
++	return a
++}
++func TestDimensions_YAMLSetContentTypes(t *testing.T) {
++	for _, key := range []string{"embedding", "provider"} {
++		for _, value := range []string{"768", "768.0", "1e3", "1.0e3"} {
++			t.Run(key+"/"+value, func(t *testing.T) {
++				field := "dimensions"
++				if key == "provider" {
++					field = "embedding_dimensions"
++				}
++				dimensionsSourceContent(t, "vector:\n  type: es\n  indexName: offline\n"+key+":\n  "+field+": "+value+"\n")
++				c, err := readRagConfig()
++				if value != "768" {
++					if !errors.Is(err, config.ErrEmbeddingDimensions) {
++						t.Fatal("normalized float accepted", err)
++					}
++					return
++				}
++				if err != nil {
++					t.Fatal(err)
++				}
++				got := c.EmbeddingDimensions
++				if key == "provider" {
++					got = c.Provider.EmbeddingDimensions
++				}
++				if got != 768 {
++					t.Fatal(got)
++				}
++			})
++		}
++	}
++}
++func TestDimensions_YAMLAliasesAndMerge(t *testing.T) {
++	for _, key := range []string{"embedding", "provider"} {
++		for _, value := range []string{"768", "768.0", "1e3", "1.0e3"} {
++			t.Run(key+"/"+value, func(t *testing.T) {
++				field := "dimensions"
++				if key == "provider" {
++					field = "embedding_dimensions"
++				}
++				content := "defaults: &settings\n  " + field + ": " + value + "\nvector:\n  type: es\n  indexName: offline\n" + key + ":\n  <<: *settings\n"
++				dimensionsSourceContent(t, content)
++				c, err := readRagConfig()
++				if value != "768" {
++					if !errors.Is(err, config.ErrEmbeddingDimensions) {
++						t.Fatal("merged float accepted", err)
++					}
++					return
++				}
++				if err != nil {
++					t.Fatal(err)
++				}
++				got := c.EmbeddingDimensions
++				if key == "provider" {
++					got = c.Provider.EmbeddingDimensions
++				}
++				if got != 768 {
++					t.Fatal(got)
++				}
++			})
++		}
++	}
++}
++func TestDimensions_SourceEffectiveMismatch(t *testing.T) {
++	a := dimensionsSourceContent(t, "vector:\n  type: es\n  indexName: offline\nembedding:\n  dimensions: 768\n")
++	if _, err := readRagConfig(); err != nil {
++		t.Fatal(err)
++	}
++	if err := a.Set("embedding.dimensions", 512); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := readRagConfig(); !errors.Is(err, config.ErrEmbeddingDimensionConflict) {
++		t.Fatal("source/effective conflict ignored", err)
++	}
++}
++
++func TestDimensions_JSONTOMLSourceCompatibility(t *testing.T) {
++	for _, format := range []string{"json", "toml"} {
++		for _, value := range []string{"768", "768.0", "1e3"} {
++			t.Run(format+"/"+value, func(t *testing.T) {
++				content := `{"vector":{"type":"es","indexName":"offline"},"embedding":{"dimensions":` + value + `}}`
++				if format == "toml" {
++					content = "[vector]\ntype = \"es\"\nindexName = \"offline\"\n[embedding]\ndimensions = " + value + "\n"
++				}
++				dimensionsSourceContent(t, content)
++				c, err := readRagConfig()
++				if value != "768" {
++					if !errors.Is(err, config.ErrEmbeddingDimensions) {
++						t.Fatal("non-integer source accepted", err)
++					}
++					return
++				}
++				if err != nil || c.EmbeddingDimensions != 768 {
++					t.Fatal(c, err)
++				}
++			})
++		}
++	}
++}
+diff --git a/server/internal/logic/rag/retriever.go b/server/internal/logic/rag/retriever.go
+index 4168e75..17261c4 100644
+--- a/server/internal/logic/rag/retriever.go
++++ b/server/internal/logic/rag/retriever.go
+@@ -732,5 +732,12 @@ func readEmbeddingDimensions(ctx context.Context, getter configGetter) (int, int
+ 			return 0, 0, fmt.Errorf("%s: %w", key, err)
+ 		}
+ 	}
++	// Only the production default getter has an original file source to validate.
++	// Fake/programmatic getters retain the typed-value contract.
++	if _, ok := getter.(*defaultConfigGetter); ok {
++		if err := verifyFileDimensionSource(g.Cfg().GetAdapter(), values); err != nil {
++			return 0, 0, err
++		}
++	}
+ 	return values[0], values[1], nil
+ }

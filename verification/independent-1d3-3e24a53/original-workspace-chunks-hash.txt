@@ -1,0 +1,5 @@
+
+Algorithm : SHA256
+Hash      : 3B877CC6861D2B78175A62E1348F39951147D8B6AA92CA23FF2C19B7F2C4B6F5
+Path      : C:\Zhy\code\go-rag\server\internal\logic\knowledge\chunks.go
+

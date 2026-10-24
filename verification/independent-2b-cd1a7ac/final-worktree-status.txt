@@ -1,0 +1,2 @@
+?? server/core/providers/openai/review_managed_session_test.go
+?? server/internal/logic/chat/review_managed_session_test.go

@@ -1,0 +1,147 @@
+SHA: c15287a71a61f2b3c0d619c071265d08c76d3555
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./internal/logic/chat -run ^TestChatStream_Session.* -count=10 -timeout=180s -v
+DATE: 2026-10-21T00:54:31.9335610+08:00
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+=== RUN   TestChatStream_SessionSuccessEOF
+--- PASS: TestChatStream_SessionSuccessEOF (0.00s)
+=== RUN   TestChatStream_SessionFailNoSave
+--- PASS: TestChatStream_SessionFailNoSave (0.00s)
+=== RUN   TestChatStream_SessionEarlyCloseThenCleanup
+--- PASS: TestChatStream_SessionEarlyCloseThenCleanup (0.00s)
+=== RUN   TestChatStream_SessionRepeatCleanup
+--- PASS: TestChatStream_SessionRepeatCleanup (0.00s)
+=== RUN   TestChatStream_SessionBranchesRecycled
+--- PASS: TestChatStream_SessionBranchesRecycled (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_Backpressure
+--- PASS: TestChatStream_SessionFailCleanup_Backpressure (0.00s)
+=== RUN   TestChatStream_SessionFailCleanup_NoPartialSave
+--- PASS: TestChatStream_SessionFailCleanup_NoPartialSave (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.240s
+EXIT: 0

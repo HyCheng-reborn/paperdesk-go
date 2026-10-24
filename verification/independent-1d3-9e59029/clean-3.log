@@ -1,0 +1,11 @@
+SHA: 9e59029133cfdb6b42a449f8dcb625c3708aeaa1
+CWD: 
+C:\Zhy\code\go-rag-review-1d3\server
+CMD: go 
+test ./core ./internal/logic/rag/... ./internal/cmd/... -count=1 -timeout=120s
+GOPROXY=off GOSUMDB=off
+START: 2026-10-18T15:42:23.0276583+08:00
+ok  	github.com/wangle201210/go-rag/server/core	2.778s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	0.218s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	0.213s
+EXIT: 0

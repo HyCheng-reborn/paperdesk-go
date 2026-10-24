@@ -1,0 +1,9 @@
+SHA: 735786966e3e8e8e0f1eb238045ca49209410505
+LAYER: target + independent test using actual in-place WaitGroup; no copying, no manual done close
+CWD: C:/Zhy/code/go-rag-review-1d3/server
+CMD: go test -race ./internal/logic/rag -count=1 -v -timeout=30s -run ^TestReviewResetTimeoutThenRetryRealRegistration$
+=== RUN   TestReviewResetTimeoutThenRetryRealRegistration
+--- PASS: TestReviewResetTimeoutThenRetryRealRegistration (5.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	6.281s
+EXIT: 0

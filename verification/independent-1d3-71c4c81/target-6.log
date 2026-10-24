@@ -1,0 +1,7 @@
+SHA: 71c4c81cb6a3eae060365e1f59f6dfe79aed83ce
+LAYER: clean target
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go build ./...
+GOPROXY=off GOSUMDB=off
+START: 2026-10-18T20:44:48.0114498+08:00
+EXIT: 0

@@ -1,0 +1,55 @@
+SHA: 89cc769440b6b405c2ef16eb78a035f486f03fab
+LAYER: clean target
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test ./core ./internal/logic/rag ./internal/logic/knowledge -count=1 -v -timeout=90s -run ^(TestIndex_Sync(Panic|Error)_StopsAfterFuncBridge|TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed|TestReset_Shutdown(Timeout_PreservesDependencies|Success_CleansUp)|TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite|TestShutdownCoordinator_.*)$
+GOPROXY=off GOSUMDB=off
+START: 2026-10-18T16:20:56.4614649+08:00
+=== RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
+--- PASS: TestIndex_SyncPanic_StopsAfterFuncBridge (0.00s)
+=== RUN   TestIndex_SyncError_StopsAfterFuncBridge
+2026-10-18T16:21:01.898+08:00 [ERRO] Index idxer.Invoke failed, err=sync error for afterfunc test 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncError_StopsAfterFuncBridge
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer_test.go:2157
+
+--- PASS: TestIndex_SyncError_StopsAfterFuncBridge (0.01s)
+=== RUN   TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed
+2026-10-18T16:21:01.898+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:21:01.898+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
+=== RUN   TestShutdownCoordinator_ShutdownSuccess_ThenCleanup
+--- PASS: TestShutdownCoordinator_ShutdownSuccess_ThenCleanup (0.00s)
+=== RUN   TestShutdownCoordinator_ShutdownTimeout_NoCleanup
+2026-10-18T16:21:02.099+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestShutdownCoordinator_ShutdownTimeout_NoCleanup (0.10s)
+=== RUN   TestShutdownCoordinator_CleanupPartialFailure_ContinuesOthers
+--- PASS: TestShutdownCoordinator_CleanupPartialFailure_ContinuesOthers (0.00s)
+=== RUN   TestShutdownCoordinator_NoResources
+--- PASS: TestShutdownCoordinator_NoResources (0.00s)
+=== RUN   TestShutdownCoordinator_NilCloser
+--- PASS: TestShutdownCoordinator_NilCloser (0.00s)
+=== RUN   TestShutdownCoordinator_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T16:21:02.199+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestShutdownCoordinator_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestShutdownCoordinator_CleanupFailsBeforeConverged
+2026-10-18T16:21:02.299+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestShutdownCoordinator_CleanupFailsBeforeConverged (0.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	0.772s
+=== RUN   TestReset_ShutdownTimeout_PreservesDependencies
+--- PASS: TestReset_ShutdownTimeout_PreservesDependencies (5.00s)
+=== RUN   TestReset_ShutdownSuccess_CleansUp
+--- PASS: TestReset_ShutdownSuccess_CleansUp (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	5.271s
+=== RUN   TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite
+--- PASS: TestSaveChunks_WithoutStatusUpdater_SkipsStatusWrite (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.192s
+EXIT: 0

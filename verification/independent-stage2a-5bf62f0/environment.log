@@ -1,0 +1,19 @@
+TARGET 5bf62f0069a527b4940b8336f3cb953ccb551813
+SHELL PowerShell
+CWD C:/Zhy/code/go-rag-review-1d3/server
+go version go1.27.1 windows/amd64
+windows
+amd64
+1
+gcc
+g++
+auto
+CMD: where.exe gcc
+C:\Program Files\mingw64\bin\gcc.exe
+CMD: gcc --version
+gcc.exe (x86_64-posix-seh-rev0, Built by MinGW-W64 project) 8.1.0
+Copyright (C) 2018 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+gcc command exit: 0

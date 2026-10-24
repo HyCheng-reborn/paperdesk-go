@@ -111,6 +111,10 @@ type Rag struct {
 	// Stage 2C-2: Fingerprint cache and vector store reference
 	fpCache     *fingerprintCache  // Verified fingerprint cache
 	vectorStore vector.VectorStore // Vector store for fingerprint operations
+
+	// Stage 2C-2: Track whether index was newly created in this New() call.
+	// Used by VerifyFingerprint to distinguish new vs pre-existing indexes.
+	indexJustCreated bool
 }
 
 func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
@@ -135,11 +139,13 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	if err != nil {
 		return nil, err
 	}
+	var indexJustCreated bool
 	if !exists {
 		err = conf.CreateIndex(ctx)
 		if err != nil {
 			return nil, err
 		}
+		indexJustCreated = true
 	}
 	buildIndex, err := indexer.BuildIndexer(ctx, conf)
 	if err != nil {
@@ -215,6 +221,9 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 		done:          make(chan struct{}),
 		taskTimeout:   timeout,
 		maxBackground: maxBG,
+
+		// Stage 2C-2: Track whether index was newly created
+		indexJustCreated: indexJustCreated,
 	}
 	rag.syncIndexer = &prodSyncIndexer{runnable: buildIndex} // 发布前设置注入字段，运行期间只读
 	rag.asyncIndexer = &prodAsyncIndexer{rag: rag}           // 发布前设置注入字段，运行期间只读
@@ -277,8 +286,19 @@ func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) erro
 	storedFP, err := vs.ReadFingerprint(ctx, x.conf.IndexName)
 	if err != nil {
 		if errors.Is(err, vector.ErrFingerprintMissing) {
-			// No fingerprint exists - this is a new index or old index without fingerprint
-			// Write the expected fingerprint
+			// Fingerprint missing — distinguish new vs pre-existing index
+			if !x.indexJustCreated {
+				// PRE-EXISTING INDEX WITHOUT FINGERPRINT: FAIL CLOSED
+				// Do NOT auto-write/backfill the expected fingerprint.
+				// Per approved contract: "不自动认领旧索引", "绝不把当前配置补写为未知旧索引的历史身份"
+				g.Log().Errorf(ctx,
+					"Index %q has no fingerprint (pre-existing index). "+
+						"Refusing to auto-backfill. "+
+						"Rebuild the index with current embedding config to establish fingerprint identity.",
+					x.conf.IndexName)
+				return fmt.Errorf("index %q has no fingerprint: %w", x.conf.IndexName, vector.ErrFingerprintMissing)
+			}
+			// NEWLY CREATED INDEX: Write the expected fingerprint
 			if writeErr := vs.WriteFingerprint(ctx, x.conf.IndexName, expectedFP); writeErr != nil {
 				return fmt.Errorf("write fingerprint: %w", writeErr)
 			}
@@ -292,10 +312,19 @@ func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) erro
 			}
 			// Cache the verified fingerprint
 			x.fpCache.set(cacheKey, verifyFP)
-			g.Log().Infof(ctx, "Fingerprint written and verified for index %q", x.conf.IndexName)
+			g.Log().Infof(ctx, "Fingerprint written and verified for new index %q", x.conf.IndexName)
 			return nil
 		}
-		// Other error (corrupted, etc.)
+		if errors.Is(err, vector.ErrFingerprintCorrupted) {
+			// CORRUPTED FINGERPRINT: FAIL CLOSED
+			g.Log().Errorf(ctx,
+				"Index %q has corrupted fingerprint. "+
+					"Refusing to proceed. "+
+					"Rebuild the index with current embedding config.",
+				x.conf.IndexName)
+			return fmt.Errorf("index %q has corrupted fingerprint: %w", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+		}
+		// Other error
 		return fmt.Errorf("read fingerprint: %w", err)
 	}
 

@@ -1,0 +1,46 @@
+SHA: 4356f6547142de470c13b7af1368f6ccaa3bd4bc
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -p 1 ./... -count=1 -timeout=180s
+DATE: 2026-10-20T16:33:24.0664321+08:00
+?   	github.com/wangle201210/go-rag/server	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag/v1	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core	4.052s
+ok  	github.com/wangle201210/go-rag/server/core/common	0.140s
+?   	github.com/wangle201210/go-rag/server/core/config	[no test files]
+?   	github.com/wangle201210/go-rag/server/core/grader	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/indexer	0.485s
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.290s
+# github.com/wangle201210/go-rag/server/core/providers/bailian [github.com/wangle201210/go-rag/server/core/providers/bailian.test]
+core\providers\bailian\integration_test.go:327:39: not enough arguments in call to wrapLeaseStreamReader
+	have (*schema.StreamReader[*schema.Message], *providers.AttemptLease)
+	want (context.Context, *schema.StreamReader[*schema.Message], *providers.AttemptLease)
+core\providers\bailian\integration_test.go:361:39: not enough arguments in call to wrapLeaseStreamReader
+	have (*schema.StreamReader[*schema.Message], *providers.AttemptLease)
+	want (context.Context, *schema.StreamReader[*schema.Message], *providers.AttemptLease)
+core\providers\bailian\integration_test.go:392:43: not enough arguments in call to wrapLeaseStreamReader
+	have (*schema.StreamReader[*schema.Message], *providers.AttemptLease)
+	want (context.Context, *schema.StreamReader[*schema.Message], *providers.AttemptLease)
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian [build failed]
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	0.111s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	0.770s
+ok  	github.com/wangle201210/go-rag/server/core/retriever	0.126s
+?   	github.com/wangle201210/go-rag/server/core/types	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/vector	0.214s
+ok  	github.com/wangle201210/go-rag/server/core/websearch	0.284s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	4.177s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	0.184s
+ok  	github.com/wangle201210/go-rag/server/internal/dao	0.101s
+?   	github.com/wangle201210/go-rag/server/internal/dao/db	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/dao/internal	[no test files]
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.163s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.154s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	15.395s
+?   	github.com/wangle201210/go-rag/server/internal/logic/websearch	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/mcp	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/do	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/entity	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/gorm	[no test files]
+?   	github.com/wangle201210/go-rag/server/server	[no test files]
+FAIL
+EXIT: 1

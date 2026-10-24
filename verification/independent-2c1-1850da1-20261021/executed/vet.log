@@ -1,0 +1,2 @@
+TARGET: 1850da1fcff2e66c1ed61594139e7e2e068fd775 CMD: go vet ./... GOFLAGS: 
+EXIT: 0

@@ -1,0 +1,508 @@
+SHA: df260ddfb12694e7064d74fb63cc1c228f8ebbfe
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -run ^(TestBudget_(ReservationOverflow_(Input|Output|CrossScope)|NegativeUsageConservative|TotalOnlyUsage|SettlementOverflow|NegativeProcessLimit|OverflowSlotRelease|OwnerCancelPropagates|DeadlineNotRefreshedByRetry|TransferKeepsAbsoluteDeadline|ConcurrentReserve_MaxRequests|DualScope_PartialFailure|RetryNoRefresh|TransferToBackground|IdempotentFinalize|ConcurrentFinalize)|TestRegistry_Resolver(CannotMutateProfile|CannotMutateKeyOptions|HoldsCopy))$ -count=10 -timeout=180s -v
+DATE: 2026-10-19T17:51:28.2315109+08:00
+GOPROXY=off GOSUMDB=off
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_TotalOnlyUsage
+--- PASS: TestBudget_TotalOnlyUsage (0.00s)
+=== RUN   TestBudget_SettlementOverflow
+--- PASS: TestBudget_SettlementOverflow (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.933s
+EXIT: 0

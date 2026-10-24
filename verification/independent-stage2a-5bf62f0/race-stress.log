@@ -1,0 +1,9 @@
+SHA: 5bf62f0069a527b4940b8336f3cb953ccb551813
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -run ^TestBudget_(ConcurrentReserve_MaxRequests|DualScope_PartialFailure|RetryNoRefresh|TransferToBackground|IdempotentFinalize|ConcurrentFinalize|SlotRelease_NonStream|SlotRelease_StreamPaths|UnknownUsage)$ -count=10 -timeout=180s -v
+DATE: 2026-10-19T03:02:30.3100160+08:00
+GOPROXY=off GOSUMDB=off
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.071s
+FAIL
+EXIT: 1

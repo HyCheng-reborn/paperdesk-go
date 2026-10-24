@@ -1,0 +1,281 @@
+SHA: 4356f6547142de470c13b7af1368f6ccaa3bd4bc
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -run ^(TestBudget_(RealHTTPSend|StreamFinish|RetryNoRefresh|ConcurrentReserve_MaxRequests|ConcurrentFinalize)|TestBuilder_(ConcurrentRegistration|UnknownProviderRejected|NilBuilderRejected|DuplicateRegistrationRejected|FrozenAfterRegistryBuild)|TestEmbedding_(RawIndices_(OutOfOrder|Duplicate|Missing|Valid)|UsageMissing)|TestRegistry_GetSetConcurrency|TestStream_(EarlyCloseFinalizes|CancelFinalizes|ErrorFinalizes|ConcurrentCloseFinalizes|MultiChunkComplete|BlockedSourceClose|ConcurrentClose|CancelNotEOF)|TestBudget_(RedirectCountsAttempts|OutputCapMatches|EmbeddingSettlesUsage|LocalErrorNoCommit|OwnerReuseViaCtx|OutputOptsMatchReservation|OutputOptsRejected)|TestOpenAI_(BudgetCoversHTTP|StreamBudget)|TestOwner_.*|TestRedirect_.*|TestEmbedding_ConcurrentUsageIsolated)$ -count=10 -timeout=180s -v
+DATE: 2026-10-20T16:33:19.9683621+08:00
+# github.com/wangle201210/go-rag/server/core/providers/bailian [github.com/wangle201210/go-rag/server/core/providers/bailian.test]
+core\providers\bailian\integration_test.go:327:39: not enough arguments in call to wrapLeaseStreamReader
+	have (*schema.StreamReader[*schema.Message], *providers.AttemptLease)
+	want (context.Context, *schema.StreamReader[*schema.Message], *providers.AttemptLease)
+core\providers\bailian\integration_test.go:361:39: not enough arguments in call to wrapLeaseStreamReader
+	have (*schema.StreamReader[*schema.Message], *providers.AttemptLease)
+	want (context.Context, *schema.StreamReader[*schema.Message], *providers.AttemptLease)
+core\providers\bailian\integration_test.go:392:43: not enough arguments in call to wrapLeaseStreamReader
+	have (*schema.StreamReader[*schema.Message], *providers.AttemptLease)
+	want (context.Context, *schema.StreamReader[*schema.Message], *providers.AttemptLease)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestRedirect_InjectedClientProhibited
+--- PASS: TestRedirect_InjectedClientProhibited (0.00s)
+=== RUN   TestRedirect_AttemptsCounted
+--- PASS: TestRedirect_AttemptsCounted (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.248s
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian [build failed]
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.01s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+=== RUN   TestOpenAI_BudgetCoversHTTP
+--- PASS: TestOpenAI_BudgetCoversHTTP (0.00s)
+=== RUN   TestOpenAI_StreamBudget
+--- PASS: TestOpenAI_StreamBudget (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.218s
+FAIL
+EXIT: 1

@@ -1,0 +1,8 @@
+TARGET: 8611750bb89dbf0de268b04a212ca873d500cb6f SERVER TREE: e891891c8040602374db3714ce49f731e770f099 CWD: C:\Zhy\code\go-rag\.review-stage2c1-8611750\server GOFLAGS empty; GOPROXY=off; GOSUMDB=off
+go version go1.27.1 windows/amd64
+
+windows
+amd64
+C:\msys64\ucrt64\bin\gcc.exe
+C:\msys64\ucrt64\bin\g++.exe
+1

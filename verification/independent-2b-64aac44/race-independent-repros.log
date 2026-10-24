@@ -1,0 +1,120 @@
+SHA: 64aac44155414403d5d4e007863987e1f79acfe2
+LAYER: target + independent tests; NO overlay
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/bailian ./core/common -run ^Test(SupplementStreamEarlyCloseFinalizes|IndependentNestedEntryKeepsOwner|IndependentTaskUsesTransferredScope)$ -count=10 -timeout=60s -v
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.11s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+=== RUN   TestSupplementStreamEarlyCloseFinalizes
+    review_fix_behaviors_test.go:36: consumer Close left lease active until external cancellation: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:2 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestSupplementStreamEarlyCloseFinalizes (0.10s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian	1.227s
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+=== RUN   TestIndependentNestedEntryKeepsOwner
+    review_owner_test.go:14: nested entry replaced cumulative request owner
+    review_owner_test.go:15: nested entry refreshed exhausted request quota
+--- FAIL: TestIndependentNestedEntryKeepsOwner (0.00s)
+=== RUN   TestIndependentTaskUsesTransferredScope
+    review_owner_test.go:23: transferred task lost actual synchronous usage: {AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+    review_owner_test.go:24: background task quota refreshed because synchronous adapter used separate scope
+--- FAIL: TestIndependentTaskUsesTransferredScope (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/common	0.208s
+FAIL
+EXIT: 1

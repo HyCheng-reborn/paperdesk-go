@@ -1,0 +1,16 @@
+
+Name                                                          Count
+----                                                          -----
+TestIndex_BackgroundChunksFailure_RealChain                      10
+TestIndex_BackgroundChunksStatusWriteFailure_Propagated          10
+TestIndex_BackgroundChunksSuccess_WritesIndexing                 10
+TestIndex_BackgroundCleanupBeforeDone                            10
+TestSaveChunks_IndexingOnlyUpdater_SkipsFailed                   10
+TestShutdownCoordinator_CleanupFailsBeforeConverged              10
+TestShutdownCoordinator_CleanupPartialFailure_ContinuesOthers    10
+TestShutdownCoordinator_NilCloser                                10
+TestShutdownCoordinator_NoResources                              10
+TestShutdownCoordinator_ShutdownSuccess_ThenCleanup              10
+TestShutdownCoordinator_ShutdownTimeout_NoCleanup                10
+TestShutdownCoordinator_ShutdownTimeout_ThenWaitSuccess          10
+

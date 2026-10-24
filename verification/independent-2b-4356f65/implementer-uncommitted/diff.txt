@@ -1,0 +1,31 @@
+diff --git a/server/core/providers/bailian/integration_test.go b/server/core/providers/bailian/integration_test.go
+index dc13d8c..ceeeca4 100644
+--- a/server/core/providers/bailian/integration_test.go
++++ b/server/core/providers/bailian/integration_test.go
+@@ -324,7 +324,7 @@ func TestStream_EarlyCloseFinalizes(t *testing.T) {
+ 		{Role: schema.Assistant, Content: "chunk3"},
+ 	})
+ 
+-	wrapped := wrapLeaseStreamReader(sr, lease)
++	wrapped := wrapLeaseStreamReader(context.Background(), sr, lease)
+ 
+ 	// 只读一个 chunk 然后提前关闭
+ 	_, err := wrapped.Recv()
+@@ -358,7 +358,7 @@ func TestStream_CancelFinalizes(t *testing.T) {
+ 		{Role: schema.Assistant, Content: "chunk1"},
+ 	})
+ 
+-	wrapped := wrapLeaseStreamReader(sr, lease)
++	wrapped := wrapLeaseStreamReader(context.Background(), sr, lease)
+ 
+ 	// 读取所有（EOF 终结）
+ 	for {
+@@ -389,7 +389,7 @@ func TestStream_ErrorFinalizes(t *testing.T) {
+ 		writer.Send(nil, fmt.Errorf("connection reset"))
+ 	}()
+ 
+-	wrapped := wrapLeaseStreamReader(reader, lease)
++	wrapped := wrapLeaseStreamReader(context.Background(), reader, lease)
+ 
+ 	// 读取直到错误
+ 	for {

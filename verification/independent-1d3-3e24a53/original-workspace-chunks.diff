@@ -1,0 +1,59 @@
+diff --git a/server/internal/logic/knowledge/chunks.go b/server/internal/logic/knowledge/chunks.go
+index c7484ed..aa4703e 100644
+--- a/server/internal/logic/knowledge/chunks.go
++++ b/server/internal/logic/knowledge/chunks.go
+@@ -11,8 +11,8 @@ import (
+ 	"github.com/wangle201210/go-rag/server/internal/model/entity"
+ )
+ 
+-// chunkStore 定义 chunk 数据访问操作，作为可注入边界支持离线测试。
+-type chunkStore interface {
++// ChunkStore 定义 chunk 数据访问操作，作为可注入边界支持离线测试。
++type ChunkStore interface {
+ 	// FindByChunkID 查询已存在的 chunk 记录；无记录时返回 (nil, sql.ErrNoRows)。
+ 	FindByChunkID(ctx context.Context, chunkID string) (*entity.KnowledgeChunks, error)
+ 	// Insert 插入新 chunk 记录。
+@@ -21,8 +21,8 @@ type chunkStore interface {
+ 	Update(ctx context.Context, chunkID string, data map[string]interface{}) error
+ }
+ 
+-// docStatusUpdater 定义文档状态更新操作，作为可注入边界支持离线测试。
+-type docStatusUpdater interface {
++// DocStatusUpdater 定义文档状态更新操作，作为可注入边界支持离线测试。
++type DocStatusUpdater interface {
+ 	UpdateDocumentsStatus(ctx context.Context, documentsId int64, status int) error
+ }
+ 
+@@ -71,7 +71,7 @@ func SaveChunksDataWithoutStatus(ctx context.Context, documentsId int64, chunks
+ // indexingOnlyUpdater 只写 Indexing 状态，不写 Failed。
+ // 供后台编排使用，Failed 由后台统一终结所有者标记。
+ type indexingOnlyUpdater struct {
+-	inner docStatusUpdater
++	inner DocStatusUpdater
+ }
+ 
+ func (u *indexingOnlyUpdater) UpdateDocumentsStatus(ctx context.Context, documentsId int64, status int) error {
+@@ -88,6 +88,12 @@ func SaveChunksDataIndexingOnly(ctx context.Context, documentsId int64, chunks [
+ 	return saveChunks(ctx, documentsId, chunks, &daoChunkStore{}, &indexingOnlyUpdater{inner: &daoDocStatusUpdater{}})
+ }
+ 
++// SaveChunksDataWithDeps 共享 saveChunks 内核，允许注入 chunkStore 和 docStatusUpdater。
++// 用于跨包测试，避免重复状态规则。
++func SaveChunksDataWithDeps(ctx context.Context, documentsId int64, chunks []entity.KnowledgeChunks, store ChunkStore, updater DocStatusUpdater) error {
++	return saveChunks(ctx, documentsId, chunks, store, updater)
++}
++
+ // saveChunks 内部 helper，依赖通过接口注入，便于同包测试直接验证错误传播。
+ //
+ // 契约：
+@@ -100,8 +106,8 @@ func saveChunks(
+ 	ctx context.Context,
+ 	documentsId int64,
+ 	chunks []entity.KnowledgeChunks,
+-	store chunkStore,
+-	statusUpdater docStatusUpdater,
++	store ChunkStore,
++	statusUpdater DocStatusUpdater,
+ ) error {
+ 	if len(chunks) == 0 {
+ 		return nil

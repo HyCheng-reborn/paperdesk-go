@@ -1,0 +1,239 @@
+SHA: 735786966e3e8e8e0f1eb238045ca49209410505
+LAYER: target + preserved independent reproductions
+CWD: C:/Zhy/code/go-rag-review-1d3/server
+CMD: go test -race ./core ./internal/logic/rag -count=10 -v -timeout=90s -run ^(TestReviewConcurrentResetUsesStableInstance|TestReviewSyncPanicStopsCancellationBridge|TestReviewBridgeAllSyncExitPaths)$
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.509+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.510+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.01s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.01s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.510+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.510+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.512+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.512+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.512+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.513+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.513+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.513+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.514+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.514+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.515+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.515+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.516+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.516+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.517+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.517+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_paths_test.go:26: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+=== RUN   TestReviewBridgeAllSyncExitPaths
+=== RUN   TestReviewBridgeAllSyncExitPaths/success
+2026-10-18T16:55:03.518+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+=== RUN   TestReviewBridgeAllSyncExitPaths/error
+2026-10-18T16:55:03.518+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag-review-1d3/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestReviewBridgeAllSyncExitPaths.func1.3
+    C:/Zhy/code/go-rag-review-1d3/server/core/review_bridge_paths_test.go:40
+
+=== RUN   TestReviewBridgeAllSyncExitPaths/panic
+=== RUN   TestReviewBridgeAllSyncExitPaths/goexit
+--- PASS: TestReviewBridgeAllSyncExitPaths (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/success (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/error (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/panic (0.00s)
+    --- PASS: TestReviewBridgeAllSyncExitPaths/goexit (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	1.343s
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.02s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+=== RUN   TestReviewConcurrentResetUsesStableInstance
+--- PASS: TestReviewConcurrentResetUsesStableInstance (0.01s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	1.450s
+EXIT: 0

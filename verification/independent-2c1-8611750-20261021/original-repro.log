@@ -1,0 +1,27 @@
+TARGET: 8611750bb89dbf0de268b04a212ca873d500cb6f
+GOFLAGS: empty
+CWD: C:\Zhy\code\go-rag\.review-stage2c1-8611750\server
+CMD: go test -overlay C:\Zhy\code\go-rag\verification\independent-2c1-8611750-20261021/overlay.json ./internal/logic/rag -run ^TestIndependent -count=1 -v
+=== RUN   TestIndependentYAMLProductionReader
+=== RUN   TestIndependentYAMLProductionReader/768
+=== RUN   TestIndependentYAMLProductionReader/0
+=== RUN   TestIndependentYAMLProductionReader/-2
+=== RUN   TestIndependentYAMLProductionReader/"768"
+=== RUN   TestIndependentYAMLProductionReader/1.5
+=== RUN   TestIndependentYAMLProductionReader/true
+--- PASS: TestIndependentYAMLProductionReader (0.00s)
+    --- PASS: TestIndependentYAMLProductionReader/768 (0.00s)
+    --- PASS: TestIndependentYAMLProductionReader/0 (0.00s)
+    --- PASS: TestIndependentYAMLProductionReader/-2 (0.00s)
+    --- PASS: TestIndependentYAMLProductionReader/"768" (0.00s)
+    --- PASS: TestIndependentYAMLProductionReader/1.5 (0.00s)
+    --- PASS: TestIndependentYAMLProductionReader/true (0.00s)
+=== RUN   TestIndependentDefaultFileAdapter
+=== RUN   TestIndependentDefaultFileAdapter/legacy
+=== RUN   TestIndependentDefaultFileAdapter/provider
+--- PASS: TestIndependentDefaultFileAdapter (0.00s)
+    --- PASS: TestIndependentDefaultFileAdapter/legacy (0.00s)
+    --- PASS: TestIndependentDefaultFileAdapter/provider (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	0.234s
+EXIT: 0

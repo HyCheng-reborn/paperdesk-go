@@ -1,0 +1,21 @@
+﻿== Stage 2A E1 正式验收环境（进程级，2026-10-19）==
+CWD: c:/Zhy/code/go-rag/server (go module root)
+COMMIT(HEAD): 
+df260ddfb12694e7064d74fb63cc1c228f8ebbfe
+BRANCH: 
+review/stage1a
+GO: 
+go version go1.27.1 windows/amd64
+CGO_ENABLED: 
+1
+CC: 
+C:\msys64\ucrt64\bin\gcc.exe
+GCC: 
+gcc.exe (Rev6, Built by MSYS2 project) 16.2.0
+LD/BINUTILS: 
+GNU ld (GNU Binutils) 2.47.20260726
+GOFLAGS: [
+
+]
+PATH-priority: C:\msys64\ucrt64\bin (process-scoped; 系统级未改动)
+core/providers 相对目标无内容改动: git diff --numstat -- core/providers 为空

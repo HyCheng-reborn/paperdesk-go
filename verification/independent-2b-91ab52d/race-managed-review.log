@@ -1,0 +1,200 @@
+SHA: 91ab52dd3f942da00fadcdbb8963a5537a0e4c9a
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+LAYER: target + independent review tests
+CMD: go test -race ./core/providers/openai ./internal/logic/chat -run ^TestReview(Managed(RealClose|NoBudgetABC|CloseWaitsReceiver|ParentCancelUnderBackpressure|BailianParentCancelUnderBackpressure|ChatFailureBackpressure)|SessionEarlyFrontendClose)$ -count=10 -timeout=60s -v
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.02s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.01s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.01s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.01s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+=== RUN   TestReviewManagedRealClose
+=== RUN   TestReviewManagedRealClose/bailian
+=== RUN   TestReviewManagedRealClose/openai
+--- PASS: TestReviewManagedRealClose (0.00s)
+    --- PASS: TestReviewManagedRealClose/bailian (0.00s)
+    --- PASS: TestReviewManagedRealClose/openai (0.00s)
+=== RUN   TestReviewManagedNoBudgetABC
+--- PASS: TestReviewManagedNoBudgetABC (0.00s)
+=== RUN   TestReviewManagedCloseWaitsReceiver
+--- PASS: TestReviewManagedCloseWaitsReceiver (0.05s)
+=== RUN   TestReviewManagedParentCancelUnderBackpressure
+--- PASS: TestReviewManagedParentCancelUnderBackpressure (0.00s)
+=== RUN   TestReviewManagedBailianParentCancelUnderBackpressure
+    review_managed_session_test.go:82: parent canceled HTTP but buffered session did not converge: {AttemptsUsed:1 CommittedAttempts:1 InFlight:1 InputReserved:1 OutputReserved:8192 InputUsed:0 OutputUsed:0}
+--- FAIL: TestReviewManagedBailianParentCancelUnderBackpressure (0.10s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/openai	1.819s
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.01s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+=== RUN   TestReviewSessionEarlyFrontendClose
+--- PASS: TestReviewSessionEarlyFrontendClose (0.00s)
+=== RUN   TestReviewManagedChatFailureBackpressure
+--- PASS: TestReviewManagedChatFailureBackpressure (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.248s
+FAIL
+EXIT: 1

@@ -1,0 +1,10 @@
+SHA: 89cc769440b6b405c2ef16eb78a035f486f03fab
+LAYER: target + original review reproduction
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core -count=1 -v -timeout=60s -run ^TestReviewSyncPanicStopsCancellationBridge$
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_test.go:24: registered bridges=1; stopped bridges=1; occupied slots=0
+--- PASS: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	1.265s
+EXIT: 0

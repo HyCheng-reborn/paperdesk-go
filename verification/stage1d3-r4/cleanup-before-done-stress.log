@@ -1,0 +1,209 @@
+﻿# CMD: go test ./core -count=10 -v -run "TestIndex_BackgroundCleanupBeforeDone"
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-18 18:48:42
+# RESULT: 10 PASS (1 test × 10 iterations)
+
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:29.889+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:29.889+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:29.890+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:29.890+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.51s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:30.390+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:30.390+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:30.390+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:30.390+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:30.890+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:30.890+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:30.890+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:30.890+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:31.391+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:31.391+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:31.391+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:31.391+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:31.891+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:31.891+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:31.891+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:31.891+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:32.391+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:32.392+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:32.392+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:32.392+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:32.892+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:32.892+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:32.892+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:32.892+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:33.393+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:33.393+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:33.393+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:33.393+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:33.893+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:33.893+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:33.893+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:33.893+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T18:48:34.394+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T18:48:34.394+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T18:48:34.394+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func3
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2309
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:62
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T18:48:34.394+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk d1: insert failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.50s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	5.205s
+

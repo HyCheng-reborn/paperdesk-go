@@ -1,0 +1,8 @@
+SHA: 89cc769440b6b405c2ef16eb78a035f486f03fab
+BASE: 9e59029133cfdb6b42a449f8dcb625c3708aeaa1
+CWD: C:/Zhy/code/go-rag-review-1d3/server
+GO: go version go1.27.1 windows/amd64
+GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=gcc CXX=g++ GOFLAGS=(empty) GOTOOLCHAIN=auto
+GCC: MinGW-W64 8.1.0 (prior confirmed; toolchain unchanged)
+GOPROXY=off GOSUMDB=off
+Original reproduction backed up before worktree switch; old REPORT/HANDOFF/logs retained

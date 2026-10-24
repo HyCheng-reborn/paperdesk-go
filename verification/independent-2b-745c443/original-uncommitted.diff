@@ -1,0 +1,121 @@
+diff --git a/server/core/providers/budget.go b/server/core/providers/budget.go
+index f12bf1b..7bbb959 100644
+--- a/server/core/providers/budget.go
++++ b/server/core/providers/budget.go
+@@ -453,6 +453,28 @@ func contextWithFixedDeadline(ctx context.Context, ownerDeadline time.Time) (con
+ 	return context.WithDeadline(ctx, ownerDeadline)
+ }
+ 
++// ---------------------------------------------------------------------------
++// Context key: RequestBudget owner reuse (Fix 2a)
++// ---------------------------------------------------------------------------
++
++// budgetCtxKey 是存储 RequestBudget 的 context key 类型（不可导出，防碰撞）。
++type budgetCtxKey struct{}
++
++// ContextWithRequestBudget 将 RequestBudget 绑定到 ctx，供下游适配器复用。
++// 入口处（如 Retrieve/Index/ChatStream）构造一次，通过 ctx 传递。
++func ContextWithRequestBudget(ctx context.Context, rb *RequestBudget) context.Context {
++	return context.WithValue(ctx, budgetCtxKey{}, rb)
++}
++
++// RequestBudgetFromContext 从 ctx 提取已绑定的 RequestBudget（nil 表示未绑定）。
++func RequestBudgetFromContext(ctx context.Context) *RequestBudget {
++	if ctx == nil {
++		return nil
++	}
++	rb, _ := ctx.Value(budgetCtxKey{}).(*RequestBudget)
++	return rb
++}
++
+ // ---------------------------------------------------------------------------
+ // BudgetOption
+ // ---------------------------------------------------------------------------
+diff --git a/server/core/providers/registry_test.go b/server/core/providers/registry_test.go
+index 6c59b95..ad00146 100644
+--- a/server/core/providers/registry_test.go
++++ b/server/core/providers/registry_test.go
+@@ -12,6 +12,51 @@ import (
+ 	"github.com/cloudwego/eino/schema"
+ )
+ 
++// TestMain 注册测试用 builder，确保所有测试使用已注册的 provider。
++func TestMain(m *testing.M) {
++	// 注册 "openai" 和 "bailian" 的测试 builder
++	// 使用 WrapChatModel + FakeChat 作为底层，保留 Profile 信息
++	_ = RegisterChatBuilder("openai", func(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
++		return &profileChat{FakeChat: NewFakeChat(), profile: cfg.Profile.Clone()}, nil
++	})
++	_ = RegisterEmbedBuilder("openai", func(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
++		return NewFakeEmbed(1024, "openai-embed"), nil
++	})
++	_ = RegisterRerankBuilder("openai", func(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
++		return NewFakeRerank(), nil
++	})
++	_ = RegisterChatBuilder("bailian", func(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
++		return &profileChat{FakeChat: NewFakeChat(), profile: cfg.Profile.Clone()}, nil
++	})
++	_ = RegisterEmbedBuilder("bailian", func(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
++		return NewFakeEmbed(1024, "bailian-embed"), nil
++	})
++	_ = RegisterRerankBuilder("bailian", func(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
++		return NewFakeRerank(), nil
++	})
++	m.Run()
++}
++
++// profileChat 包装 FakeChat，附加 Profile 信息（测试用）。
++type profileChat struct {
++	*FakeChat
++	profile *ProviderProfile
++}
++
++func (pc *profileChat) Profile() ProviderProfile {
++	if pc.profile == nil {
++		return ProviderProfile{}
++	}
++	return pc.profile.snapshot()
++}
++
++func (pc *profileChat) Capabilities() Capabilities {
++	if pc.profile == nil {
++		return Capabilities{}
++	}
++	return pc.profile.Capabilities
++}
++
+ // countingCreds 是可控的 CredentialResolver：按调用序返回预设结果，并统计调用次数。
+ // 用于确定性验证“失败初始化不发布缓存”“缓存命中不重复构建”。
+ type countingCreds struct {
+diff --git a/server/core/providers/transport.go b/server/core/providers/transport.go
+index 5477f71..6118f10 100644
+--- a/server/core/providers/transport.go
++++ b/server/core/providers/transport.go
+@@ -1,11 +1,16 @@
+ package providers
+ 
+ import (
++	"errors"
+ 	"net"
+ 	"net/http"
+ 	"time"
+ )
+ 
++// ErrRedirectProhibited 表示 HTTP 重定向被禁止（Fix 2b）。
++// 重定向不消耗额外 attempts，但可能被利用绕过预算，因此显式禁止。
++var ErrRedirectProhibited = errors.New("providers: HTTP redirect prohibited by budget policy")
++
+ // Transport 是统一的 HTTP 传输层（stage2-plan §6.4）。
+ //
+ // 设计决定：统一 transport 提供共享的 *http.Client 与超时，但“统一 transport
+@@ -98,6 +103,10 @@ func NewTransport(opts ...TransportOption) *Transport {
+ 				TLSHandshakeTimeout:   10 * time.Second,
+ 				ExpectContinueTimeout: 1 * time.Second,
+ 			},
++			// Fix 2b: 禁止自动重定向，避免绕过预算计数
++			CheckRedirect: func(req *http.Request, via []*http.Request) error {
++				return ErrRedirectProhibited
++			},
+ 		}
+ 	}
+ 	return &Transport{client: client, timeout: cfg.timeout}

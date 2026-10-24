@@ -1,0 +1,9 @@
+TARGET + SUPPLEMENT + REVIEW REPRO; CWD C:/Zhy/code/go-rag-review-1d3/server; CMD go test -race ./core -count=1 -v -timeout=30s -run ^TestReviewSyncPanicStopsCancellationBridge$
+=== RUN   TestReviewSyncPanicStopsCancellationBridge
+    review_bridge_test.go:24: registered bridges=1; stopped bridges=0; occupied slots=0
+    review_bridge_test.go:25: synchronous panic retained cancellation bridge on service root
+--- FAIL: TestReviewSyncPanicStopsCancellationBridge (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core	0.245s
+FAIL
+EXIT: 1

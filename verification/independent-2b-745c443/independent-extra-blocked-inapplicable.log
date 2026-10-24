@@ -1,0 +1,14 @@
+SHA: 745c4433b4a99542c441b7a3d6fe958f88688caa
+LAYER: target + two uncommitted snapshots + independent tests
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -overlay=C:/Zhy/code/go-rag/verification/independent-2b-745c443/overlay.json ./core/providers/bailian -run ^TestIndependent -count=1 -timeout=30s -v
+=== RUN   TestIndependentBlockedSourceClose
+    review_blocked_stream_test.go:18: source did not enter blocked conversion
+--- FAIL: TestIndependentBlockedSourceClose (1.00s)
+=== RUN   TestIndependentOpenAIBudget
+    review_openai_budget_test.go:18: OpenAI builder bypasses budget: sends=2 snapshot={AttemptsUsed:0 CommittedAttempts:0 InFlight:0 InputReserved:0 OutputReserved:0 InputUsed:0 OutputUsed:0}
+--- FAIL: TestIndependentOpenAIBudget (0.01s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian	1.122s
+FAIL
+EXIT: 1

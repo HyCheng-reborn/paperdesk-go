@@ -1,0 +1,7 @@
+SHA: df260ddfb12694e7064d74fb63cc1c228f8ebbfe
+CWD: C:\Zhy\code\go-rag-review-1d3\server
+CMD: go test -race ./core/providers/... -count=1 -timeout=180s
+DATE: 2026-10-19T17:51:23.8124297+08:00
+GOPROXY=off GOSUMDB=off
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.351s
+EXIT: 0

@@ -227,7 +227,7 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 
 ## 状态
 
-2C-2 修复完成，待独立复核。
+2C-2 R1-R7 修复完成，待第三轮独立复核。
 
 ## 附录：独立复核阻塞修复记录（F1-F8）
 
@@ -242,4 +242,16 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 | F7 | 容忍损坏数据 | 严格 JSON 解析（UseNumber 拒绝浮点维度）；VerifyDigest 重算核验 |
 | F8 | ES 请求忽略取消 | 入口 ctx.Err() 预检查；typed API 通过 .Do(ctx) 传播 |
 
-状态：2C-2 修复完成，待独立复核。
+## 附录：第二轮独立复核修复记录（R1-R7）
+
+| 编号 | 问题 | 修复方式 |
+|------|------|----------|
+| R1 | Factory 层指纹写入缺失 | CreateIndex 后立即 WriteFingerprint；check existence → create → write → verify |
+| R2 | ES resourceID 未绑定真实 UUID | ES ReadFingerprint 比对 _meta resourceID 与 settings.index.uuid；Qdrant ReadFingerprint 验证 collection 存在 |
+| R3 | 并发写入保护不足 | 条件写入语义：已存在返回 ErrFingerprintExists |
+| R4 | 空 resourceID 未拒绝 | VerifyFingerprint + checkFingerprint 均 fail closed 拒绝空 resourceID |
+| R5 | ParseFingerprint 未验证 digest | 重算摘要核验 + 拒绝尾随 JSON 数据 |
+| R6 | ES API 未传播 context | 所有 ES API 调用通过 .WithContext(ctx) 传播取消信号 |
+| R7 | Qdrant CreateIndex 失败自动删除 | 移除无所有权自动删除逻辑，失败时保留 collection |
+
+状态：2C-2 R1-R7 修复完成，待第三轮独立复核。

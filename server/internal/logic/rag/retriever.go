@@ -96,7 +96,15 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		// 不在此处 SetRegistry —— 等 core.New 成功后才发布
 	}
 
-	rag, err := core.New(ctx, &config.Config{
+	// R1: Check if index exists BEFORE core.New creates it
+	tmpConf := &config.Config{
+		Client:       client,
+		QdrantClient: qdrantClient,
+		IndexName:    cfg.VectorCfg.IndexName,
+	}
+	indexExisted, _ := tmpConf.IndexExists(ctx)
+
+	confForNew := &config.Config{
 		Client:                client,
 		QdrantClient:          qdrantClient,
 		IndexName:             cfg.VectorCfg.IndexName,
@@ -110,11 +118,26 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		MaxBackgroundTasks:    cfg.MaxBackgroundTasks,
 		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
 		Provider:              cfg.Provider,
-		Registry:              reg, // B5: 显式传入本次 Registry
-	})
+		Registry:              reg,
+	}
+
+	rag, err := core.New(ctx, confForNew)
 	if err != nil {
 		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
 		return nil, err
+	}
+
+	// R1: Write fingerprint for newly created indexes (identity atomically bound to creation)
+	if !indexExisted {
+		fp, fpErr := core.ComputeFingerprintMeta(confForNew)
+		if fpErr == nil {
+			// Use empty resourceID — backend assigns actual ID (ES: index UUID, Qdrant: SQL UUID)
+			writeErr := vs.WriteFingerprint(ctx, cfg.VectorCfg.IndexName, fp, "")
+			if writeErr != nil && !errors.Is(writeErr, vector.ErrFingerprintExists) {
+				return nil, fmt.Errorf("write fingerprint: %w", writeErr)
+			}
+			// ErrFingerprintExists: concurrent creation wrote it first — VerifyFingerprint below will validate
+		}
 	}
 
 	// Stage 2C-2: Verify fingerprint after Rag creation

@@ -57,15 +57,11 @@ func (s *QdrantVectorStore) GetClient() *qdrant.Client {
 }
 
 // CreateIndex 创建集合
-// F1: Atomic creation — generates resourceID, creates collection, writes SQL with Ready=false,
-// reads back, sets Ready=true. On failure: deletes collection + SQL record.
+// R7: No auto-delete on failure — leave resource for manual diagnosis.
 func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	// Generate UUID v4 as resourceID
-	resourceID := uuid.New().String()
-	_ = resourceID // stored when WriteFingerprint is called
 
 	// 创建集合，使用命名向量配置以支持多向量
 	req, err := config.QdrantCollection(indexName, s.dimensions)
@@ -84,8 +80,8 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) e
 		FieldType:      qdrant.FieldType_FieldTypeKeyword.Enum(),
 	})
 	if err != nil {
-		// Rollback: delete collection
-		_ = s.client.DeleteCollection(ctx, indexName)
+		// R7: Do NOT auto-delete collection on failure.
+		// Leave resource in place for manual diagnosis/cleanup.
 		return fmt.Errorf("failed to create field index: %w", err)
 	}
 
@@ -441,10 +437,11 @@ func (s *QdrantVectorStore) WriteFingerprint(ctx context.Context, indexName stri
 	if result := s.db.WithContext(ctx).Create(&record); result.Error != nil {
 		return fmt.Errorf("write fingerprint: %w", result.Error)
 	}
-	// Update Ready=true after successful insert
+	// R2: Update Ready=true after successful insert — return error on failure (not swallowed).
 	if result := s.db.WithContext(ctx).Model(&record).Update("ready", true); result.Error != nil {
-		// Best-effort: log but don't fail (record exists with correct data)
-		g.Log().Warningf(ctx, "failed to set fingerprint Ready=true for index %q: %v", indexName, result.Error)
+		return fmt.Errorf("set fingerprint Ready=true for index %q: %w", indexName, result.Error)
+	} else if result.RowsAffected == 0 {
+		return fmt.Errorf("set fingerprint Ready=true for index %q: record not found or unchanged", indexName)
 	}
 	return nil
 }
@@ -452,6 +449,7 @@ func (s *QdrantVectorStore) WriteFingerprint(ctx context.Context, indexName stri
 // ReadFingerprint reads the fingerprint from SQL table for Qdrant.
 // F2: Returns resourceID alongside fingerprint.
 // F7: Verifies digest integrity after reading.
+// R2: Verifies collection actually exists in Qdrant when client is available.
 func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
 	if s.db == nil {
 		return nil, "", fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
@@ -471,14 +469,21 @@ func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName strin
 		return nil, "", fmt.Errorf("index %q fingerprint creation incomplete (Ready=false): %w",
 			indexName, ErrFingerprintCorrupted)
 	}
-	// Parse the stored JSON
+	// Parse the stored JSON (R5: ParseFingerprint now verifies digest internally)
 	fp, err := ParseFingerprint([]byte(record.FingerprintJSON))
 	if err != nil {
 		return nil, "", err
 	}
-	// F7: Verify digest integrity
-	if verifyErr := VerifyDigest(fp, record.FingerprintDigest); verifyErr != nil {
-		return nil, "", verifyErr
+	// R2: Verify collection actually exists in Qdrant (not just in SQL)
+	if s.client != nil {
+		exists, checkErr := s.client.CollectionExists(ctx, indexName)
+		if checkErr != nil {
+			return nil, "", fmt.Errorf("verify collection exists: %w", checkErr)
+		}
+		if !exists {
+			return nil, "", fmt.Errorf("%w: SQL record exists but Qdrant collection %q missing",
+				ErrFingerprintCorrupted, indexName)
+		}
 	}
 	return fp, record.ResourceID, nil
 }

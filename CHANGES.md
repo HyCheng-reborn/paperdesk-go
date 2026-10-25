@@ -1,5 +1,18 @@
 # 变更记录
 
+## 2026-10-25 Stage 2C-2 R1-R7 修复
+
+基于第二轮独立复核报告修复 7 项问题：
+- R1: 生产创建接线 — factory 层在 CreateIndex 后立即 WriteFingerprint
+- R2: resourceID 绑定 — ES 比对 _meta 与 settings.index.uuid；Qdrant 验证 collection 存在
+- R3: 并发写入保护 — 条件写入 ErrFingerprintExists
+- R4: 空 resourceID 拒绝 — VerifyFingerprint + checkFingerprint 均 fail closed
+- R5: digest 验证 — ParseFingerprint 重算核验 + 拒绝尾随 JSON
+- R6: context 传播 — 所有 ES API 调用 .WithContext(ctx)
+- R7: Qdrant 回滚 — 移除无所有权自动删除
+
+Tests: 603 pass, 0 fail. Build/vet/race clean.
+
 ## 2026-10-25 Stage 2C-2 独立复核阻塞修复（F1-F8）
 
 基于独立复核报告修复 8 项阻塞问题：

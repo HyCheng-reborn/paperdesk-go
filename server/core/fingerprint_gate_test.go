@@ -148,7 +148,7 @@ func TestCheckFingerprint_MissingCache_ReadFromStore(t *testing.T) {
 		IndexName:           "test-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
-		Provider:            &config.ProviderConfig{Name: "test"},
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 	r := newTestRagWithFingerprint(nil, nil, vs, conf)
 
@@ -157,10 +157,11 @@ func TestCheckFingerprint_MissingCache_ReadFromStore(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "unknown",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
+	vs.resourceID = "test-resource-uuid"
 
 	// Test: checkFingerprint should read from store and succeed
 	err := r.checkFingerprint(context.Background())
@@ -182,6 +183,7 @@ func TestCheckFingerprint_Mismatch(t *testing.T) {
 		IndexName:           "test-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 	r := newTestRagWithFingerprint(nil, nil, vs, conf)
 
@@ -194,6 +196,7 @@ func TestCheckFingerprint_Mismatch(t *testing.T) {
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = storedFP
+	vs.resourceID = "test-resource-uuid"
 
 	// Test: checkFingerprint should fail with mismatch error
 	err := r.checkFingerprint(context.Background())
@@ -443,6 +446,7 @@ func TestVerifyFingerprint_ExistingIndexMismatchedFingerprint_NotOverwritten(t *
 		IndexName:           "test-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 	// Existing index (indexJustCreated=false)
 	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, false)
@@ -456,6 +460,7 @@ func TestVerifyFingerprint_ExistingIndexMismatchedFingerprint_NotOverwritten(t *
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = mismatchedFP
+	vs.resourceID = "test-resource-uuid"
 
 	// Test: VerifyFingerprint should fail with mismatch
 	err := r.VerifyFingerprint(context.Background(), vs)
@@ -508,6 +513,7 @@ func TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds(t *testing.
 		IndexName:           "test-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 	// Existing index (indexJustCreated=false)
 	r := newTestRagWithFingerprintAndCreationFlag(nil, nil, vs, conf, false)
@@ -521,6 +527,7 @@ func TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds(t *testing.
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = matchingFP
+	vs.resourceID = "test-resource-uuid"
 
 	// Test: VerifyFingerprint should succeed
 	err := r.VerifyFingerprint(context.Background(), vs)
@@ -545,6 +552,7 @@ func TestCheckFingerprint_CacheTTL_Expiry(t *testing.T) {
 		IndexName:           "test-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 	r := newTestRagWithFingerprint(nil, nil, vs, conf)
 
@@ -669,5 +677,111 @@ func TestVerifyFingerprint_ConcurrentWrite_OnlyOneSucceeds(t *testing.T) {
 	}
 	if failures != 1 {
 		t.Errorf("exactly 1 write should get ErrFingerprintExists, got %d", failures)
+	}
+}
+
+// --- R4: Empty resourceID fail-closed ---
+
+// TestVerifyFingerprint_EmptyResourceID_FailClosed verifies that
+// VerifyFingerprint with empty resourceID fails closed (R4).
+func TestVerifyFingerprint_EmptyResourceID_FailClosed(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	// Put fingerprint with empty resourceID
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "" // Empty resourceID
+
+	// R4: VerifyFingerprint should fail with empty resourceID
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err == nil {
+		t.Fatal("VerifyFingerprint with empty resourceID should fail")
+	}
+	if !errors.Is(err, vector.ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted for empty resourceID, got: %v", err)
+	}
+}
+
+// TestCheckFingerprint_EmptyStoredResourceID_FailClosed verifies that
+// checkFingerprint with empty stored resourceID fails closed (R4).
+func TestCheckFingerprint_EmptyStoredResourceID_FailClosed(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "" // Empty stored resourceID
+
+	// R4: checkFingerprint should fail with empty stored resourceID
+	err := r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("checkFingerprint with empty stored resourceID should fail")
+	}
+	if !errors.Is(err, vector.ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}
+
+// TestCheckFingerprint_CachedResourceID_CannotDowngrade verifies that
+// a cached non-empty resourceID cannot be downgraded to empty (R4).
+func TestCheckFingerprint_CachedResourceID_CannotDowngrade(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "test-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+
+	// Pre-populate cache with non-empty resourceID
+	r.fpCache.set("unknown:test-index", fp, "cached-resource-id")
+	// Manually expire the cache to force re-read
+	entry, _ := r.fpCache.get("unknown:test-index")
+	r.fpCache.mu.Lock()
+	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - 1)
+	r.fpCache.mu.Unlock()
+
+	// Store has empty resourceID (simulating resource replacement with no ID)
+	vs.fingerprint = fp
+	vs.resourceID = ""
+
+	// R4: checkFingerprint should fail — empty stored resourceID
+	err := r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("checkFingerprint should fail when stored resourceID is empty")
+	}
+	if !errors.Is(err, vector.ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
 	}
 }

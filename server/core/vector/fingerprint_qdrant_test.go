@@ -2,6 +2,7 @@ package vector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -126,13 +127,19 @@ func TestQdrant_ReadFingerprint_DigestVerification(t *testing.T) {
 	ctx := context.Background()
 	fp := testFingerprint()
 
-	// Manually insert a record with tampered digest
+	// Manually insert a record with tampered digest IN THE JSON (R5)
 	fpJSON, _ := fp.MarshalJSON()
+	// Tamper with the digest inside the JSON
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+	fpMap["digest"] = "sha256:tampered-digest-00000000000000000000000000000000000000000000"
+	tamperedJSON, _ := json.Marshal(fpMap)
+
 	record := gormmodel.IndexFingerprint{
 		VectorStoreType:   "qdrant",
 		IndexName:         "test-index",
 		ResourceID:        "resource-y",
-		FingerprintJSON:   string(fpJSON),
+		FingerprintJSON:   string(tamperedJSON),
 		FingerprintDigest: "sha256:tampered-digest-00000000000000000000000000000000000000000000",
 		EmbeddingModelID:  fp.EmbeddingModelID,
 		Dimensions:        fp.Dimensions,

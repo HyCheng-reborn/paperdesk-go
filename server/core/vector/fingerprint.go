@@ -180,8 +180,7 @@ func (f Fingerprint) MarshalJSON() ([]byte, error) {
 
 // ParseFingerprint parses a stored fingerprint JSON.
 // It validates the version and required fields.
-// F7: Uses json.Decoder with UseNumber() to reject float dimensions;
-// verifies digest field presence and integrity.
+// R5: Verifies digest integrity; rejects trailing JSON after the document.
 func ParseFingerprint(data []byte) (*Fingerprint, error) {
 	if len(data) == 0 {
 		return nil, ErrFingerprintMissing
@@ -192,6 +191,15 @@ func ParseFingerprint(data []byte) (*Fingerprint, error) {
 	var raw map[string]any
 	if err := dec.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrFingerprintCorrupted, err)
+	}
+	// R5: Reject trailing JSON (e.g. two concatenated JSON objects)
+	if dec.More() {
+		return nil, fmt.Errorf("%w: trailing JSON after fingerprint document", ErrFingerprintCorrupted)
+	}
+	// R5: Extract stored digest for verification
+	storedDigest, _ := raw["digest"].(string)
+	if storedDigest == "" {
+		return nil, fmt.Errorf("%w: digest field missing", ErrFingerprintCorrupted)
 	}
 	fp := &Fingerprint{}
 	// version
@@ -233,6 +241,10 @@ func ParseFingerprint(data []byte) (*Fingerprint, error) {
 			return nil, fmt.Errorf("%w: %q", ErrFingerprintUnknownVersion, fp.Version)
 		}
 		return nil, ErrFingerprintCorrupted
+	}
+	// R5: Verify digest integrity — recompute from canonical JSON and compare
+	if verifyErr := VerifyDigest(fp, storedDigest); verifyErr != nil {
+		return nil, verifyErr
 	}
 	return fp, nil
 }

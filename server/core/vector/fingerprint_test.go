@@ -566,3 +566,81 @@ func TestNewFingerprint_RejectsInvalidFields(t *testing.T) {
 		})
 	}
 }
+
+// --- R5: Digest verification in ParseFingerprint ---
+
+func TestParseFingerprint_WrongDigest_Rejected(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	data, err := fp.MarshalJSON()
+	if err != nil {
+		t.Fatalf("MarshalJSON: %v", err)
+	}
+	// Tamper with the digest
+	var m map[string]any
+	json.Unmarshal(data, &m)
+	m["digest"] = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	tamperedData, _ := json.Marshal(m)
+
+	_, err = ParseFingerprint(tamperedData)
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject wrong digest")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}
+
+func TestParseFingerprint_MissingDigest_Rejected(t *testing.T) {
+	data := `{"version":"v1","embedding_model_id":"test","dimensions":1024,"provider_name":"test","similarity":"cosine"}`
+	_, err := ParseFingerprint([]byte(data))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject missing digest")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}
+
+func TestParseFingerprint_TrailingJSON_Rejected(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	data, _ := fp.MarshalJSON()
+	// Append a second JSON object
+	trailing := string(data) + `{"version":"v1","embedding_model_id":"evil","dimensions":512,"provider_name":"evil","similarity":"dot","digest":"sha256:fake"}`
+	_, err := ParseFingerprint([]byte(trailing))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject trailing JSON")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}
+
+func TestParseFingerprint_ValidDigest_Success(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	data, _ := fp.MarshalJSON()
+	parsed, err := ParseFingerprint(data)
+	if err != nil {
+		t.Fatalf("ParseFingerprint with valid digest should succeed, got: %v", err)
+	}
+	if !fp.Equal(parsed) {
+		t.Errorf("parsed fingerprint mismatch: got %+v, want %+v", parsed, fp)
+	}
+}

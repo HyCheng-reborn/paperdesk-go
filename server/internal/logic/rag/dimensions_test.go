@@ -146,9 +146,9 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 			return
 		}
 		if r.Method == "GET" && r.URL.Path == "/test" {
-			// Get index (fingerprint read) - return stored _meta
+			// Get index (fingerprint read) - return stored _meta with settings.index.uuid for R2
 			w.WriteHeader(200)
-			w.Write([]byte(`{"test":{"mappings":{"_meta":` + storedMeta + `}}}`))
+			w.Write([]byte(`{"test":{"mappings":{"_meta":` + storedMeta + `},"settings":{"index":{"uuid":"test-uuid-123"}}}}`))
 			return
 		}
 		if r.Method == "POST" && r.URL.Path == "/test/_create" {

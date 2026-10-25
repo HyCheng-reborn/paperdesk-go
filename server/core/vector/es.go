@@ -223,7 +223,7 @@ func (s *ESVectorStore) Close() error {
 
 // WriteFingerprint writes the fingerprint to ES _meta field.
 // F3: Conditional write — refuses to overwrite if _meta already contains go-rag-fingerprint.
-// F8: Full context propagation.
+// R6: Full context propagation to all ES API calls.
 func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint, resourceID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -262,11 +262,12 @@ func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, 
 	if err != nil {
 		return fmt.Errorf("marshal meta: %w", err)
 	}
-	// Use put mapping API to update _meta with context
+	// Use put mapping API to update _meta with context (R6)
 	body := fmt.Sprintf(`{"_meta": %s}`, string(metaJSON))
 	res, err := s.client.Indices.PutMapping(
 		[]string{indexName},
 		strings.NewReader(body),
+		s.client.Indices.PutMapping.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("put mapping: %w", err)
@@ -280,13 +281,17 @@ func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, 
 
 // ReadFingerprint reads the fingerprint from ES _meta field.
 // F4: Returns both fingerprint and resourceID.
-// F8: Full context propagation.
+// R2: Verifies _meta.go-rag-resource-id matches settings.index.uuid.
+// R6: Full context propagation to all ES API calls.
 func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, "", err
 	}
-	// Use get index API to read mapping with _meta
-	res, err := s.client.Indices.Get([]string{indexName})
+	// Use get index API to read mapping with _meta (R6: pass ctx)
+	res, err := s.client.Indices.Get(
+		[]string{indexName},
+		s.client.Indices.Get.WithContext(ctx),
+	)
 	if err != nil {
 		return nil, "", fmt.Errorf("get index: %w", err)
 	}
@@ -306,11 +311,16 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 		return nil, "", fmt.Errorf("get index failed: %s", res.String())
 	}
 
-	// Parse response
+	// Parse response — include both _meta and settings.index.uuid (R2)
 	var result map[string]struct {
 		Mappings struct {
 			Meta map[string]any `json:"_meta"`
 		} `json:"mappings"`
+		Settings struct {
+			Index struct {
+				UUID string `json:"uuid"`
+			} `json:"index"`
+		} `json:"settings"`
 	}
 	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, "", fmt.Errorf("%w: decode response: %v", ErrFingerprintCorrupted, err)
@@ -337,21 +347,31 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 	if err != nil {
 		return nil, "", err
 	}
-	// Extract resourceID (may be empty for old records)
+	// Extract resourceID from _meta
 	var resourceID string
 	if rid, ok := indexState.Mappings.Meta["go-rag-resource-id"].(string); ok {
 		resourceID = rid
+	}
+	// R2: Verify resourceID matches actual ES index UUID
+	actualUUID := indexState.Settings.Index.UUID
+	if resourceID != "" && actualUUID != "" && resourceID != actualUUID {
+		return nil, "", fmt.Errorf("%w: resource-id mismatch (meta=%s, actual=%s)",
+			ErrFingerprintCorrupted, resourceID, actualUUID)
 	}
 	return fp, resourceID, nil
 }
 
 // ReadESIndexUUID reads the ES-assigned UUID for the given index.
 // F1: Used to bind physical resource identity after creation.
+// R6: Full context propagation.
 func (s *ESVectorStore) ReadESIndexUUID(ctx context.Context, indexName string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	res, err := s.client.Indices.Get([]string{indexName})
+	res, err := s.client.Indices.Get(
+		[]string{indexName},
+		s.client.Indices.Get.WithContext(ctx),
+	)
 	if err != nil {
 		return "", fmt.Errorf("get index for UUID: %w", err)
 	}

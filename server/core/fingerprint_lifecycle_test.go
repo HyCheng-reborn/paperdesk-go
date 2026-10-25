@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ func TestLifecycle_CreateVerifyCacheExpire_ReVerify(t *testing.T) {
 		IndexName:           "lifecycle-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 
 	r := newTestRagWithFingerprint(nil, nil, vs, conf)
@@ -287,5 +289,243 @@ func TestLifecycle_ConcurrentCheckFingerprint(t *testing.T) {
 		if err != nil {
 			t.Errorf("goroutine %d: checkFingerprint should succeed, got: %v", i, err)
 		}
+	}
+}
+
+// --- R1: Full creation chain tests ---
+
+// creationChainFakeVectorStore tracks WriteFingerprint calls for creation chain tests.
+type creationChainFakeVectorStore struct {
+	fakeVectorStore
+	mu             sync.Mutex
+	writeCalls     int
+	indexCreated   bool
+	indexExisted   bool // If true, IndexExists returns true from the start
+}
+
+func (f *creationChainFakeVectorStore) IndexExists(ctx context.Context, indexName string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.indexExisted || f.indexCreated, nil
+}
+
+func (f *creationChainFakeVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.indexCreated = true
+	return nil
+}
+
+func (f *creationChainFakeVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *vector.Fingerprint, resourceID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.writeCalls++
+	if f.writeErr != nil {
+		return f.writeErr
+	}
+	if f.fingerprint != nil {
+		return fmt.Errorf("index %q: %w", indexName, vector.ErrFingerprintExists)
+	}
+	f.fingerprint = fp
+	// Simulate backend assigning resourceID when empty
+	if resourceID == "" {
+		f.resourceID = "auto-assigned-uuid"
+	} else {
+		f.resourceID = resourceID
+	}
+	return nil
+}
+
+// TestCreationChain_NewIndex_WriteVerifyFingerprint tests the full creation chain:
+// R1: New index → CreateIndex → WriteFingerprint → VerifyFingerprint → success
+func TestCreationChain_NewIndex_WriteVerifyFingerprint(t *testing.T) {
+	vs := &creationChainFakeVectorStore{
+		indexExisted: false, // Index doesn't exist yet
+	}
+
+	conf := &config.Config{
+		IndexName:           "new-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+
+	// Simulate the factory flow:
+	// 1. Check if index existed before creation
+	indexExisted, _ := vs.IndexExists(context.Background(), "new-index")
+	if indexExisted {
+		t.Fatal("index should not exist yet")
+	}
+
+	// 2. Create the index
+	err := vs.CreateIndex(context.Background(), "new-index")
+	if err != nil {
+		t.Fatalf("CreateIndex: %v", err)
+	}
+
+	// 3. Compute and write fingerprint (R1: write fingerprint for newly created indexes)
+	fp, err := ComputeFingerprintMeta(conf)
+	if err != nil {
+		t.Fatalf("ComputeFingerprintMeta: %v", err)
+	}
+	err = vs.WriteFingerprint(context.Background(), "new-index", fp, "")
+	if err != nil {
+		t.Fatalf("WriteFingerprint: %v", err)
+	}
+
+	// 4. Verify fingerprint
+	r := &Rag{
+		conf:    conf,
+		fpCache: newFingerprintCache(),
+	}
+	verifyErr := r.VerifyFingerprint(context.Background(), vs)
+	if verifyErr != nil {
+		t.Fatalf("VerifyFingerprint should succeed after creation chain: %v", verifyErr)
+	}
+
+	// Verify WriteFingerprint was called exactly once
+	vs.mu.Lock()
+	writeCalls := vs.writeCalls
+	vs.mu.Unlock()
+	if writeCalls != 1 {
+		t.Errorf("WriteFingerprint should be called exactly once, got %d", writeCalls)
+	}
+
+	// Verify fingerprint is cached
+	if r.GetFingerprint() == nil {
+		t.Error("fingerprint should be cached after successful VerifyFingerprint")
+	}
+}
+
+// TestCreationChain_ExistingIndex_VerifyOnly tests the existing index path:
+// R1: Index exists → skip WriteFingerprint → VerifyFingerprint → success
+func TestCreationChain_ExistingIndex_VerifyOnly(t *testing.T) {
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown", // Matches fakeVectorStore type switch
+		Similarity:       "cosine",
+	}
+
+	vs := &creationChainFakeVectorStore{
+		indexExisted: true, // Index already exists
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "existing-uuid"
+
+	conf := &config.Config{
+		IndexName:           "existing-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+
+	// Simulate the factory flow:
+	// 1. Check if index existed before
+	indexExisted, _ := vs.IndexExists(context.Background(), "existing-index")
+	if !indexExisted {
+		t.Fatal("index should already exist")
+	}
+
+	// 2. R1: Skip WriteFingerprint for existing indexes
+	// (no WriteFingerprint call)
+
+	// 3. Verify fingerprint
+	r := &Rag{
+		conf:    conf,
+		fpCache: newFingerprintCache(),
+	}
+	verifyErr := r.VerifyFingerprint(context.Background(), vs)
+	if verifyErr != nil {
+		t.Fatalf("VerifyFingerprint should succeed for existing index: %v", verifyErr)
+	}
+
+	// Verify WriteFingerprint was NOT called
+	vs.mu.Lock()
+	writeCalls := vs.writeCalls
+	vs.mu.Unlock()
+	if writeCalls != 0 {
+		t.Errorf("WriteFingerprint should NOT be called for existing index, got %d", writeCalls)
+	}
+}
+
+// TestCreationChain_ExistingIndex_WrongFingerprint tests:
+// R1: Index exists with wrong fingerprint → VerifyFingerprint → fail
+func TestCreationChain_ExistingIndex_WrongFingerprint(t *testing.T) {
+	wrongFP := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "wrong-model",
+		Dimensions:       512,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+
+	vs := &creationChainFakeVectorStore{
+		indexExisted: true,
+	}
+	vs.fingerprint = wrongFP
+	vs.resourceID = "existing-uuid"
+
+	conf := &config.Config{
+		IndexName:           "wrong-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+
+	// Verify fingerprint should fail with mismatch
+	r := &Rag{
+		conf:    conf,
+		fpCache: newFingerprintCache(),
+	}
+	verifyErr := r.VerifyFingerprint(context.Background(), vs)
+	if verifyErr == nil {
+		t.Fatal("VerifyFingerprint should fail with wrong fingerprint")
+	}
+	if !errors.Is(verifyErr, vector.ErrFingerprintMismatch) {
+		t.Errorf("expected ErrFingerprintMismatch, got: %v", verifyErr)
+	}
+}
+
+// TestCreationChain_ConcurrentCreateIndex_SecondGetsExists tests R3:
+// Two goroutines creating same-name index → one writes fingerprint, other gets ErrFingerprintExists
+func TestCreationChain_ConcurrentCreateIndex_SecondGetsExists(t *testing.T) {
+	vs := &creationChainFakeVectorStore{
+		indexExisted: false,
+	}
+
+	conf := &config.Config{
+		IndexName:           "concurrent-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+	}
+
+	fp, _ := ComputeFingerprintMeta(conf)
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			errs[idx] = vs.WriteFingerprint(context.Background(), "concurrent-index", fp, fmt.Sprintf("res-%d", idx))
+		}(i)
+	}
+	wg.Wait()
+
+	successes := 0
+	existsErrors := 0
+	for _, err := range errs {
+		if err == nil {
+			successes++
+		} else if errors.Is(err, vector.ErrFingerprintExists) {
+			existsErrors++
+		}
+	}
+	if successes != 1 {
+		t.Errorf("exactly 1 write should succeed, got %d", successes)
+	}
+	if existsErrors != 1 {
+		t.Errorf("exactly 1 write should get ErrFingerprintExists, got %d", existsErrors)
 	}
 }

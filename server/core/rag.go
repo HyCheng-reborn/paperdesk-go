@@ -308,6 +308,11 @@ func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) erro
 		return fmt.Errorf("read fingerprint: %w", err)
 	}
 
+	// R4: Empty resourceID = identity incomplete, fail closed
+	if resourceID == "" {
+		return fmt.Errorf("index %q: %w (resourceID empty)", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+	}
+
 	// Fingerprint exists - verify it matches expected
 	if verifyErr := vector.VerifyFingerprint(storedFP, expectedFP); verifyErr != nil {
 		return fmt.Errorf("fingerprint verification failed for index %q: %w", x.conf.IndexName, verifyErr)
@@ -321,25 +326,27 @@ func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) erro
 
 // computeExpectedFingerprint builds the expected fingerprint from current config.
 func (x *Rag) computeExpectedFingerprint() (*vector.Fingerprint, error) {
-	// Extract provider name and model ID from config
-	providerName := "unknown"
-	modelID := x.conf.EmbeddingModel
-	if x.conf.Provider != nil {
-		providerName = x.conf.Provider.Name
-		if x.conf.Provider.EmbeddingModel != "" {
-			modelID = x.conf.Provider.EmbeddingModel
+	return ComputeFingerprintMeta(x.conf)
+}
+
+// ComputeFingerprintMeta builds a Fingerprint from config for identity binding.
+// Standalone function usable before Rag creation (called from factory).
+func ComputeFingerprintMeta(conf *config.Config) (*vector.Fingerprint, error) {
+	providerName := "legacy"
+	modelID := conf.EmbeddingModel
+	if conf.Provider != nil {
+		providerName = conf.Provider.Name
+		if conf.Provider.EmbeddingModel != "" {
+			modelID = conf.Provider.EmbeddingModel
 		}
 	}
 	if modelID == "" {
 		return nil, fmt.Errorf("embedding model not configured")
 	}
-
-	dims := x.conf.EmbeddingDimensions
+	dims := conf.EmbeddingDimensions
 	if dims <= 0 {
 		return nil, fmt.Errorf("invalid embedding dimensions: %d", dims)
 	}
-
-	// Similarity is always "cosine" for now (could be made configurable later)
 	return vector.NewFingerprint(
 		vector.FingerprintVersion,
 		modelID,
@@ -408,8 +415,13 @@ func (x *Rag) checkFingerprint(ctx context.Context) error {
 		return fmt.Errorf("read fingerprint from vector store: %w", err)
 	}
 
-	// F4: If cached resourceID exists and stored resourceID differs → resource was replaced
-	if ok && cachedEntry != nil && cachedEntry.resourceID != "" && storedResourceID != "" {
+	// R4: Empty stored resourceID = identity incomplete, fail closed
+	if storedResourceID == "" {
+		return fmt.Errorf("index %q: %w (stored resourceID empty)", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+	}
+
+	// R4: If cached resourceID exists and stored resourceID differs → resource was replaced
+	if ok && cachedEntry != nil && cachedEntry.resourceID != "" {
 		if cachedEntry.resourceID != storedResourceID {
 			return fmt.Errorf("index %q: %w (cached=%s, stored=%s)",
 				x.conf.IndexName, vector.ErrResourceReplaced, cachedEntry.resourceID, storedResourceID)

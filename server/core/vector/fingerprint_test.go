@@ -644,3 +644,65 @@ func TestParseFingerprint_ValidDigest_Success(t *testing.T) {
 		t.Errorf("parsed fingerprint mismatch: got %+v, want %+v", parsed, fp)
 	}
 }
+
+// --- C6: Strict EOF tests — trailing close brace ---
+
+func TestParseFingerprint_TrailingCloseBrace_Rejected(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	data, _ := fp.MarshalJSON()
+	// Append a trailing close brace
+	trailing := string(data) + `}`
+	_, err := ParseFingerprint([]byte(trailing))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject trailing '}'")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}
+
+func TestParseFingerprint_TrailingCloseBracket_Rejected(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	data, _ := fp.MarshalJSON()
+	// Append a trailing close bracket
+	trailing := string(data) + `]`
+	_, err := ParseFingerprint([]byte(trailing))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject trailing ']'")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}
+
+func TestParseFingerprint_TrailingBraceWithGarbage_Rejected(t *testing.T) {
+	fp := &Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "bailian",
+		Similarity:       "cosine",
+	}
+	data, _ := fp.MarshalJSON()
+	// Append trailing brace with garbage text
+	trailing := string(data) + `} garbage`
+	_, err := ParseFingerprint([]byte(trailing))
+	if err == nil {
+		t.Fatal("ParseFingerprint should reject trailing '} garbage'")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	}
+}

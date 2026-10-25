@@ -27,9 +27,10 @@ type fakeEServer struct {
 }
 
 type fakeESIndexState struct {
-	exists bool
-	meta   map[string]any // _meta field from mapping
-	uuid   string         // index UUID
+	exists     bool
+	meta       map[string]any            // _meta field from mapping
+	uuid       string                    // index UUID
+	properties map[string]map[string]any // mapping properties (for schema validation C4)
 }
 
 func newFakeEServer() *fakeEServer {
@@ -86,11 +87,16 @@ func (f *fakeEServer) handleGetIndex(w http.ResponseWriter, r *http.Request) {
 	if meta == nil {
 		meta = map[string]any{}
 	}
+	mappings := map[string]any{
+		"_meta": meta,
+	}
+	// C4: Include mapping properties for schema validation
+	if state.properties != nil {
+		mappings["properties"] = state.properties
+	}
 	resp := map[string]any{
 		indexName: map[string]any{
-			"mappings": map[string]any{
-				"_meta": meta,
-			},
+			"mappings": mappings,
 			"settings": map[string]any{
 				"index": map[string]any{
 					"uuid": state.uuid,
@@ -152,23 +158,53 @@ func (f *fakeEServer) handleHeadIndex(w http.ResponseWriter, r *http.Request) {
 
 func (f *fakeEServer) handleCreateIndex(w http.ResponseWriter, r *http.Request) {
 	indexName := strings.TrimPrefix(r.URL.Path, "/")
+
+	// Parse request body to capture mapping (for C2 atomic _meta and C4 schema)
+	var reqBody map[string]any
+	if r.Body != nil {
+		bodyBytes, _ := io.ReadAll(r.Body)
+		if len(bodyBytes) > 0 {
+			json.Unmarshal(bodyBytes, &reqBody)
+		}
+	}
+
 	f.mu.Lock()
 	if _, exists := f.indices[indexName]; exists {
 		f.mu.Unlock()
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `{"error":"index already exists"}`)
+		// C3: Use proper ES error format with resource_already_exists_exception
+		fmt.Fprintf(w, `{"error":{"type":"resource_already_exists_exception","reason":"index [%s] already exists"},"status":400}`, indexName)
 		return
 	}
-	f.indices[indexName] = &fakeESIndexState{
+	state := &fakeESIndexState{
 		exists: true,
 		uuid:   "test-uuid-" + indexName,
 		meta:   map[string]any{},
 	}
+	// C2: Extract _meta from create request mapping
+	if reqBody != nil {
+		if mappings, ok := reqBody["mappings"].(map[string]any); ok {
+			if meta, ok := mappings["_meta"].(map[string]any); ok {
+				state.meta = meta
+			}
+			// C4: Store mapping properties for schema validation
+			if props, ok := mappings["properties"].(map[string]any); ok {
+				converted := make(map[string]map[string]any)
+				for k, v := range props {
+					if fieldMap, isMap := v.(map[string]any); isMap {
+						converted[k] = fieldMap
+					}
+				}
+				state.properties = converted
+			}
+		}
+	}
+	f.indices[indexName] = state
 	f.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"acknowledged":true,"shards_acknowledged":true,"index":"%s"}`, indexName)
+	fmt.Fprintf(w, `{"acknowledged":true,"shards_acknowledped":true,"index":"%s"}`, indexName)
 }
 
 func (f *fakeEServer) handleDeleteIndex(w http.ResponseWriter, r *http.Request) {
@@ -642,5 +678,208 @@ func TestES_InFlightWrite_ContextCancellation(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("WriteFingerprint did not return after context cancellation")
+	}
+}
+
+// --- C2: ES atomic creation with fingerprint in _meta ---
+
+func TestES_CreateIndex_WithFingerprint_AtomicallyWritesMeta(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+
+	// CreateIndex with fingerprint should atomically write _meta
+	err := store.CreateIndex(ctx, "test-index", fp)
+	if err != nil {
+		t.Fatalf("CreateIndex with fingerprint should succeed, got: %v", err)
+	}
+
+	// Verify the index was created with fingerprint in _meta
+	fake.mu.Lock()
+	state, ok := fake.indices["test-index"]
+	fake.mu.Unlock()
+	if !ok {
+		t.Fatal("index should have been created")
+	}
+	// C2: _meta should contain go-rag-fingerprint
+	if _, hasFP := state.meta["go-rag-fingerprint"]; !hasFP {
+		t.Error("create request should have included fingerprint in _meta")
+	}
+	// C2: After creation, PutMapping should have added go-rag-resource-id
+	if rid, hasRID := state.meta["go-rag-resource-id"]; !hasRID {
+		t.Error("create flow should have added go-rag-resource-id via PutMapping")
+	} else if ridStr, isStr := rid.(string); !isStr || ridStr == "" {
+		t.Errorf("go-rag-resource-id should be non-empty string, got: %v", rid)
+	}
+}
+
+// --- C2: WriteFingerprint with empty resourceID → error ---
+
+func TestES_WriteFingerprint_EmptyResourceID_Rejected(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	// Create the index in fake server
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "res-1", meta: map[string]any{}}
+	fake.mu.Unlock()
+
+	fp := testFingerprint()
+
+	// C2: WriteFingerprint with empty resourceID should be rejected
+	err := store.WriteFingerprint(ctx, "test-index", fp, "")
+	if err == nil {
+		t.Fatal("WriteFingerprint with empty resourceID should fail")
+	}
+	if !errors.Is(err, ErrFingerprintCorrupted) {
+		t.Errorf("expected ErrFingerprintCorrupted for empty resourceID, got: %v", err)
+	}
+}
+
+// --- C3: ES concurrent creation — one succeeds, one gets ErrIndexAlreadyExists ---
+
+func TestES_ConcurrentCreateIndex_OneSucceeds(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+
+	// Two goroutines try to create the same index concurrently
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			errs[idx] = store.CreateIndex(ctx, "concurrent-index", fp)
+		}(i)
+	}
+	wg.Wait()
+
+	// Count successes and ErrIndexAlreadyExists
+	successes := 0
+	alreadyExists := 0
+	for _, err := range errs {
+		if err == nil {
+			successes++
+		} else if errors.Is(err, ErrIndexAlreadyExists) {
+			alreadyExists++
+		}
+	}
+	if successes != 1 {
+		t.Errorf("exactly 1 CreateIndex should succeed, got %d successes", successes)
+	}
+	if alreadyExists != 1 {
+		t.Errorf("exactly 1 CreateIndex should get ErrIndexAlreadyExists, got %d", alreadyExists)
+	}
+}
+
+// --- C4: ES schema validation — dimension mismatch ---
+
+func TestES_ReadFingerprint_SchemaDimensionMismatch(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint() // 1024 dimensions
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Set up index with fingerprint declaring 1024 dims, but mapping has 512 dims
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists: true,
+		uuid:   "res-1",
+		meta: map[string]any{
+			"go-rag-fingerprint": fpMap,
+			"go-rag-resource-id": "res-1",
+		},
+		properties: map[string]map[string]any{
+			"content_vector":     {"type": "dense_vector", "dims": float64(512)}, // Mismatch!
+			"qa_content_vector": {"type": "dense_vector", "dims": float64(512)},  // Mismatch!
+		},
+	}
+	fake.mu.Unlock()
+
+	// C4: ReadFingerprint should detect dimension mismatch
+	_, _, err := store.ReadFingerprint(ctx, "test-index")
+	if err == nil {
+		t.Fatal("ReadFingerprint should fail when mapping dims don't match fingerprint dims")
+	}
+	if !errors.Is(err, ErrFingerprintMismatch) {
+		t.Errorf("expected ErrFingerprintMismatch, got: %v", err)
+	}
+}
+
+func TestES_CreateIndex_SchemaDimensionMismatch_Fails(t *testing.T) {
+	// C4: CreateIndex with fingerprint declaring 1024 dims, but ES mapping returns 512
+	// We need a custom fake server that returns wrong dimensions in GET
+	fake := newFakeEServer()
+
+	// Override the handleGetIndex to return mismatched dimensions
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		if r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/_mapping") {
+			// Return index with mismatched dimensions (512 instead of 1024)
+			indexName := strings.TrimPrefix(r.URL.Path, "/")
+			fake.mu.Lock()
+			state, ok := fake.indices[indexName]
+			fake.mu.Unlock()
+			if !ok || !state.exists {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprintf(w, `{"error":"not found"}`)
+				return
+			}
+			resp := map[string]any{
+				indexName: map[string]any{
+					"mappings": map[string]any{
+						"_meta": state.meta,
+						"properties": map[string]map[string]any{
+							"content_vector":     {"type": "dense_vector", "dims": float64(512)},
+							"qa_content_vector": {"type": "dense_vector", "dims": float64(512)},
+						},
+					},
+					"settings": map[string]any{
+						"index": map[string]any{"uuid": state.uuid},
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		// Delegate to fake for other requests
+		fake.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{server.URL},
+	})
+	if err != nil {
+		t.Fatalf("create es client: %v", err)
+	}
+	store := &ESVectorStore{client: client, dimensions: 1024}
+	ctx := context.Background()
+
+	fp := testFingerprint() // 1024 dimensions
+
+	// CreateIndex should fail because GET returns 512 dims
+	err = store.CreateIndex(ctx, "test-index", fp)
+	if err == nil {
+		t.Fatal("CreateIndex should fail when schema dimensions don't match fingerprint")
+	}
+	if !errors.Is(err, ErrFingerprintMismatch) {
+		t.Errorf("expected ErrFingerprintMismatch, got: %v", err)
 	}
 }

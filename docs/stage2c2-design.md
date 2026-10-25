@@ -254,4 +254,17 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 | R6 | ES API 未传播 context | 所有 ES API 调用通过 .WithContext(ctx) 传播取消信号 |
 | R7 | Qdrant CreateIndex 失败自动删除 | 移除无所有权自动删除逻辑，失败时保留 collection |
 
-状态：2C-2 R1-R7 修复完成，待第三轮独立复核。
+状态：2C-2 C1-C6 修复完成，待第四轮独立复核。
+
+## 附录：第三轮独立复核修复记录（C1-C6）
+
+| 编号 | 问题 | 修复方式 |
+|------|------|----------|
+| C1 | 受控创建流程不统一 | factory 单次存在性检查，错误传播不丢弃；消除独立 WriteFingerprint 调用 |
+| C2 | ES CreateIndex 非原子 | typed API mappings._meta 携带 fingerprint 原子写入；创建后真实 UUID 回读 |
+| C3 | 独立 WriteFingerprint 生产路径 | 消除独立写入；并发创建走 ES resource_already_exists → 验证路径 |
+| C4 | schema 维度未校验 | ES 和 Qdrant 回读实际维度与 fingerprint.Dimensions 比对 |
+| C5 | TTL 缓存延迟检测 | 移除 TTL 缓存；checkFingerprint 每次从存储重读，资源变更立即检测 |
+| C6 | JSON 解析未严格 EOF | 第二次 Decode 必须返回 io.EOF，拒绝尾随 `}`/`]`/垃圾数据 |
+
+状态：2C-2 C1-C6 修复完成，待第四轮独立复核。

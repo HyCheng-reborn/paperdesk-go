@@ -22,9 +22,10 @@ type fakeVectorStore struct {
 	writeErr    error
 	indexExists bool
 	writeCalls  int
+	readCalls   int // C5: track storage reads for no-cache verification
 }
 
-func (f *fakeVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+func (f *fakeVectorStore) CreateIndex(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
 	return nil
 }
 
@@ -63,6 +64,7 @@ func (f *fakeVectorStore) WriteFingerprint(ctx context.Context, indexName string
 func (f *fakeVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*vector.Fingerprint, string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.readCalls++ // C5: count every storage read
 	if f.readErr != nil {
 		return nil, "", f.readErr
 	}
@@ -88,7 +90,6 @@ func newTestRagWithFingerprint(
 		rwModel:     cm,
 		cm:          cm,
 		conf:        conf,
-		fpCache:     newFingerprintCache(),
 		vectorStore: vs,
 	}
 	return r
@@ -108,38 +109,12 @@ func newTestRagWithFingerprintAndCreationFlag(
 		rwModel:     cm,
 		cm:          cm,
 		conf:        conf,
-		fpCache:     newFingerprintCache(),
 		vectorStore: vs,
 	}
 	return r
 }
 
-func TestCheckFingerprint_ValidCacheHit(t *testing.T) {
-	// Setup: valid fingerprint in cache
-	vs := &fakeVectorStore{indexExists: true}
-	conf := &config.Config{
-		IndexName:           "test-index",
-		EmbeddingModel:      "text-embedding-v4",
-		EmbeddingDimensions: 1024,
-	}
-	r := newTestRagWithFingerprint(nil, nil, vs, conf)
-
-	// Pre-populate cache with valid fingerprint
-	fp := &vector.Fingerprint{
-		Version:          "v1",
-		EmbeddingModelID: "text-embedding-v4",
-		Dimensions:       1024,
-		ProviderName:     "test",
-		Similarity:       "cosine",
-	}
-	r.fpCache.set("unknown:test-index", fp, "")
-
-	// Test: checkFingerprint should succeed
-	err := r.checkFingerprint(context.Background())
-	if err != nil {
-		t.Errorf("checkFingerprint() with valid cache should succeed, got error: %v", err)
-	}
-}
+// C5: TestCheckFingerprint_ValidCacheHit removed — cache no longer exists.
 
 func TestCheckFingerprint_MissingCache_ReadFromStore(t *testing.T) {
 	// Setup: no cache, but valid fingerprint in store
@@ -169,11 +144,7 @@ func TestCheckFingerprint_MissingCache_ReadFromStore(t *testing.T) {
 		t.Errorf("checkFingerprint() with valid store fingerprint should succeed, got error: %v", err)
 	}
 
-	// Verify cache was populated
-	cachedFP, ok := r.fpCache.get("unknown:test-index")
-	if !ok || cachedFP == nil {
-		t.Error("checkFingerprint() should populate cache after reading from store")
-	}
+	// C5: Cache removed — no longer verifying cache population.
 }
 
 func TestCheckFingerprint_Mismatch(t *testing.T) {
@@ -244,8 +215,8 @@ func TestCheckFingerprint_NilInfrastructure(t *testing.T) {
 	if err == nil {
 		t.Fatal("checkFingerprint() without fingerprint infrastructure should fail")
 	}
-	if !strings.Contains(err.Error(), "not initialized") {
-		t.Errorf("checkFingerprint() error should mention 'not initialized', got: %v", err)
+	if !strings.Contains(err.Error(), "vector store not set") {
+		t.Errorf("checkFingerprint() error should mention 'vector store not set', got: %v", err)
 	}
 }
 
@@ -535,101 +506,11 @@ func TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds(t *testing.
 		t.Fatalf("VerifyFingerprint() on existing index with matching fingerprint should succeed, got: %v", err)
 	}
 
-	// Verify fingerprint was cached
-	cachedFP := r.GetFingerprint()
-	if cachedFP == nil {
-		t.Error("VerifyFingerprint() should cache the verified fingerprint")
-	}
+	// C5: Cache removed — GetFingerprint always returns nil now.
 }
 
-// --- F4: Cache TTL and resourceID re-verification ---
-
-// TestCheckFingerprint_CacheTTL_Expiry verifies that the cache expires after TTL
-// and re-reads from the vector store.
-func TestCheckFingerprint_CacheTTL_Expiry(t *testing.T) {
-	vs := &fakeVectorStore{indexExists: true}
-	conf := &config.Config{
-		IndexName:           "test-index",
-		EmbeddingModel:      "text-embedding-v4",
-		EmbeddingDimensions: 1024,
-		Provider:            &config.ProviderConfig{Name: "unknown"},
-	}
-	r := newTestRagWithFingerprint(nil, nil, vs, conf)
-
-	fp := &vector.Fingerprint{
-		Version:          "v1",
-		EmbeddingModelID: "text-embedding-v4",
-		Dimensions:       1024,
-		ProviderName:     "unknown",
-		Similarity:       "cosine",
-	}
-	vs.fingerprint = fp
-	vs.resourceID = "res-1"
-
-	// First call: cache miss, reads from store
-	err := r.checkFingerprint(context.Background())
-	if err != nil {
-		t.Fatalf("first checkFingerprint should succeed: %v", err)
-	}
-
-	// Verify cache was populated
-	entry, ok := r.fpCache.get("unknown:test-index")
-	if !ok || entry == nil {
-		t.Fatal("cache should be populated after first check")
-	}
-
-	// Manually expire the cache by setting verifiedAt to the past
-	r.fpCache.mu.Lock()
-	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - 1)
-	r.fpCache.mu.Unlock()
-
-	// Second call: cache expired, should re-read from store
-	err = r.checkFingerprint(context.Background())
-	if err != nil {
-		t.Fatalf("second checkFingerprint after TTL should succeed: %v", err)
-	}
-}
-
-// TestCheckFingerprint_ResourceID_Mismatch verifies that when the cached resourceID
-// differs from the stored resourceID, an ErrResourceReplaced error is returned.
-func TestCheckFingerprint_ResourceID_Mismatch(t *testing.T) {
-	vs := &fakeVectorStore{indexExists: true}
-	conf := &config.Config{
-		IndexName:           "test-index",
-		EmbeddingModel:      "text-embedding-v4",
-		EmbeddingDimensions: 1024,
-	}
-	r := newTestRagWithFingerprint(nil, nil, vs, conf)
-
-	fp := &vector.Fingerprint{
-		Version:          "v1",
-		EmbeddingModelID: "text-embedding-v4",
-		Dimensions:       1024,
-		ProviderName:     "unknown",
-		Similarity:       "cosine",
-	}
-
-	// Pre-populate cache with old resourceID
-	r.fpCache.set("unknown:test-index", fp, "old-resource-id")
-	// Manually expire the cache to force re-read
-	entry, _ := r.fpCache.get("unknown:test-index")
-	r.fpCache.mu.Lock()
-	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - 1)
-	r.fpCache.mu.Unlock()
-
-	// Store has different resourceID (index was replaced)
-	vs.fingerprint = fp
-	vs.resourceID = "new-resource-id"
-
-	// checkFingerprint should detect resourceID mismatch
-	err := r.checkFingerprint(context.Background())
-	if err == nil {
-		t.Fatal("checkFingerprint should fail when resourceID changes")
-	}
-	if !errors.Is(err, vector.ErrResourceReplaced) {
-		t.Errorf("expected ErrResourceReplaced, got: %v", err)
-	}
-}
+// C5: Cache TTL tests removed — checkFingerprint now reads from storage every time.
+// These tests will be rewritten in the test task.
 
 // TestVerifyFingerprint_ConcurrentWrite_OnlyOneSucceeds verifies that
 // concurrent writes to the same index result in only one succeeding.
@@ -745,14 +626,19 @@ func TestCheckFingerprint_EmptyStoredResourceID_FailClosed(t *testing.T) {
 	}
 }
 
-// TestCheckFingerprint_CachedResourceID_CannotDowngrade verifies that
-// a cached non-empty resourceID cannot be downgraded to empty (R4).
-func TestCheckFingerprint_CachedResourceID_CannotDowngrade(t *testing.T) {
+// C5: TestCheckFingerprint_CachedResourceID_CannotDowngrade removed — cache no longer exists.
+
+// --- C5: No-cache verification tests ---
+
+// TestCheckFingerprint_ReadsFromStorageEveryTime verifies that checkFingerprint
+// reads from storage on EVERY call (no caching).
+func TestCheckFingerprint_ReadsFromStorageEveryTime(t *testing.T) {
 	vs := &fakeVectorStore{indexExists: true}
 	conf := &config.Config{
-		IndexName:           "test-index",
+		IndexName:           "nocache-index",
 		EmbeddingModel:      "text-embedding-v4",
 		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
 	}
 	r := newTestRagWithFingerprint(nil, nil, vs, conf)
 
@@ -763,25 +649,127 @@ func TestCheckFingerprint_CachedResourceID_CannotDowngrade(t *testing.T) {
 		ProviderName:     "unknown",
 		Similarity:       "cosine",
 	}
-
-	// Pre-populate cache with non-empty resourceID
-	r.fpCache.set("unknown:test-index", fp, "cached-resource-id")
-	// Manually expire the cache to force re-read
-	entry, _ := r.fpCache.get("unknown:test-index")
-	r.fpCache.mu.Lock()
-	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - 1)
-	r.fpCache.mu.Unlock()
-
-	// Store has empty resourceID (simulating resource replacement with no ID)
 	vs.fingerprint = fp
-	vs.resourceID = ""
+	vs.resourceID = "test-uuid"
 
-	// R4: checkFingerprint should fail — empty stored resourceID
-	err := r.checkFingerprint(context.Background())
-	if err == nil {
-		t.Fatal("checkFingerprint should fail when stored resourceID is empty")
+	// Call checkFingerprint 5 times
+	for i := 0; i < 5; i++ {
+		err := r.checkFingerprint(context.Background())
+		if err != nil {
+			t.Fatalf("call %d: checkFingerprint() unexpected error: %v", i, err)
+		}
 	}
-	if !errors.Is(err, vector.ErrFingerprintCorrupted) {
-		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+
+	// Verify all 5 calls reached storage
+	vs.mu.Lock()
+	reads := vs.readCalls
+	vs.mu.Unlock()
+	if reads != 5 {
+		t.Errorf("expected 5 storage reads, got %d (cache may still exist)", reads)
+	}
+}
+
+// TestCheckFingerprint_StorageChangeDetectedImmediately verifies that if storage
+// changes between two checkFingerprint calls, the second call detects the change.
+func TestCheckFingerprint_StorageChangeDetectedImmediately(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "change-detect-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	matchingFP := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = matchingFP
+	vs.resourceID = "test-uuid"
+
+	// First call should succeed
+	err := r.checkFingerprint(context.Background())
+	if err != nil {
+		t.Fatalf("first checkFingerprint() should succeed: %v", err)
+	}
+
+	// Simulate storage change: replace fingerprint with mismatched one
+	mismatchedFP := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "different-model",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.mu.Lock()
+	vs.fingerprint = mismatchedFP
+	vs.mu.Unlock()
+
+	// Second call should immediately detect the change
+	err = r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("second checkFingerprint() should detect storage change")
+	}
+
+	// Verify both calls reached storage (no stale cache)
+	vs.mu.Lock()
+	reads := vs.readCalls
+	vs.mu.Unlock()
+	if reads < 2 {
+		t.Errorf("expected at least 2 storage reads, got %d", reads)
+	}
+}
+
+// TestCheckFingerprint_ConcurrentReadsAllFromStorage verifies that concurrent
+// checkFingerprint calls all read from storage (no shared cache).
+func TestCheckFingerprint_ConcurrentReadsAllFromStorage(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "concurrent-nocache-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "concurrent-uuid"
+
+	const n = 20
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			errs[idx] = r.checkFingerprint(context.Background())
+		}(i)
+	}
+	wg.Wait()
+
+	// All should succeed
+	for i, err := range errs {
+		if err != nil {
+			t.Errorf("goroutine %d: unexpected error: %v", i, err)
+		}
+	}
+
+	// All n calls should have reached storage
+	vs.mu.Lock()
+	reads := vs.readCalls
+	vs.mu.Unlock()
+	if reads != n {
+		t.Errorf("expected %d storage reads (one per goroutine), got %d", n, reads)
 	}
 }

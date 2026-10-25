@@ -56,15 +56,22 @@ func (s *QdrantVectorStore) GetClient() *qdrant.Client {
 	return s.client
 }
 
-// CreateIndex 创建集合
-// R7: No auto-delete on failure — leave resource for manual diagnosis.
-func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+// CreateIndex 创建集合。
+// fp != nil 时原子写入 fingerprint + 生成 UUID + schema 验证（C4）。
+// fp == nil 时仅创建 schema（向后兼容）。
+// R7: 不在失败时自动删除集合。
+func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string, fp *Fingerprint) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
+	dims := s.dimensions
+	if fp != nil && fp.Dimensions > 0 {
+		dims = fp.Dimensions
+	}
+
 	// 创建集合，使用命名向量配置以支持多向量
-	req, err := config.QdrantCollection(indexName, s.dimensions)
+	req, err := config.QdrantCollection(indexName, dims)
 	if err != nil {
 		return err
 	}
@@ -73,7 +80,85 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) e
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
 
-	// 创建 payload 索引以支持过滤
+	// fp != nil: 原子身份绑定流程
+	if fp != nil {
+		resourceID := uuid.New().String()
+
+		// 插入 SQL 记录（Ready=false）
+		if s.db != nil {
+			fpJSON, marshalErr := fp.MarshalJSON()
+			if marshalErr != nil {
+				return fmt.Errorf("marshal fingerprint for SQL: %w", marshalErr)
+			}
+			record := gormmodel.IndexFingerprint{
+				VectorStoreType:   "qdrant",
+				IndexName:         indexName,
+				ResourceID:        resourceID,
+				FingerprintJSON:   string(fpJSON),
+				FingerprintDigest: fp.Digest(),
+				EmbeddingModelID:  fp.EmbeddingModelID,
+				Dimensions:        fp.Dimensions,
+				ProviderName:      fp.ProviderName,
+				Similarity:        fp.Similarity,
+				Ready:             false,
+			}
+			if result := s.db.WithContext(ctx).Create(&record); result.Error != nil {
+				return fmt.Errorf("write fingerprint to SQL: %w", result.Error)
+			}
+		}
+
+		// 创建 payload 索引以支持过滤
+		_, fieldErr := s.client.CreateFieldIndex(ctx, &qdrant.CreateFieldIndexCollection{
+			CollectionName: indexName,
+			FieldName:      coretypes.KnowledgeName,
+			FieldType:      qdrant.FieldType_FieldTypeKeyword.Enum(),
+		})
+		if fieldErr != nil {
+			// R7: 不自动删除集合
+			return fmt.Errorf("failed to create field index: %w", fieldErr)
+		}
+
+		// C4: 回读验证 collection 实际向量维度
+		info, infoErr := s.client.GetCollectionInfo(ctx, indexName)
+		if infoErr != nil {
+			return fmt.Errorf("get collection info for schema verification: %w", infoErr)
+		}
+		if info == nil || info.GetConfig() == nil || info.GetConfig().GetParams() == nil {
+			return fmt.Errorf("collection %q has no config params", indexName)
+		}
+		vc := info.GetConfig().GetParams().GetVectorsConfig()
+		if vc == nil {
+			return fmt.Errorf("collection %q has no vectors config", indexName)
+		}
+		namedVectors := vc.GetParamsMap()
+		if namedVectors == nil || namedVectors.GetMap() == nil {
+			return fmt.Errorf("collection %q has no named vectors map", indexName)
+		}
+		for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
+			params, fieldOK := namedVectors.GetMap()[field]
+			if !fieldOK || params == nil {
+				return fmt.Errorf("field %q missing from collection vectors config", field)
+			}
+			if int(params.GetSize()) != fp.Dimensions {
+				return fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
+					ErrFingerprintMismatch, field, fp.Dimensions, int(params.GetSize()))
+			}
+		}
+
+		// 更新 Ready=true
+		if s.db != nil {
+			if result := s.db.WithContext(ctx).Model(&gormmodel.IndexFingerprint{}).
+				Where("vector_store_type = ? AND index_name = ?", "qdrant", indexName).
+				Update("ready", true); result.Error != nil {
+				return fmt.Errorf("set fingerprint Ready=true for index %q: %w", indexName, result.Error)
+			} else if result.RowsAffected == 0 {
+				return fmt.Errorf("set fingerprint Ready=true for index %q: record not found or unchanged", indexName)
+			}
+		}
+		return nil
+	}
+
+	// fp == nil: 向后兼容路径（无 fingerprint）
 	_, err = s.client.CreateFieldIndex(ctx, &qdrant.CreateFieldIndexCollection{
 		CollectionName: indexName,
 		FieldName:      coretypes.KnowledgeName,
@@ -81,7 +166,6 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string) e
 	})
 	if err != nil {
 		// R7: Do NOT auto-delete collection on failure.
-		// Leave resource in place for manual diagnosis/cleanup.
 		return fmt.Errorf("failed to create field index: %w", err)
 	}
 
@@ -450,6 +534,7 @@ func (s *QdrantVectorStore) WriteFingerprint(ctx context.Context, indexName stri
 // F2: Returns resourceID alongside fingerprint.
 // F7: Verifies digest integrity after reading.
 // R2: Verifies collection actually exists in Qdrant when client is available.
+// C4: Schema validation — verifies actual vector dimensions match fingerprint.
 func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
 	if s.db == nil {
 		return nil, "", fmt.Errorf("Qdrant fingerprint storage requires SQL database (db is nil)")
@@ -476,13 +561,32 @@ func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName strin
 	}
 	// R2: Verify collection actually exists in Qdrant (not just in SQL)
 	if s.client != nil {
-		exists, checkErr := s.client.CollectionExists(ctx, indexName)
+		info, checkErr := s.client.GetCollectionInfo(ctx, indexName)
 		if checkErr != nil {
 			return nil, "", fmt.Errorf("verify collection exists: %w", checkErr)
 		}
-		if !exists {
+		if info == nil {
 			return nil, "", fmt.Errorf("%w: SQL record exists but Qdrant collection %q missing",
 				ErrFingerprintCorrupted, indexName)
+		}
+		// C4: Schema validation — verify actual vector dimensions match fingerprint
+		if info.GetConfig() != nil && info.GetConfig().GetParams() != nil {
+			vc := info.GetConfig().GetParams().GetVectorsConfig()
+			if vc != nil {
+				namedVectors := vc.GetParamsMap()
+				if namedVectors != nil && namedVectors.GetMap() != nil {
+					for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
+						params, fieldOK := namedVectors.GetMap()[field]
+						if !fieldOK || params == nil {
+							continue
+						}
+						if int(params.GetSize()) != fp.Dimensions {
+							return nil, "", fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
+									ErrFingerprintMismatch, field, fp.Dimensions, int(params.GetSize()))
+						}
+					}
+				}
+			}
 		}
 	}
 	return fp, record.ResourceID, nil

@@ -96,13 +96,16 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		// 不在此处 SetRegistry —— 等 core.New 成功后才发布
 	}
 
-	// R1: Check if index exists BEFORE core.New creates it
+	// C1: Single existence check — error is NOT discarded
 	tmpConf := &config.Config{
 		Client:       client,
 		QdrantClient: qdrantClient,
 		IndexName:    cfg.VectorCfg.IndexName,
 	}
-	indexExisted, _ := tmpConf.IndexExists(ctx)
+	indexExisted, err := tmpConf.IndexExists(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fingerprint: cannot check index existence: %w", err)
+	}
 
 	confForNew := &config.Config{
 		Client:                client,
@@ -127,31 +130,35 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		return nil, err
 	}
 
-	// R1: Write fingerprint for newly created indexes (identity atomically bound to creation)
+	// C1/C2/C3: Unified controlled creation flow
 	if !indexExisted {
+		// Compute fingerprint for atomic creation
 		fp, fpErr := core.ComputeFingerprintMeta(confForNew)
-		if fpErr == nil {
-			// Use empty resourceID — backend assigns actual ID (ES: index UUID, Qdrant: SQL UUID)
-			writeErr := vs.WriteFingerprint(ctx, cfg.VectorCfg.IndexName, fp, "")
-			if writeErr != nil && !errors.Is(writeErr, vector.ErrFingerprintExists) {
-				return nil, fmt.Errorf("write fingerprint: %w", writeErr)
+		if fpErr != nil {
+			return nil, fmt.Errorf("compute fingerprint: %w", fpErr)
+		}
+		// CreateIndex with atomic fingerprint (C3: no separate WriteFingerprint)
+		createErr := vs.CreateIndex(ctx, cfg.VectorCfg.IndexName, fp)
+		if createErr != nil {
+			if errors.Is(createErr, vector.ErrIndexAlreadyExists) {
+				// Concurrent creation — go to verification path
+				if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+					return nil, verifyErr
+				}
+			} else {
+				return nil, fmt.Errorf("fingerprint: controlled creation failed: %w", createErr)
 			}
-			// ErrFingerprintExists: concurrent creation wrote it first — VerifyFingerprint below will validate
+		} else {
+			// Creation succeeded — verify what was created
+			if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+				return nil, verifyErr
+			}
 		}
-	}
-
-	// Stage 2C-2: Verify fingerprint after Rag creation
-	if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
-		// Fingerprint verification failed - cleanup Rag background context, then VectorStore
-		g.Log().Errorf(ctx, "Fingerprint verification failed: %v", verifyErr)
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = rag.Shutdown(shutdownCtx)
-		shutdownCancel()
-		closeErr := vs.Close()
-		if closeErr != nil {
-			g.Log().Errorf(ctx, "Failed to close VectorStore after fingerprint verification error: %v", closeErr)
+	} else {
+		// Already exists — read-only verification, no identity writing
+		if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+			return nil, verifyErr
 		}
-		return nil, fmt.Errorf("fingerprint verification: %w", verifyErr)
 	}
 
 	// B5: core.New 成功后才发布 Registry

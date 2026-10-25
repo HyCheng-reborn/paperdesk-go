@@ -110,13 +110,13 @@ func newTestRag(cm model.BaseChatModel, dr docRetriever) *Rag {
 			ProviderName:     "test",
 			Similarity:       "cosine",
 		},
+		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
 	}
 	
 	r := &Rag{
 		docRet:      dr,
 		rwModel:     cm,
 		cm:          cm,
-		fpCache:     newFingerprintCache(),
 		vectorStore: fakeVS,
 		conf: &config.Config{
 			IndexName:           "test-index",
@@ -126,8 +126,7 @@ func newTestRag(cm model.BaseChatModel, dr docRetriever) *Rag {
 		},
 	}
 	
-	// Pre-populate cache with valid fingerprint
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
+	// C5: Cache removed — checkFingerprint reads from store every time.
 	
 	return r
 }

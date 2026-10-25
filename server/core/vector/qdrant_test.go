@@ -24,7 +24,7 @@ func TestQdrantVectorStore_CreateIndex(t *testing.T) {
 	indexName := "test_index"
 
 	// 测试创建索引
-	err = store.CreateIndex(ctx, indexName)
+	err = store.CreateIndex(ctx, indexName, nil)
 	if err != nil {
 		t.Fatalf("创建索引失败: %v", err)
 	}

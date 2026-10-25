@@ -9,7 +9,9 @@ import (
 // VectorStore 向量存储接口
 type VectorStore interface {
 	// CreateIndex 创建索引
-	CreateIndex(ctx context.Context, indexName string) error
+	// C2/C3: fp 参数用于在创建时原子写入指纹；fp 为 nil 时仅创建 schema（向后兼容）。
+	// 若索引已存在，实现应返回 ErrIndexAlreadyExists。
+	CreateIndex(ctx context.Context, indexName string, fp *Fingerprint) error
 
 	// IndexExists 检查索引是否存在
 	IndexExists(ctx context.Context, indexName string) (bool, error)

@@ -86,6 +86,7 @@ func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 			ProviderName:     "test",
 			Similarity:       "cosine",
 		},
+		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
 	}
 	
 	r := &Rag{
@@ -97,7 +98,6 @@ func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 		done:          make(chan struct{}),
 		taskTimeout:   5 * time.Minute,
 		maxBackground: 8,
-		fpCache:       newFingerprintCache(),
 		vectorStore:   fakeVS,
 		conf: &config.Config{
 			IndexName:           "test-index",
@@ -107,8 +107,7 @@ func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 		},
 	}
 	
-	// Pre-populate cache with valid fingerprint to avoid store reads in tests
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
+	// C5: Cache removed — checkFingerprint reads from store every time.
 	
 	return r
 }
@@ -571,6 +570,7 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 			ProviderName:     "test",
 			Similarity:       "cosine",
 		},
+		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
 	}
 	
 	r := &Rag{
@@ -582,7 +582,6 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 		done:          make(chan struct{}),
 		taskTimeout:   5 * time.Minute,
 		maxBackground: 1,
-		fpCache:       newFingerprintCache(),
 		vectorStore:   fakeVS,
 		conf: &config.Config{
 			IndexName:           "test-index",
@@ -591,7 +590,6 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 			Provider:            &config.ProviderConfig{Name: "test"},
 		},
 	}
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	r.asyncWait = func(ctx context.Context) {}
 
 	t.Cleanup(func() {
@@ -1369,6 +1367,7 @@ func newOrchestrationTestRag(
 			ProviderName:     "test",
 			Similarity:       "cosine",
 		},
+		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
 	}
 	
 	r := &Rag{
@@ -1376,7 +1375,6 @@ func newOrchestrationTestRag(
 		saveChunksFn:    saveFn,
 		updateDocStatus: updateFn,
 		idxerAsync:      asyncRunnable,
-		fpCache:         newFingerprintCache(),
 		vectorStore:     fakeVS,
 		conf: &config.Config{
 			IndexName:           "test-index",
@@ -1385,8 +1383,7 @@ func newOrchestrationTestRag(
 			Provider:            &config.ProviderConfig{Name: "test"},
 		},
 	}
-	// Pre-populate cache with valid fingerprint
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
+	// C5: Cache removed — checkFingerprint reads from store every time.
 	return r
 }
 
@@ -1968,6 +1965,7 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 			ProviderName:     "test",
 			Similarity:       "cosine",
 		},
+		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
 	}
 	
 	r := &Rag{
@@ -1979,7 +1977,6 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 		done:          make(chan struct{}),
 		taskTimeout:   100 * time.Millisecond, // 短超时触发超时
 		maxBackground: 8,
-		fpCache:       newFingerprintCache(),
 		vectorStore:   fakeVS,
 		conf: &config.Config{
 			IndexName:           "test-index",
@@ -1988,7 +1985,6 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 			Provider:            &config.ProviderConfig{Name: "test"},
 		},
 	}
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
 	r.asyncWait = func(ctx context.Context) {}
 	r.markFailed = func(ctx context.Context, docID int64, err error) {
 		markFailedCalled <- struct{}{}
@@ -2393,6 +2389,7 @@ func newFullChainTestRag(
 			ProviderName:     "test",
 			Similarity:       "cosine",
 		},
+		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
 	}
 	
 	r := &Rag{
@@ -2411,7 +2408,6 @@ func newFullChainTestRag(
 		done:          make(chan struct{}),
 		taskTimeout:   5 * time.Minute,
 		maxBackground: 8,
-		fpCache:       newFingerprintCache(),
 		vectorStore:   fakeVS,
 		conf: &config.Config{
 			IndexName:           "test-index",
@@ -2420,8 +2416,7 @@ func newFullChainTestRag(
 			Provider:            &config.ProviderConfig{Name: "test"},
 		},
 	}
-	// Pre-populate cache with valid fingerprint
-	r.fpCache.set("unknown:test-index", fakeVS.fingerprint, "")
+	// C5: Cache removed — checkFingerprint reads from store every time.
 	// asyncIndexer 委派给真实 indexAsyncByDocsID（等价于 prodAsyncIndexer）
 	r.asyncIndexer = &fakeAsyncIndexer{
 		onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {

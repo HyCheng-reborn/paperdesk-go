@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -118,6 +119,15 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	})
 	var storedMeta string = string(initFPMeta)
 	var indexCreated bool = false // Track whether index has been created
+	// Pre-build mapping properties for schema verification (C2)
+	// Dimensions are 768 as set in cfg below
+	mappingProps := `{
+		"content": {"type": "text"},
+		"extra": {"type": "text"},
+		"knowledge_name": {"type": "keyword"},
+		"content_vector": {"type": "dense_vector", "dims": 768, "index": true, "similarity": "cosine"},
+		"qa_content_vector": {"type": "dense_vector", "dims": 768, "index": true, "similarity": "cosine"}
+	}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
@@ -132,7 +142,7 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 			return
 		}
 		if r.Method == "PUT" && r.URL.Path == "/test/_mapping" {
-			// Put mapping (fingerprint write) - store the _meta
+			// Put mapping (fingerprint write) - merge _meta into stored_meta
 			var body map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
 				if meta, ok := body["_meta"].(map[string]any); ok {
@@ -146,9 +156,10 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 			return
 		}
 		if r.Method == "GET" && r.URL.Path == "/test" {
-			// Get index (fingerprint read) - return stored _meta with settings.index.uuid for R2
+			// Get index - return mappings + _meta + settings.index.uuid
 			w.WriteHeader(200)
-			w.Write([]byte(`{"test":{"mappings":{"_meta":` + storedMeta + `},"settings":{"index":{"uuid":"test-uuid-123"}}}}`))
+			resp := fmt.Sprintf(`{"test":{"mappings":{"properties":%s,"_meta":%s},"settings":{"index":{"uuid":"test-uuid-123"}}}}`, mappingProps, storedMeta)
+			w.Write([]byte(resp))
 			return
 		}
 		if r.Method == "POST" && r.URL.Path == "/test/_create" {
@@ -163,6 +174,13 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 			indexCreated = true
 			w.WriteHeader(200)
 			w.Write([]byte(`{"acknowledged":true,"index":"test"}`))
+			return
+		}
+		if r.Method == "DELETE" && r.URL.Path == "/test" {
+			// Delete index (best-effort cleanup on schema verification failure)
+			indexCreated = false
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true}`))
 			return
 		}
 		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)

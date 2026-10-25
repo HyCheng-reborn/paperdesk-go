@@ -1,5 +1,17 @@
 # 变更记录
 
+## [2026-10-25] Stage 2C-2 C1-C6 修复
+
+基于第三轮独立复核报告修复 6 项问题：
+- C1: 统一受控创建 — factory 单次存在性检查，错误传播不丢弃
+- C2: ES 原子创建 — typed API mappings._meta 携带 fingerprint + 真实 UUID 回读
+- C3: 消除独立写入 — 并发创建走 resource_already_exists → 验证路径
+- C4: schema 校验 — ES/Qdrant 回读实际维度与声明比对
+- C5: 移除缓存 — 每次从存储重读，资源变更立即检测
+- C6: 严格 EOF — 第二次 Decode 必须返回 io.EOF，拒绝尾随关闭符
+
+Tests: 614 pass, 0 fail. Build/vet/race clean.
+
 ## 2026-10-25 Stage 2C-2 R1-R7 修复
 
 基于第二轮独立复核报告修复 7 项问题：

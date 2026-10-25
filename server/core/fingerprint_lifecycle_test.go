@@ -6,104 +6,13 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"time"
-
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
 
 // --- Lifecycle tests ---
 
-// TestLifecycle_CreateVerifyCacheExpire_ReVerify tests the full lifecycle:
-// 1. Create Rag with matching fingerprint in store
-// 2. VerifyFingerprint succeeds and caches
-// 3. Expire cache TTL
-// 4. checkFingerprint re-reads from store and re-verifies
-func TestLifecycle_CreateVerifyCacheExpire_ReVerify(t *testing.T) {
-	fp := &vector.Fingerprint{
-		Version:          "v1",
-		EmbeddingModelID: "text-embedding-v4",
-		Dimensions:       1024,
-		ProviderName:     "unknown",
-		Similarity:       "cosine",
-	}
-
-	vs := &fakeVectorStore{indexExists: true}
-	vs.fingerprint = fp
-	vs.resourceID = "lifecycle-uuid-1"
-
-	conf := &config.Config{
-		IndexName:           "lifecycle-index",
-		EmbeddingModel:      "text-embedding-v4",
-		EmbeddingDimensions: 1024,
-		Provider:            &config.ProviderConfig{Name: "unknown"},
-	}
-
-	r := newTestRagWithFingerprint(nil, nil, vs, conf)
-
-	// Step 1: VerifyFingerprint should succeed and cache
-	err := r.VerifyFingerprint(context.Background(), vs)
-	if err != nil {
-		t.Fatalf("VerifyFingerprint should succeed: %v", err)
-	}
-
-	// Step 2: Verify cache is populated
-	cachedFP := r.GetFingerprint()
-	if cachedFP == nil {
-		t.Fatal("fingerprint should be cached after VerifyFingerprint")
-	}
-
-	// Step 3: checkFingerprint should succeed from cache
-	err = r.checkFingerprint(context.Background())
-	if err != nil {
-		t.Fatalf("checkFingerprint from cache should succeed: %v", err)
-	}
-
-	// Step 4: Expire the cache
-	cacheKey := "unknown:lifecycle-index"
-	entry, ok := r.fpCache.get(cacheKey)
-	if !ok || entry == nil {
-		t.Fatal("cache entry should exist")
-	}
-	r.fpCache.mu.Lock()
-	entry.verifiedAt = entry.verifiedAt.Add(-fingerprintCacheTTL - time.Second)
-	r.fpCache.mu.Unlock()
-
-	// Step 5: checkFingerprint should re-read from store (still same fingerprint)
-	err = r.checkFingerprint(context.Background())
-	if err != nil {
-		t.Fatalf("checkFingerprint after TTL should succeed with same fingerprint: %v", err)
-	}
-
-	// Step 6: Now change the store fingerprint to a different model (simulating replacement)
-	differentFP := &vector.Fingerprint{
-		Version:          "v1",
-		EmbeddingModelID: "different-model",
-		Dimensions:       1024,
-		ProviderName:     "unknown",
-		Similarity:       "cosine",
-	}
-	vs.mu.Lock()
-	vs.fingerprint = differentFP
-	vs.mu.Unlock()
-
-	// Expire cache again
-	r.fpCache.mu.Lock()
-	entry2, ok2 := r.fpCache.items[cacheKey]
-	if ok2 && entry2 != nil {
-		entry2.verifiedAt = entry2.verifiedAt.Add(-fingerprintCacheTTL - time.Second)
-	}
-	r.fpCache.mu.Unlock()
-
-	// Step 7: checkFingerprint should detect mismatch
-	err = r.checkFingerprint(context.Background())
-	if err == nil {
-		t.Fatal("checkFingerprint should fail when fingerprint changes after TTL")
-	}
-	if !errors.Is(err, vector.ErrFingerprintMismatch) {
-		t.Errorf("expected ErrFingerprintMismatch, got: %v", err)
-	}
-}
+// C5: TestLifecycle_CreateVerifyCacheExpire_ReVerify removed — cache no longer exists.
 
 // TestLifecycle_PartialFailure_Rollback tests that when fingerprint verification
 // fails, the Rag is properly cleaned up (Shutdown called).
@@ -143,11 +52,7 @@ func TestLifecycle_PartialFailure_Rollback(t *testing.T) {
 		t.Errorf("expected ErrFingerprintMismatch, got: %v", err)
 	}
 
-	// Verify no fingerprint was cached
-	cachedFP := r.GetFingerprint()
-	if cachedFP != nil {
-		t.Error("fingerprint should NOT be cached after failed verification")
-	}
+	// C5: Cache removed — no longer checking cache state after failed verification.
 }
 
 // TestLifecycle_ContextCancel_NoHTTPSent tests that the ES vector store
@@ -176,10 +81,9 @@ func TestLifecycle_ContextCancel_NoHTTPSent(t *testing.T) {
 		EmbeddingDimensions: 1024,
 	}
 
-	// Create Rag WITHOUT pre-populated cache — forces store read
+	// Create Rag — forces store read (C5: no cache)
 	r := &Rag{
 		conf:        conf,
-		fpCache:     newFingerprintCache(),
 		vectorStore: vs,
 	}
 
@@ -206,11 +110,11 @@ type ctxAwareFakeVectorStore struct {
 	readCalls int
 }
 
-func (c *ctxAwareFakeVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+func (c *ctxAwareFakeVectorStore) CreateIndex(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return c.inner.CreateIndex(ctx, indexName)
+	return c.inner.CreateIndex(ctx, indexName, fp)
 }
 func (c *ctxAwareFakeVectorStore) IndexExists(ctx context.Context, indexName string) (bool, error) {
 	if err := ctx.Err(); err != nil {
@@ -253,7 +157,7 @@ func TestLifecycle_ConcurrentCheckFingerprint(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy", // Matches ComputeFingerprintMeta default when no Provider config
 		Similarity:       "cosine",
 	}
 
@@ -269,8 +173,7 @@ func TestLifecycle_ConcurrentCheckFingerprint(t *testing.T) {
 
 	r := newTestRagWithFingerprint(nil, nil, vs, conf)
 
-	// Pre-populate cache
-	r.fpCache.set("unknown:concurrent-index", fp, "concurrent-uuid")
+	// C5: No cache — checkFingerprint reads from store every time.
 
 	// Run concurrent checkFingerprint calls
 	var wg sync.WaitGroup
@@ -284,7 +187,7 @@ func TestLifecycle_ConcurrentCheckFingerprint(t *testing.T) {
 	}
 	wg.Wait()
 
-	// All should succeed (cache hit)
+	// All should succeed (reads from store)
 	for i, err := range errs {
 		if err != nil {
 			t.Errorf("goroutine %d: checkFingerprint should succeed, got: %v", i, err)
@@ -309,7 +212,7 @@ func (f *creationChainFakeVectorStore) IndexExists(ctx context.Context, indexNam
 	return f.indexExisted || f.indexCreated, nil
 }
 
-func (f *creationChainFakeVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+func (f *creationChainFakeVectorStore) CreateIndex(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.indexCreated = true
@@ -357,7 +260,7 @@ func TestCreationChain_NewIndex_WriteVerifyFingerprint(t *testing.T) {
 	}
 
 	// 2. Create the index
-	err := vs.CreateIndex(context.Background(), "new-index")
+	err := vs.CreateIndex(context.Background(), "new-index", nil)
 	if err != nil {
 		t.Fatalf("CreateIndex: %v", err)
 	}
@@ -375,7 +278,6 @@ func TestCreationChain_NewIndex_WriteVerifyFingerprint(t *testing.T) {
 	// 4. Verify fingerprint
 	r := &Rag{
 		conf:    conf,
-		fpCache: newFingerprintCache(),
 	}
 	verifyErr := r.VerifyFingerprint(context.Background(), vs)
 	if verifyErr != nil {
@@ -390,10 +292,7 @@ func TestCreationChain_NewIndex_WriteVerifyFingerprint(t *testing.T) {
 		t.Errorf("WriteFingerprint should be called exactly once, got %d", writeCalls)
 	}
 
-	// Verify fingerprint is cached
-	if r.GetFingerprint() == nil {
-		t.Error("fingerprint should be cached after successful VerifyFingerprint")
-	}
+	// C5: Cache removed — no longer checking cache state.
 }
 
 // TestCreationChain_ExistingIndex_VerifyOnly tests the existing index path:
@@ -433,7 +332,6 @@ func TestCreationChain_ExistingIndex_VerifyOnly(t *testing.T) {
 	// 3. Verify fingerprint
 	r := &Rag{
 		conf:    conf,
-		fpCache: newFingerprintCache(),
 	}
 	verifyErr := r.VerifyFingerprint(context.Background(), vs)
 	if verifyErr != nil {
@@ -475,7 +373,6 @@ func TestCreationChain_ExistingIndex_WrongFingerprint(t *testing.T) {
 	// Verify fingerprint should fail with mismatch
 	r := &Rag{
 		conf:    conf,
-		fpCache: newFingerprintCache(),
 	}
 	verifyErr := r.VerifyFingerprint(context.Background(), vs)
 	if verifyErr == nil {

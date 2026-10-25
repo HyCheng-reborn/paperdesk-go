@@ -2,6 +2,7 @@ package vector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -56,18 +57,187 @@ func (s *ESVectorStore) GetClient() *elasticsearch.Client {
 	return s.client
 }
 
-// CreateIndex 创建索引
-// F8: context propagation via typed API.
-func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+// CreateIndex 创建索引，原子携带 fingerprint 到 mappings._meta（C2/C3）。
+// fp 为 nil 时仅创建 schema（向后兼容）。
+// 创建成功后回读真实 UUID 并写入 _meta.go-rag-resource-id，再验证 schema 维度。
+// 若索引已存在返回 ErrIndexAlreadyExists；任何回读步骤失败则删除索引并返回错误。
+func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string, fp *Fingerprint) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	mapping, err := config.ESMapping(s.dimensions)
+
+	// 构建 mapping（使用 fp.Dimensions 或 s.dimensions 回退）
+	dims := s.dimensions
+	if fp != nil && fp.Dimensions > 0 {
+		dims = fp.Dimensions
+	}
+	mapping, err := config.ESMapping(dims)
 	if err != nil {
 		return err
 	}
+
+	// C2/C3: 若提供 fingerprint，原子写入 _meta
+	if fp != nil {
+		fpJSON, err := fp.MarshalJSON()
+		if err != nil {
+			return fmt.Errorf("marshal fingerprint: %w", err)
+		}
+		mapping.Meta_ = map[string]json.RawMessage{
+			"go-rag-fingerprint": json.RawMessage(fpJSON),
+		}
+	}
+
+	// 使用 typed API 创建索引
 	_, err = create.NewCreateFunc(s.client)(indexName).Request(&create.Request{Mappings: mapping}).Do(ctx)
-	return err
+	if err != nil {
+		// C3: 检测 resource_already_exists，返回特定 sentinel 让调用方走验证路径
+		if isESAlreadyExists(err) {
+			return ErrIndexAlreadyExists
+		}
+		return fmt.Errorf("create index: %w", err)
+	}
+
+	// fp == nil 时无需回读验证（向后兼容路径）
+	if fp == nil {
+		return nil
+	}
+
+	// 创建成功后回读验证（C2/C4）
+	// 1. 读取 ES 分配的真实 UUID
+	actualUUID, uuidErr := s.ReadESIndexUUID(ctx, indexName)
+	if uuidErr != nil {
+		s.deleteIndexBestEffort(ctx, indexName)
+		return fmt.Errorf("read back index UUID after creation: %w", uuidErr)
+	}
+	if actualUUID == "" {
+		s.deleteIndexBestEffort(ctx, indexName)
+		return fmt.Errorf("ES returned empty index UUID for %q", indexName)
+	}
+
+	// 2. 用 PutMapping 补充 _meta.go-rag-resource-id 为真实 UUID
+	metaBody := fmt.Sprintf(`{"_meta":{"go-rag-fingerprint":%s,"go-rag-resource-id":%s}}`,
+		mustJSON(fp), mustJSONString(actualUUID))
+	res, putErr := s.client.Indices.PutMapping(
+		[]string{indexName},
+		strings.NewReader(metaBody),
+		s.client.Indices.PutMapping.WithContext(ctx),
+	)
+	if putErr != nil {
+		s.deleteIndexBestEffort(ctx, indexName)
+		return fmt.Errorf("put mapping for resource-id: %w", putErr)
+	}
+	res.Body.Close()
+	if res.IsError() {
+		s.deleteIndexBestEffort(ctx, indexName)
+		return fmt.Errorf("put mapping for resource-id failed: %s", res.String())
+	}
+
+	// 3. 回读 mapping 验证 content_vector 和 qa_content_vector 实际维度
+	if verifyErr := s.verifyESSchemaDimensions(ctx, indexName, fp.Dimensions); verifyErr != nil {
+		s.deleteIndexBestEffort(ctx, indexName)
+		return fmt.Errorf("schema verification after creation: %w", verifyErr)
+	}
+
+	return nil
+}
+
+// isESAlreadyExists 检测 ES 错误响应是否为 resource_already_exists。
+func isESAlreadyExists(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "resource_already_exists") ||
+		strings.Contains(msg, "resource_already_exists_exception")
+}
+
+// deleteIndexBestEffort 尽力删除索引（失败仅日志记录）。
+func (s *ESVectorStore) deleteIndexBestEffort(ctx context.Context, indexName string) {
+	res, err := s.client.Indices.Delete(
+		[]string{indexName},
+		s.client.Indices.Delete.WithContext(ctx),
+	)
+	if err != nil {
+		g.Log().Errorf(ctx, "best-effort delete of index %q failed: %v", indexName, err)
+		return
+	}
+	res.Body.Close()
+	if res.IsError() {
+		g.Log().Errorf(ctx, "best-effort delete of index %q failed: %s", indexName, res.String())
+	}
+}
+
+// verifyESSchemaDimensions 回读 ES mapping 验证 content_vector 和 qa_content_vector 维度。
+func (s *ESVectorStore) verifyESSchemaDimensions(ctx context.Context, indexName string, expectedDims int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	res, err := s.client.Indices.Get(
+		[]string{indexName},
+		s.client.Indices.Get.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("get index for schema verification: %w", err)
+	}
+	defer res.Body.Close()
+	if res.IsError() {
+		return fmt.Errorf("get index for schema verification failed: %s", res.String())
+	}
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("read schema verification response: %w", err)
+	}
+	// 解析 mapping properties 以提取实际维度
+	var result map[string]struct {
+		Mappings struct {
+			Properties map[string]map[string]any `json:"properties"`
+		} `json:"mappings"`
+	}
+	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
+		return fmt.Errorf("unmarshal schema verification response: %w", err)
+	}
+	state, ok := result[indexName]
+	if !ok {
+		return fmt.Errorf("index %q not found in schema verification response", indexName)
+	}
+	for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
+		prop, fieldOK := state.Mappings.Properties[field]
+		if !fieldOK {
+			return fmt.Errorf("field %q missing from mapping properties", field)
+		}
+		dimsVal, dimsOK := prop["dims"]
+		if !dimsOK {
+			return fmt.Errorf("field %q missing dims in mapping", field)
+		}
+		// JSON number 解析为 float64
+		actualDims, ok := dimsVal.(float64)
+		if !ok {
+			return fmt.Errorf("field %q dims is not a number: %v", field, dimsVal)
+		}
+		if int(actualDims) != expectedDims {
+			return fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
+				ErrFingerprintMismatch, field, expectedDims, int(actualDims))
+		}
+	}
+	return nil
+}
+
+// mustJSON 将值序列化为 JSON 字符串（用于构造 PutMapping body）。
+func mustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(fmt.Sprintf("mustJSON: %v", err))
+	}
+	return string(b)
+}
+
+// mustJSONString 将字符串序列化为 JSON 字符串（带引号）。
+func mustJSONString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(fmt.Sprintf("mustJSONString: %v", err))
+	}
+	return string(b)
 }
 
 // IndexExists 检查索引是否存在
@@ -224,12 +394,18 @@ func (s *ESVectorStore) Close() error {
 // WriteFingerprint writes the fingerprint to ES _meta field.
 // F3: Conditional write — refuses to overwrite if _meta already contains go-rag-fingerprint.
 // R6: Full context propagation to all ES API calls.
+// C2: Reject empty resourceID.
 func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *Fingerprint, resourceID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if fp == nil {
 		return fmt.Errorf("nil fingerprint")
+	}
+	// C2: Reject empty resourceID — identity incomplete
+	if resourceID == "" {
+		return fmt.Errorf("index %q: %w (resourceID empty, refusing to write incomplete identity)",
+			indexName, ErrFingerprintCorrupted)
 	}
 
 	// F3: Check if fingerprint already exists in _meta
@@ -283,6 +459,7 @@ func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, 
 // F4: Returns both fingerprint and resourceID.
 // R2: Verifies _meta.go-rag-resource-id matches settings.index.uuid.
 // R6: Full context propagation to all ES API calls.
+// C4: Schema validation — verifies actual vector dimensions match fingerprint.
 func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, "", err
@@ -311,10 +488,11 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 		return nil, "", fmt.Errorf("get index failed: %s", res.String())
 	}
 
-	// Parse response — include both _meta and settings.index.uuid (R2)
+	// Parse response — include _meta, settings.index.uuid, and mapping properties for schema validation (C4)
 	var result map[string]struct {
 		Mappings struct {
-			Meta map[string]any `json:"_meta"`
+			Meta       map[string]any            `json:"_meta"`
+			Properties map[string]map[string]any `json:"properties"`
 		} `json:"mappings"`
 		Settings struct {
 			Index struct {
@@ -357,6 +535,25 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 	if resourceID != "" && actualUUID != "" && resourceID != actualUUID {
 		return nil, "", fmt.Errorf("%w: resource-id mismatch (meta=%s, actual=%s)",
 			ErrFingerprintCorrupted, resourceID, actualUUID)
+	}
+	// C4: Schema validation — verify actual vector dimensions match fingerprint
+	for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
+		prop, fieldOK := indexState.Mappings.Properties[field]
+		if !fieldOK {
+			continue // field missing from mapping — skip (schema might be old)
+		}
+		dimsVal, dimsOK := prop["dims"]
+		if !dimsOK {
+			continue
+		}
+		actualDims, ok := dimsVal.(float64)
+		if !ok {
+			continue
+		}
+		if int(actualDims) != fp.Dimensions {
+			return nil, "", fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
+				ErrFingerprintMismatch, field, fp.Dimensions, int(actualDims))
+		}
 	}
 	return fp, resourceID, nil
 }

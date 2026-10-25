@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 )
@@ -26,6 +27,7 @@ var (
 	ErrFingerprintUnknownVersion = errors.New("fingerprint: unknown version")
 	ErrFingerprintExists         = errors.New("fingerprint: identity already exists, refusing to overwrite")
 	ErrResourceReplaced          = errors.New("fingerprint: resource ID changed, index may have been replaced")
+	ErrIndexAlreadyExists        = errors.New("fingerprint: index already exists in vector store")
 )
 
 // FingerprintVersion is the current fingerprint format version.
@@ -192,9 +194,11 @@ func ParseFingerprint(data []byte) (*Fingerprint, error) {
 	if err := dec.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrFingerprintCorrupted, err)
 	}
-	// R5: Reject trailing JSON (e.g. two concatenated JSON objects)
-	if dec.More() {
-		return nil, fmt.Errorf("%w: trailing JSON after fingerprint document", ErrFingerprintCorrupted)
+	// C6: Strict document end check — second Decode must return io.EOF.
+	// decoder.More() is an array/object element helper, NOT a document end check.
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); err != io.EOF {
+		return nil, fmt.Errorf("%w: trailing content after fingerprint document", ErrFingerprintCorrupted)
 	}
 	// R5: Extract stored digest for verification
 	storedDigest, _ := raw["digest"].(string)

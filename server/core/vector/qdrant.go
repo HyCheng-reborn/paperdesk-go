@@ -3,6 +3,7 @@ package vector
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
@@ -75,8 +76,17 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string, f
 	if err != nil {
 		return err
 	}
+	// D1: fp != nil 时 db 必须非 nil（身份存储就绪后才创建资源）
+	if fp != nil && s.db == nil {
+		return fmt.Errorf("Qdrant CreateIndex with fingerprint requires SQL database (db is nil)")
+	}
+
 	err = s.client.CreateCollection(ctx, req)
 	if err != nil {
+		// D1: 归一化 AlreadyExists 错误为 ErrIndexAlreadyExists
+		if isQdrantAlreadyExists(err) {
+			return ErrIndexAlreadyExists
+		}
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
 
@@ -118,31 +128,17 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string, f
 			return fmt.Errorf("failed to create field index: %w", fieldErr)
 		}
 
-		// C4: 回读验证 collection 实际向量维度
+		// D3: 严格 schema 验证（回读 collection info 确认实际维度/distance）
 		info, infoErr := s.client.GetCollectionInfo(ctx, indexName)
 		if infoErr != nil {
 			return fmt.Errorf("get collection info for schema verification: %w", infoErr)
 		}
-		if info == nil || info.GetConfig() == nil || info.GetConfig().GetParams() == nil {
-			return fmt.Errorf("collection %q has no config params", indexName)
+		fields, extractErr := extractQdrantFieldInfo(info)
+		if extractErr != nil {
+			return fmt.Errorf("extract schema info for verification: %w", extractErr)
 		}
-		vc := info.GetConfig().GetParams().GetVectorsConfig()
-		if vc == nil {
-			return fmt.Errorf("collection %q has no vectors config", indexName)
-		}
-		namedVectors := vc.GetParamsMap()
-		if namedVectors == nil || namedVectors.GetMap() == nil {
-			return fmt.Errorf("collection %q has no named vectors map", indexName)
-		}
-		for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
-			params, fieldOK := namedVectors.GetMap()[field]
-			if !fieldOK || params == nil {
-				return fmt.Errorf("field %q missing from collection vectors config", field)
-			}
-			if int(params.GetSize()) != fp.Dimensions {
-				return fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
-					ErrFingerprintMismatch, field, fp.Dimensions, int(params.GetSize()))
-			}
+		if schemaErr := ValidateSchemaStrict(fp, fields); schemaErr != nil {
+			return schemaErr
 		}
 
 		// 更新 Ready=true
@@ -569,24 +565,13 @@ func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName strin
 			return nil, "", fmt.Errorf("%w: SQL record exists but Qdrant collection %q missing",
 				ErrFingerprintCorrupted, indexName)
 		}
-		// C4: Schema validation — verify actual vector dimensions match fingerprint
-		if info.GetConfig() != nil && info.GetConfig().GetParams() != nil {
-			vc := info.GetConfig().GetParams().GetVectorsConfig()
-			if vc != nil {
-				namedVectors := vc.GetParamsMap()
-				if namedVectors != nil && namedVectors.GetMap() != nil {
-					for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
-						params, fieldOK := namedVectors.GetMap()[field]
-						if !fieldOK || params == nil {
-							continue
-						}
-						if int(params.GetSize()) != fp.Dimensions {
-							return nil, "", fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
-									ErrFingerprintMismatch, field, fp.Dimensions, int(params.GetSize()))
-						}
-					}
-				}
-			}
+		// D3: 严格 schema 验证
+		fields, extractErr := extractQdrantFieldInfo(info)
+		if extractErr != nil {
+			return nil, "", fmt.Errorf("extract schema info: %w", extractErr)
+		}
+		if schemaErr := ValidateSchemaStrict(fp, fields); schemaErr != nil {
+			return nil, "", schemaErr
 		}
 	}
 	return fp, record.ResourceID, nil
@@ -608,6 +593,53 @@ func uint32ptr(v uint32) *uint32 {
 // uint64ptr 辅助函数
 func uint64ptr(v uint64) *uint64 {
 	return &v
+}
+
+// isQdrantAlreadyExists checks if a Qdrant error indicates the collection already exists.
+// D1: Normalizes to ErrIndexAlreadyExists for consistent conflict handling.
+func isQdrantAlreadyExists(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "already exists") ||
+		strings.Contains(msg, "collection already exists")
+}
+
+// extractQdrantFieldInfo extracts FieldInfo map from Qdrant collection info for ValidateSchemaStrict.
+// D3: Returns error if required config/named vectors are missing (fail closed).
+func extractQdrantFieldInfo(info *qdrant.CollectionInfo) (map[string]FieldInfo, error) {
+	if info == nil || info.GetConfig() == nil || info.GetConfig().GetParams() == nil {
+		return nil, fmt.Errorf("collection has no config params")
+	}
+	vc := info.GetConfig().GetParams().GetVectorsConfig()
+	if vc == nil {
+		return nil, fmt.Errorf("collection has no vectors config")
+	}
+	namedVectors := vc.GetParamsMap()
+	if namedVectors == nil || namedVectors.GetMap() == nil {
+		return nil, fmt.Errorf("collection has no named vectors map")
+	}
+	fields := make(map[string]FieldInfo)
+	for name, params := range namedVectors.GetMap() {
+		if params == nil {
+			continue
+		}
+		fi := FieldInfo{
+			Dims: int64(params.GetSize()),
+		}
+		// Map Qdrant distance to string for ValidateSchemaStrict
+		switch params.GetDistance() {
+		case qdrant.Distance_Cosine:
+			fi.Distance = "Cosine"
+		case qdrant.Distance_Dot:
+			fi.Distance = "Dot"
+		case qdrant.Distance_Euclid:
+			fi.Distance = "Euclid"
+		}
+		fields[name] = fi
+	}
+	return fields, nil
 }
 
 // QdrantSearchQuery Qdrant 搜索查询

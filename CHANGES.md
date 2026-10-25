@@ -1,5 +1,15 @@
 # 变更记录
 
+## [2026-10-25] Stage 2C-2 D1-D4 修复
+
+基于第四轮独立复核报告修复 4 项问题：
+- D1: factory 重构 — CreateIndex 先于 core.New 消除 SDK 隐式创建；Qdrant AlreadyExists 归一化
+- D2: ES 安全加固 — 移除 deleteIndexBestEffort 和 PutMapping 后补；UUID 只读
+- D3: 严格 schema 校验 — 共享校验器；必需字段/整数维度/距离映射
+- D4: 资源固定 — boundResourceID 启动绑定；每次比对检测替换
+
+Tests: 794 pass, 0 fail. Build/vet/race clean.
+
 ## [2026-10-25] Stage 2C-2 C1-C6 修复
 
 基于第三轮独立复核报告修复 6 项问题：

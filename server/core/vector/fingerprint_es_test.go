@@ -225,6 +225,15 @@ func (f *fakeEServer) requestCount() int {
 }
 
 // newTestESVectorStore creates an ESVectorStore connected to a fake ES httptest server.
+// defaultTestProperties returns mapping properties matching testFingerprint()
+// (1024 dims, cosine) for strict schema validation (D3).
+func defaultTestProperties() map[string]map[string]any {
+	return map[string]map[string]any{
+		"content_vector":     {"type": "dense_vector", "dims": json.Number("1024"), "index": true, "similarity": "cosine"},
+		"qa_content_vector": {"type": "dense_vector", "dims": json.Number("1024"), "index": true, "similarity": "cosine"},
+	}
+}
+
 func newTestESVectorStore(t *testing.T, fake *fakeEServer) (*ESVectorStore, *httptest.Server) {
 	t.Helper()
 	server := httptest.NewServer(fake)
@@ -249,7 +258,7 @@ func TestES_WriteFingerprint_ConditionalWrite(t *testing.T) {
 
 	// Create the index in fake server — resourceID must match uuid for R2
 	fake.mu.Lock()
-	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "resource-1", meta: map[string]any{}}
+	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "resource-1", meta: map[string]any{}, properties: defaultTestProperties()}
 	fake.mu.Unlock()
 
 	fp := testFingerprint()
@@ -283,14 +292,14 @@ func TestES_ReadFingerprint_ReturnsResourceID(t *testing.T) {
 	var fpMap map[string]any
 	json.Unmarshal(fpJSON, &fpMap)
 
-	// Set up index with fingerprint in _meta — resourceID must match uuid for R2
+	// Set up index with fingerprint in _meta — resourceID comes from uuid (D2)
 	fake.mu.Lock()
 	fake.indices["test-index"] = &fakeESIndexState{
-		exists: true,
-		uuid:   "uuid-abc-123",
+		exists:     true,
+		uuid:       "uuid-abc-123",
+		properties: defaultTestProperties(),
 		meta: map[string]any{
 			"go-rag-fingerprint": fpMap,
-			"go-rag-resource-id": "uuid-abc-123",
 		},
 	}
 	fake.mu.Unlock()
@@ -436,9 +445,9 @@ func TestES_WriteThenRead_RoundTrip(t *testing.T) {
 	defer server.Close()
 	ctx := context.Background()
 
-	// Create index — uuid must match resourceID for R2
+	// Create index — uuid must match resourceID for D2
 	fake.mu.Lock()
-	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "round-trip-uuid", meta: map[string]any{}}
+	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "round-trip-uuid", meta: map[string]any{}, properties: defaultTestProperties()}
 	fake.mu.Unlock()
 
 	fp := testFingerprint()
@@ -462,9 +471,9 @@ func TestES_WriteThenRead_RoundTrip(t *testing.T) {
 	}
 }
 
-// --- R2: resourceID vs UUID mismatch ---
+// --- D2: resourceID comes from settings.index.uuid, not _meta ---
 
-func TestES_ReadFingerprint_ResourceID_UUID_Mismatch(t *testing.T) {
+func TestES_ReadFingerprint_ResourceID_FromUUID(t *testing.T) {
 	fake := newFakeEServer()
 	store, server := newTestESVectorStore(t, fake)
 	defer server.Close()
@@ -475,28 +484,30 @@ func TestES_ReadFingerprint_ResourceID_UUID_Mismatch(t *testing.T) {
 	var fpMap map[string]any
 	json.Unmarshal(fpJSON, &fpMap)
 
-	// Set up index with mismatched resourceID and UUID
+	// D2: resourceID comes from settings.index.uuid, regardless of _meta go-rag-resource-id
 	fake.mu.Lock()
 	fake.indices["test-index"] = &fakeESIndexState{
-		exists: true,
-		uuid:   "actual-uuid-123",
+		exists:     true,
+		uuid:       "actual-uuid-123",
+		properties: defaultTestProperties(),
 		meta: map[string]any{
 			"go-rag-fingerprint": fpMap,
+			// go-rag-resource-id in _meta is ignored by D2
 			"go-rag-resource-id": "different-uuid-456",
 		},
 	}
 	fake.mu.Unlock()
 
-	// R2: ReadFingerprint should detect resourceID != actual UUID
-	_, _, err := store.ReadFingerprint(ctx, "test-index")
-	if err == nil {
-		t.Fatal("ReadFingerprint should fail when resourceID != actual UUID")
+	// D2: resourceID should be the UUID from settings, not from _meta
+	readFP, resourceID, err := store.ReadFingerprint(ctx, "test-index")
+	if err != nil {
+		t.Fatalf("ReadFingerprint should succeed: %v", err)
 	}
-	if !errors.Is(err, ErrFingerprintCorrupted) {
-		t.Errorf("expected ErrFingerprintCorrupted, got: %v", err)
+	if resourceID != "actual-uuid-123" {
+		t.Errorf("resourceID = %q, want %q (from settings.index.uuid)", resourceID, "actual-uuid-123")
 	}
-	if !strings.Contains(err.Error(), "resource-id mismatch") {
-		t.Errorf("error should mention resource-id mismatch, got: %v", err)
+	if !fp.Equal(readFP) {
+		t.Errorf("fingerprint mismatch: got %+v, want %+v", readFP, fp)
 	}
 }
 
@@ -516,11 +527,11 @@ func TestES_ReadFingerprint_ResourceID_Matches_UUID(t *testing.T) {
 	// Set up index with matching resourceID and UUID
 	fake.mu.Lock()
 	fake.indices["test-index"] = &fakeESIndexState{
-		exists: true,
-		uuid:   "same-uuid-123",
+		exists:     true,
+		uuid:       "same-uuid-123",
+		properties: defaultTestProperties(),
 		meta: map[string]any{
 			"go-rag-fingerprint": fpMap,
-			"go-rag-resource-id": "same-uuid-123",
 		},
 	}
 	fake.mu.Unlock()
@@ -545,9 +556,9 @@ func TestES_ConcurrentWriteFingerprint_OnlyOneSucceeds(t *testing.T) {
 	defer server.Close()
 	ctx := context.Background()
 
-	// Create index — uuid must match resourceID for R2
+	// Create index — uuid must match resourceID for D2
 	fake.mu.Lock()
-	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "res-1", meta: map[string]any{}}
+	fake.indices["test-index"] = &fakeESIndexState{exists: true, uuid: "res-1", meta: map[string]any{}, properties: defaultTestProperties()}
 	fake.mu.Unlock()
 
 	fp := testFingerprint()
@@ -704,16 +715,12 @@ func TestES_CreateIndex_WithFingerprint_AtomicallyWritesMeta(t *testing.T) {
 	if !ok {
 		t.Fatal("index should have been created")
 	}
-	// C2: _meta should contain go-rag-fingerprint
+	// D2: After creation, no PutMapping is done — only fingerprint in _meta from atomic create
 	if _, hasFP := state.meta["go-rag-fingerprint"]; !hasFP {
 		t.Error("create request should have included fingerprint in _meta")
 	}
-	// C2: After creation, PutMapping should have added go-rag-resource-id
-	if rid, hasRID := state.meta["go-rag-resource-id"]; !hasRID {
-		t.Error("create flow should have added go-rag-resource-id via PutMapping")
-	} else if ridStr, isStr := rid.(string); !isStr || ridStr == "" {
-		t.Errorf("go-rag-resource-id should be non-empty string, got: %v", rid)
-	}
+	// D2: go-rag-resource-id is NOT written by CreateIndex (no PutMapping supplementation)
+	// resourceID comes from settings.index.uuid at read time
 }
 
 // --- C2: WriteFingerprint with empty resourceID → error ---
@@ -881,5 +888,203 @@ func TestES_CreateIndex_SchemaDimensionMismatch_Fails(t *testing.T) {
 	}
 	if !errors.Is(err, ErrFingerprintMismatch) {
 		t.Errorf("expected ErrFingerprintMismatch, got: %v", err)
+	}
+}
+
+// --- D2: ES safety tests ---
+
+// TestES_CreateIndex_NoDeleteOnFailure verifies D2: CreateIndex does NOT delete
+// the index when post-creation verification fails (no deleteIndexBestEffort).
+func TestES_CreateIndex_NoDeleteOnFailure(t *testing.T) {
+	fake := newFakeEServer()
+	var deleteCalled bool
+	// Use a custom fake server that returns wrong dimensions in GET response
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		if r.Method == http.MethodDelete {
+			deleteCalled = true
+		}
+		// Override GET to return wrong dimensions (512 instead of 1024)
+		if r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/_mapping") {
+			fake.mu.Lock()
+			state, ok := fake.indices[strings.TrimPrefix(r.URL.Path, "/")]
+			fake.mu.Unlock()
+			if ok && state.exists {
+				meta := state.meta
+				if meta == nil {
+					meta = map[string]any{}
+				}
+				indexName := strings.TrimPrefix(r.URL.Path, "/")
+				resp := map[string]any{
+					indexName: map[string]any{
+						"mappings": map[string]any{
+							"_meta": meta,
+							"properties": map[string]map[string]any{
+								"content_vector":     {"type": "dense_vector", "dims": float64(512)},
+								"qa_content_vector": {"type": "dense_vector", "dims": float64(512)},
+							},
+						},
+						"settings": map[string]any{
+							"index": map[string]any{"uuid": state.uuid},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		fake.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{server.URL},
+	})
+	if err != nil {
+		t.Fatalf("create es client: %v", err)
+	}
+	store := &ESVectorStore{client: client, dimensions: 1024}
+	ctx := context.Background()
+
+	fp := testFingerprint() // 1024 dims
+
+	// CreateIndex should fail (GET returns 512 dims, fp declares 1024)
+	err = store.CreateIndex(ctx, "test-index", fp)
+	if err == nil {
+		t.Fatal("CreateIndex should fail on schema mismatch")
+	}
+
+	// D2: Index should NOT be deleted after failure
+	if deleteCalled {
+		t.Fatal("D2: CreateIndex must NOT call DELETE on failure (no deleteIndexBestEffort)")
+	}
+
+	// Index should still exist in the fake server
+	fake.mu.Lock()
+	state, exists := fake.indices["test-index"]
+	fake.mu.Unlock()
+	if !exists || !state.exists {
+		t.Fatal("D2: index should still exist after failed CreateIndex (not deleted)")
+	}
+}
+
+// TestES_CreateIndex_NoPutMappingAfterCreation verifies D2: CreateIndex does NOT
+// call PutMapping after creation (UUID is read-only from settings.index.uuid).
+func TestES_CreateIndex_NoPutMappingAfterCreation(t *testing.T) {
+	fake := newFakeEServer()
+	var putMappingCalledAfterCreate bool
+	var createDone bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/_mapping") && createDone {
+			putMappingCalledAfterCreate = true
+		}
+		fake.ServeHTTP(w, r)
+		if r.Method == http.MethodPut && !strings.HasSuffix(r.URL.Path, "/_mapping") {
+			createDone = true
+		}
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{server.URL},
+	})
+	if err != nil {
+		t.Fatalf("create es client: %v", err)
+	}
+	store := &ESVectorStore{client: client, dimensions: 1024}
+	ctx := context.Background()
+
+	fp := testFingerprint()
+	err = store.CreateIndex(ctx, "test-index", fp)
+	if err != nil {
+		t.Fatalf("CreateIndex should succeed: %v", err)
+	}
+
+	// D2: No PutMapping should be called after creation
+	if putMappingCalledAfterCreate {
+		t.Fatal("D2: CreateIndex must NOT call PutMapping after creation")
+	}
+}
+
+// TestES_ReadFingerprint_UUID_AsResourceID verifies D2: ReadFingerprint reads
+// resourceID from settings.index.uuid, NOT from _meta go-rag-resource-id.
+func TestES_ReadFingerprint_UUID_AsResourceID(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Set up index where _meta has a different resource-id than the UUID
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists:     true,
+		uuid:       "physical-uuid-from-settings",
+		properties: defaultTestProperties(),
+		meta: map[string]any{
+			"go-rag-fingerprint":   fpMap,
+			"go-rag-resource-id": "old-meta-resource-id", // D2: this is IGNORED
+		},
+	}
+	fake.mu.Unlock()
+
+	_, resourceID, err := store.ReadFingerprint(ctx, "test-index")
+	if err != nil {
+		t.Fatalf("ReadFingerprint: %v", err)
+	}
+	// D2: resourceID must come from settings.index.uuid
+	if resourceID != "physical-uuid-from-settings" {
+		t.Errorf("D2: resourceID = %q, want %q (from settings.index.uuid)",
+			resourceID, "physical-uuid-from-settings")
+	}
+}
+
+// TestES_CreateIndex_ResourceNotOverwritten verifies D2: after CreateIndex,
+// a replacement resource with the same name is NOT overwritten.
+func TestES_CreateIndex_ResourceNotOverwritten(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+
+	// First creation succeeds
+	err := store.CreateIndex(ctx, "test-index", fp)
+	if err != nil {
+		t.Fatalf("first CreateIndex should succeed: %v", err)
+	}
+
+	// Simulate resource replacement: delete and recreate with different UUID
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists:     true,
+		uuid:       "replacement-uuid",
+		meta:       map[string]any{},
+		properties: defaultTestProperties(),
+	}
+	fake.mu.Unlock()
+
+	// Second CreateIndex should get ErrIndexAlreadyExists
+	err = store.CreateIndex(ctx, "test-index", fp)
+	if !errors.Is(err, ErrIndexAlreadyExists) {
+		t.Errorf("second CreateIndex should get ErrIndexAlreadyExists, got: %v", err)
+	}
+
+	// D2: The replacement resource should NOT be overwritten
+	fake.mu.Lock()
+	state := fake.indices["test-index"]
+	uuid := state.uuid
+	fake.mu.Unlock()
+	if uuid != "replacement-uuid" {
+		t.Errorf("D2: replacement UUID should not be overwritten, got %q", uuid)
 	}
 }

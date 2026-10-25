@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/qdrant/go-client/qdrant"
-	"github.com/wangle201210/go-rag/server/core/config"
-	coretypes "github.com/wangle201210/go-rag/server/core/types"
-	"github.com/wangle201210/go-rag/server/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/qdrant/go-client/qdrant"
+	"github.com/wangle201210/go-rag/server/core/config"
+	coretypes "github.com/wangle201210/go-rag/server/core/types"
+	"github.com/wangle201210/go-rag/server/internal/testutil"
 )
 
 func TestDimensions_ESBothCreatePaths(t *testing.T) {

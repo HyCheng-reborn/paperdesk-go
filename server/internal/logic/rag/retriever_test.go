@@ -1497,3 +1497,119 @@ func TestFactory_ConcurrentCreate_GoesToVerification(t *testing.T) {
 		t.Errorf("operations = %v, want %v", ops, expectedOps)
 	}
 }
+
+// --- D1: Factory flow tests ---
+
+// TestD1_CreateIndexError_Propagated verifies that when CreateIndex returns a
+// non-ErrIndexAlreadyExists error, the factory propagates it immediately.
+func TestD1_CreateIndexError_Propagated(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("disk full")
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		createIndexErr:   sentinel,
+	}
+	cfg := validRagConfig()
+
+	_, _, err := simulateFactoryC1(ctx, cfg, vs)
+	if err == nil {
+		t.Fatal("expected error from CreateIndex")
+	}
+	if !strings.Contains(err.Error(), "controlled creation failed") {
+		t.Errorf("expected 'controlled creation failed' error, got: %v", err)
+	}
+}
+
+// TestD1_CreateIndexBeforeVerify_Order verifies that CreateIndex happens before
+// ReadFingerprint (verification) in the factory flow.
+func TestD1_CreateIndexBeforeVerify_Order(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-order",
+	}
+	cfg := validRagConfig()
+
+	_, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// D1: CreateIndex must come before ReadFingerprint
+	createIdx := -1
+	readIdx := -1
+	for i, op := range ops {
+		if op == "CreateIndex" && createIdx == -1 {
+			createIdx = i
+		}
+		if op == "ReadFingerprint" && readIdx == -1 {
+			readIdx = i
+		}
+	}
+	if createIdx == -1 {
+		t.Fatal("CreateIndex should have been called")
+	}
+	if readIdx == -1 {
+		t.Fatal("ReadFingerprint should have been called")
+	}
+	if createIdx >= readIdx {
+		t.Errorf("D1: CreateIndex (idx=%d) should happen before ReadFingerprint (idx=%d)", createIdx, readIdx)
+	}
+}
+
+// TestD1_ExistingIndex_NoCreateIndex verifies that when the index already exists,
+// the factory skips CreateIndex and goes directly to verification.
+func TestD1_ExistingIndex_NoCreateIndex(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: true,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-existing",
+	}
+	cfg := validRagConfig()
+
+	_, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// D1: Existing index → no CreateIndex, just IndexExists → ReadFingerprint
+	for _, op := range ops {
+		if op == "CreateIndex" {
+			t.Error("D1: CreateIndex should NOT be called when index already exists")
+		}
+	}
+	expectedOps := []string{"IndexExists", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}
+
+// TestD1_ConcurrentCreate_VerifyReadsResourceID verifies that after concurrent
+// creation detection (ErrIndexAlreadyExists), the verification path reads the
+// resourceID from storage (D4 binding).
+func TestD1_ConcurrentCreate_VerifyReadsResourceID(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		createIndexErr:   vector.ErrIndexAlreadyExists,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "concurrent-resource-uuid",
+	}
+	cfg := validRagConfig()
+
+	rag, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rag == nil {
+		t.Fatal("expected non-nil Rag")
+	}
+
+	// Verify the verification path was taken
+	expectedOps := []string{"IndexExists", "CreateIndex", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}

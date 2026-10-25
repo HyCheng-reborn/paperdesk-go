@@ -81,6 +81,11 @@ type Rag struct {
 
 	// Stage 2C-2: Vector store reference for fingerprint operations (C5: no cache)
 	vectorStore vector.VectorStore // Vector store for fingerprint operations
+
+	// D4: 启动时固定的物理资源 ID，运行期只读。
+	// VerifyFingerprint 成功时设置；checkFingerprint 每次比对。
+	// 如果 resourceID 变化，说明物理资源已被替换。
+	boundResourceID string
 }
 
 func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
@@ -245,6 +250,10 @@ func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) erro
 	}
 
 	g.Log().Infof(ctx, "Fingerprint verified for index %q (resourceID=%s)", x.conf.IndexName, resourceID)
+
+	// D4: 固定物理资源 ID（启动时设置，运行期比对）
+	x.boundResourceID = resourceID
+
 	return nil
 }
 
@@ -315,6 +324,12 @@ func (x *Rag) checkFingerprint(ctx context.Context) error {
 	// Verify match
 	if verifyErr := vector.VerifyFingerprint(storedFP, expectedFP); verifyErr != nil {
 		return fmt.Errorf("fingerprint verification failed for index %q: %w", x.conf.IndexName, verifyErr)
+	}
+
+	// D4: 比对 resourceID 与启动时固定的值（检测物理资源替换）
+	if x.boundResourceID != "" && storedResourceID != x.boundResourceID {
+		return fmt.Errorf("index %q: %w (bound=%s, current=%s)",
+			x.conf.IndexName, vector.ErrResourceReplaced, x.boundResourceID, storedResourceID)
 	}
 
 	return nil

@@ -268,3 +268,20 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 | C6 | JSON 解析未严格 EOF | 第二次 Decode 必须返回 io.EOF，拒绝尾随 `}`/`]`/垃圾数据 |
 
 状态：2C-2 C1-C6 修复完成，待第四轮独立复核。
+
+## 附录：第四轮独立复核修复记录（D1-D4）
+
+| 编号 | 问题 | 修复方式 |
+|------|------|----------|
+| D1 | Factory 流程 SDK 隐式创建 | CreateIndex 先于 core.New 消除 SDK 预创建；Qdrant AlreadyExists 归一化为 ErrIndexAlreadyExists；db=nil fail-fast |
+| D2 | ES 安全加固 | 移除 deleteIndexBestEffort 和 PutMapping 后补；UUID 只读自 settings.index.uuid；创建后不修改 _meta |
+| D3 | 共享严格 schema 校验 | schema.go 统一校验器：必需字段检查；维度 json.Number 整数校验（拒绝浮点截断）；distance/similarity 映射 |
+| D4 | 资源身份固定绑定 | boundResourceID 启动时记录；checkFingerprint 每次比对；不匹配返回 ErrResourceReplaced |
+
+### D4 设计理由
+
+**ES**：`settings.index.uuid` 是不可变的物理资源标识符。`ReadFingerprint` 每次从 GetIndex API 读取真实 UUID；`boundResourceID` 在启动时固定，运行时每次比对。若外部删除并重建同名索引，UUID 必然变化，立即触发 `ErrResourceReplaced`。
+
+**Qdrant**：SQL 中随机生成的 UUID 无法证明 collection 的化身（incarnation）——外部删除并重建同名 collection 后 SQL 记录仍相同。当前最小契约是 SQL resourceID + Ready 标志 + collection 存在性检查；完整化身追踪（例如基于 Qdrant collection info 的 immutable ID）推迟到设计 §5.8。
+
+状态：2C-2 D1-D4 修复完成，待第五轮独立复核。

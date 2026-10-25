@@ -773,3 +773,162 @@ func TestCheckFingerprint_ConcurrentReadsAllFromStorage(t *testing.T) {
 		t.Errorf("expected %d storage reads (one per goroutine), got %d", n, reads)
 	}
 }
+
+// --- D4: Resource binding tests ---
+
+// TestD4_VerifyFingerprint_RecordsBoundResourceID verifies that VerifyFingerprint
+// records the boundResourceID on success.
+func TestD4_VerifyFingerprint_RecordsBoundResourceID(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "d4-bind-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-A"
+
+	// VerifyFingerprint should succeed and bind resourceID
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+	if r.boundResourceID != "resource-A" {
+		t.Errorf("D4: boundResourceID = %q, want %q", r.boundResourceID, "resource-A")
+	}
+}
+
+// TestD4_CheckFingerprint_ResourceIDChanges_Rejected verifies that when the stored
+// resourceID changes (A→B), checkFingerprint returns ErrResourceReplaced.
+func TestD4_CheckFingerprint_ResourceIDChanges_Rejected(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "d4-change-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-A"
+
+	// First: bind to resource-A
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+
+	// Simulate resource replacement: storage now returns resource-B
+	vs.mu.Lock()
+	vs.resourceID = "resource-B"
+	vs.mu.Unlock()
+
+	// checkFingerprint should detect the change
+	err = r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("checkFingerprint should detect resourceID change")
+	}
+	if !errors.Is(err, vector.ErrResourceReplaced) {
+		t.Errorf("D4: expected ErrResourceReplaced, got: %v", err)
+	}
+}
+
+// TestD4_CheckFingerprint_EmptyResourceID_FailClosed verifies that empty
+// stored resourceID causes fail closed.
+func TestD4_CheckFingerprint_EmptyResourceID_FailClosed_D4(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "d4-empty-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-A"
+
+	// Bind to resource-A
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+
+	// Simulate storage returning empty resourceID
+	vs.mu.Lock()
+	vs.resourceID = ""
+	vs.mu.Unlock()
+
+	// checkFingerprint should fail closed
+	err = r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("checkFingerprint should fail with empty stored resourceID")
+	}
+}
+
+// TestD4_CheckFingerprint_SameFingerprintDifferentResourceID_Rejected verifies
+// that even with matching fingerprint content, a different resourceID is rejected.
+func TestD4_CheckFingerprint_SameFingerprintDifferentResourceID_Rejected(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "d4-diffres-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-A"
+
+	// Bind to resource-A
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+
+	// Same fingerprint but different resourceID (physical resource replaced)
+	vs.mu.Lock()
+	vs.resourceID = "resource-B"
+	vs.mu.Unlock()
+
+	err = r.checkFingerprint(context.Background())
+	if err == nil {
+		t.Fatal("checkFingerprint should reject same fingerprint with different resourceID")
+	}
+	if !errors.Is(err, vector.ErrResourceReplaced) {
+		t.Errorf("D4: expected ErrResourceReplaced, got: %v", err)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )

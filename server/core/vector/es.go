@@ -1,6 +1,7 @@
 package vector
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -59,8 +60,8 @@ func (s *ESVectorStore) GetClient() *elasticsearch.Client {
 
 // CreateIndex 创建索引，原子携带 fingerprint 到 mappings._meta（C2/C3）。
 // fp 为 nil 时仅创建 schema（向后兼容）。
-// 创建成功后回读真实 UUID 并写入 _meta.go-rag-resource-id，再验证 schema 维度。
-// 若索引已存在返回 ErrIndexAlreadyExists；任何回读步骤失败则删除索引并返回错误。
+// D2: 创建成功后只读获取 UUID 用于日志；不再 PutMapping 后补；不再 deleteIndexBestEffort。
+// 若索引已存在返回 ErrIndexAlreadyExists；任何创建后验证失败返回错误（不删除索引）。
 func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string, fp *Fingerprint) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -102,39 +103,20 @@ func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string, fp *F
 		return nil
 	}
 
-	// 创建成功后回读验证（C2/C4）
-	// 1. 读取 ES 分配的真实 UUID
+	// D2: 创建成功后只读获取 UUID（仅用于日志，不写回 _meta）
 	actualUUID, uuidErr := s.ReadESIndexUUID(ctx, indexName)
 	if uuidErr != nil {
-		s.deleteIndexBestEffort(ctx, indexName)
+		// D2: 不删除索引，保留资源供人工诊断
 		return fmt.Errorf("read back index UUID after creation: %w", uuidErr)
 	}
 	if actualUUID == "" {
-		s.deleteIndexBestEffort(ctx, indexName)
 		return fmt.Errorf("ES returned empty index UUID for %q", indexName)
 	}
+	g.Log().Infof(ctx, "ES index %q created with UUID=%s (read-only, not written to _meta)", indexName, actualUUID)
 
-	// 2. 用 PutMapping 补充 _meta.go-rag-resource-id 为真实 UUID
-	metaBody := fmt.Sprintf(`{"_meta":{"go-rag-fingerprint":%s,"go-rag-resource-id":%s}}`,
-		mustJSON(fp), mustJSONString(actualUUID))
-	res, putErr := s.client.Indices.PutMapping(
-		[]string{indexName},
-		strings.NewReader(metaBody),
-		s.client.Indices.PutMapping.WithContext(ctx),
-	)
-	if putErr != nil {
-		s.deleteIndexBestEffort(ctx, indexName)
-		return fmt.Errorf("put mapping for resource-id: %w", putErr)
-	}
-	res.Body.Close()
-	if res.IsError() {
-		s.deleteIndexBestEffort(ctx, indexName)
-		return fmt.Errorf("put mapping for resource-id failed: %s", res.String())
-	}
-
-	// 3. 回读 mapping 验证 content_vector 和 qa_content_vector 实际维度
-	if verifyErr := s.verifyESSchemaDimensions(ctx, indexName, fp.Dimensions); verifyErr != nil {
-		s.deleteIndexBestEffort(ctx, indexName)
+	// D3: 严格 schema 验证（回读 mapping 确认实际维度/distance/type）
+	if verifyErr := s.verifyESSchemaStrict(ctx, indexName, fp); verifyErr != nil {
+		// D2: 不删除索引，保留资源供人工诊断
 		return fmt.Errorf("schema verification after creation: %w", verifyErr)
 	}
 
@@ -151,24 +133,8 @@ func isESAlreadyExists(err error) bool {
 		strings.Contains(msg, "resource_already_exists_exception")
 }
 
-// deleteIndexBestEffort 尽力删除索引（失败仅日志记录）。
-func (s *ESVectorStore) deleteIndexBestEffort(ctx context.Context, indexName string) {
-	res, err := s.client.Indices.Delete(
-		[]string{indexName},
-		s.client.Indices.Delete.WithContext(ctx),
-	)
-	if err != nil {
-		g.Log().Errorf(ctx, "best-effort delete of index %q failed: %v", indexName, err)
-		return
-	}
-	res.Body.Close()
-	if res.IsError() {
-		g.Log().Errorf(ctx, "best-effort delete of index %q failed: %s", indexName, res.String())
-	}
-}
-
-// verifyESSchemaDimensions 回读 ES mapping 验证 content_vector 和 qa_content_vector 维度。
-func (s *ESVectorStore) verifyESSchemaDimensions(ctx context.Context, indexName string, expectedDims int) error {
+// verifyESSchemaStrict 回读 ES mapping 并使用 ValidateSchemaStrict 进行严格校验（D3）。
+func (s *ESVectorStore) verifyESSchemaStrict(ctx context.Context, indexName string, fp *Fingerprint) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -187,57 +153,44 @@ func (s *ESVectorStore) verifyESSchemaDimensions(ctx context.Context, indexName 
 	if err != nil {
 		return fmt.Errorf("read schema verification response: %w", err)
 	}
-	// 解析 mapping properties 以提取实际维度
+	// D3: 使用 json.Decoder.UseNumber 解析，保留 JSON 数字为 json.Number（而非 float64）
+	// 这样 strictDims 可以正确区分整数和浮点数
+	dec := json.NewDecoder(bytes.NewReader(bodyBytes))
+	dec.UseNumber()
 	var result map[string]struct {
 		Mappings struct {
 			Properties map[string]map[string]any `json:"properties"`
 		} `json:"mappings"`
 	}
-	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
+	if err := dec.Decode(&result); err != nil {
 		return fmt.Errorf("unmarshal schema verification response: %w", err)
 	}
 	state, ok := result[indexName]
 	if !ok {
 		return fmt.Errorf("index %q not found in schema verification response", indexName)
 	}
-	for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
-		prop, fieldOK := state.Mappings.Properties[field]
+	// 构建 FieldInfo map 供 ValidateSchemaStrict 使用
+	fields := make(map[string]FieldInfo)
+	for _, fieldName := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
+		prop, fieldOK := state.Mappings.Properties[fieldName]
 		if !fieldOK {
-			return fmt.Errorf("field %q missing from mapping properties", field)
+			continue // 缺失字段由 ValidateSchemaStrict 检测
 		}
-		dimsVal, dimsOK := prop["dims"]
-		if !dimsOK {
-			return fmt.Errorf("field %q missing dims in mapping", field)
+		fi := FieldInfo{}
+		if ft, ok := prop["type"].(string); ok {
+			fi.FieldType = ft
 		}
-		// JSON number 解析为 float64
-		actualDims, ok := dimsVal.(float64)
-		if !ok {
-			return fmt.Errorf("field %q dims is not a number: %v", field, dimsVal)
+		// ES 返回 dims 为整数（JSON number → float64 via interface{}）
+		if dimsVal, ok := prop["dims"]; ok {
+			fi.Dims = dimsVal
 		}
-		if int(actualDims) != expectedDims {
-			return fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
-				ErrFingerprintMismatch, field, expectedDims, int(actualDims))
+		// ES 的 similarity 在 index_options 或顶层
+		if simVal, ok := prop["similarity"].(string); ok {
+			fi.Distance = simVal
 		}
+		fields[fieldName] = fi
 	}
-	return nil
-}
-
-// mustJSON 将值序列化为 JSON 字符串（用于构造 PutMapping body）。
-func mustJSON(v any) string {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(fmt.Sprintf("mustJSON: %v", err))
-	}
-	return string(b)
-}
-
-// mustJSONString 将字符串序列化为 JSON 字符串（带引号）。
-func mustJSONString(s string) string {
-	b, err := json.Marshal(s)
-	if err != nil {
-		panic(fmt.Sprintf("mustJSONString: %v", err))
-	}
-	return string(b)
+	return ValidateSchemaStrict(fp, fields)
 }
 
 // IndexExists 检查索引是否存在
@@ -457,14 +410,14 @@ func (s *ESVectorStore) WriteFingerprint(ctx context.Context, indexName string, 
 
 // ReadFingerprint reads the fingerprint from ES _meta field.
 // F4: Returns both fingerprint and resourceID.
-// R2: Verifies _meta.go-rag-resource-id matches settings.index.uuid.
+// D2: resourceID comes from settings.index.uuid (physical ES identity), NOT from _meta.
+// D3: Schema validation uses ValidateSchemaStrict (no silent skipping).
 // R6: Full context propagation to all ES API calls.
-// C4: Schema validation — verifies actual vector dimensions match fingerprint.
 func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*Fingerprint, string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, "", err
 	}
-	// Use get index API to read mapping with _meta (R6: pass ctx)
+	// Use get index API to read mapping with _meta and settings (R6: pass ctx)
 	res, err := s.client.Indices.Get(
 		[]string{indexName},
 		s.client.Indices.Get.WithContext(ctx),
@@ -488,7 +441,10 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 		return nil, "", fmt.Errorf("get index failed: %s", res.String())
 	}
 
-	// Parse response — include _meta, settings.index.uuid, and mapping properties for schema validation (C4)
+	// D3: 使用 json.Decoder.UseNumber 解析，保留 JSON 数字为 json.Number（而非 float64）
+	// 这样 strictDims 可以正确区分整数和浮点数
+	dec := json.NewDecoder(bytes.NewReader(bodyBytes))
+	dec.UseNumber()
 	var result map[string]struct {
 		Mappings struct {
 			Meta       map[string]any            `json:"_meta"`
@@ -500,7 +456,7 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 			} `json:"index"`
 		} `json:"settings"`
 	}
-	if err := sonic.Unmarshal(bodyBytes, &result); err != nil {
+	if err := dec.Decode(&result); err != nil {
 		return nil, "", fmt.Errorf("%w: decode response: %v", ErrFingerprintCorrupted, err)
 	}
 	// Extract _meta of the index
@@ -525,36 +481,33 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 	if err != nil {
 		return nil, "", err
 	}
-	// Extract resourceID from _meta
-	var resourceID string
-	if rid, ok := indexState.Mappings.Meta["go-rag-resource-id"].(string); ok {
-		resourceID = rid
-	}
-	// R2: Verify resourceID matches actual ES index UUID
-	actualUUID := indexState.Settings.Index.UUID
-	if resourceID != "" && actualUUID != "" && resourceID != actualUUID {
-		return nil, "", fmt.Errorf("%w: resource-id mismatch (meta=%s, actual=%s)",
-			ErrFingerprintCorrupted, resourceID, actualUUID)
-	}
-	// C4: Schema validation — verify actual vector dimensions match fingerprint
-	for _, field := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
-		prop, fieldOK := indexState.Mappings.Properties[field]
+
+	// D2: resourceID 来自 settings.index.uuid（ES 物理资源标识），不从 _meta 读取
+	resourceID := indexState.Settings.Index.UUID
+
+	// D3: 严格 schema 验证（不再用 continue 跳过缺失字段）
+	fields := make(map[string]FieldInfo)
+	for _, fieldName := range []string{coretypes.FieldContentVector, coretypes.FieldQAContentVector} {
+		prop, fieldOK := indexState.Mappings.Properties[fieldName]
 		if !fieldOK {
-			continue // field missing from mapping — skip (schema might be old)
+			continue // 缺失字段由 ValidateSchemaStrict 检测
 		}
-		dimsVal, dimsOK := prop["dims"]
-		if !dimsOK {
-			continue
+		fi := FieldInfo{}
+		if ft, ok := prop["type"].(string); ok {
+			fi.FieldType = ft
 		}
-		actualDims, ok := dimsVal.(float64)
-		if !ok {
-			continue
+		if dimsVal, ok := prop["dims"]; ok {
+			fi.Dims = dimsVal
 		}
-		if int(actualDims) != fp.Dimensions {
-			return nil, "", fmt.Errorf("%w: field %q expected dims=%d, got dims=%d",
-				ErrFingerprintMismatch, field, fp.Dimensions, int(actualDims))
+		if simVal, ok := prop["similarity"].(string); ok {
+			fi.Distance = simVal
 		}
+		fields[fieldName] = fi
 	}
+	if schemaErr := ValidateSchemaStrict(fp, fields); schemaErr != nil {
+		return nil, "", schemaErr
+	}
+
 	return fp, resourceID, nil
 }
 

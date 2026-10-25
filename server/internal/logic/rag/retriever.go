@@ -79,13 +79,13 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	var qdrantClient *qdrant.Client
 
 	if esStore, ok := vs.(*vector.ESVectorStore); ok {
+
 		client = esStore.GetClient()
 	} else if qdrantStore, ok := vs.(*vector.QdrantVectorStore); ok {
 		qdrantClient = qdrantStore.GetClient()
 	}
 
 	// B5: Registry 先作为构建上下文，core.New 成功后才发布。
-	// 失败回滚，不影响旧实例。
 	var reg providers.ProviderRegistry
 	if cfg.Provider != nil {
 		var err error
@@ -93,20 +93,9 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		if err != nil {
 			return nil, fmt.Errorf("build provider registry: %w", err)
 		}
-		// 不在此处 SetRegistry —— 等 core.New 成功后才发布
 	}
 
-	// C1: Single existence check — error is NOT discarded
-	tmpConf := &config.Config{
-		Client:       client,
-		QdrantClient: qdrantClient,
-		IndexName:    cfg.VectorCfg.IndexName,
-	}
-	indexExisted, err := tmpConf.IndexExists(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("fingerprint: cannot check index existence: %w", err)
-	}
-
+	// D1: 计算 fingerprint（用于受控创建）
 	confForNew := &config.Config{
 		Client:                client,
 		QdrantClient:          qdrantClient,
@@ -124,41 +113,42 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		Registry:              reg,
 	}
 
-	rag, err := core.New(ctx, confForNew)
-	if err != nil {
-		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
-		return nil, err
+	fp, fpErr := core.ComputeFingerprintMeta(confForNew)
+	if fpErr != nil {
+		return nil, fmt.Errorf("compute fingerprint: %w", fpErr)
 	}
 
-	// C1/C2/C3: Unified controlled creation flow
+	// D1: Single existence check — error propagated
+	indexExisted, err := confForNew.IndexExists(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fingerprint: cannot check index existence: %w", err)
+	}
+
+	// D1: 受控创建在 core.New 之前（防止 SDK ensureCollection 抢先创建 unnamed collection）
 	if !indexExisted {
-		// Compute fingerprint for atomic creation
-		fp, fpErr := core.ComputeFingerprintMeta(confForNew)
-		if fpErr != nil {
-			return nil, fmt.Errorf("compute fingerprint: %w", fpErr)
-		}
-		// CreateIndex with atomic fingerprint (C3: no separate WriteFingerprint)
 		createErr := vs.CreateIndex(ctx, cfg.VectorCfg.IndexName, fp)
 		if createErr != nil {
 			if errors.Is(createErr, vector.ErrIndexAlreadyExists) {
-				// Concurrent creation — go to verification path
-				if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
-					return nil, verifyErr
-				}
+				// 并发创建 — 继续走验证路径
+				g.Log().Infof(ctx, "Index %q concurrent creation detected, falling through to verification",
+					cfg.VectorCfg.IndexName)
 			} else {
 				return nil, fmt.Errorf("fingerprint: controlled creation failed: %w", createErr)
 			}
-		} else {
-			// Creation succeeded — verify what was created
-			if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
-				return nil, verifyErr
-			}
 		}
-	} else {
-		// Already exists — read-only verification, no identity writing
-		if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
-			return nil, verifyErr
-		}
+	}
+
+	// D1: core.New 在 CreateIndex 之后（SDK ensureCollection 发现 collection 已存在，跳过创建）
+	rag, err := core.New(ctx, confForNew)
+	if err != nil {
+		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
+		// D2: 不删除资源（无所有权证明）
+		return nil, err
+	}
+
+	// 验证 fingerprint（只读路径，无论创建还是已存在）
+	if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+		return nil, verifyErr
 	}
 
 	// B5: core.New 成功后才发布 Registry

@@ -137,7 +137,7 @@ func (s *QdrantVectorStore) CreateIndex(ctx context.Context, indexName string, f
 		if extractErr != nil {
 			return fmt.Errorf("extract schema info for verification: %w", extractErr)
 		}
-		if schemaErr := ValidateSchemaStrict(fp, fields); schemaErr != nil {
+		if schemaErr := ValidateSchemaStrict(fp, fields, "qdrant"); schemaErr != nil {
 			return schemaErr
 		}
 
@@ -570,7 +570,7 @@ func (s *QdrantVectorStore) ReadFingerprint(ctx context.Context, indexName strin
 		if extractErr != nil {
 			return nil, "", fmt.Errorf("extract schema info: %w", extractErr)
 		}
-		if schemaErr := ValidateSchemaStrict(fp, fields); schemaErr != nil {
+		if schemaErr := ValidateSchemaStrict(fp, fields, "qdrant"); schemaErr != nil {
 			return nil, "", schemaErr
 		}
 	}
@@ -606,8 +606,26 @@ func isQdrantAlreadyExists(err error) bool {
 		strings.Contains(msg, "collection already exists")
 }
 
+// mapQdrantDistance maps Qdrant distance enum values to their string representation.
+// All known enums are mapped; unknown values return an error (fail closed).
+func mapQdrantDistance(d qdrant.Distance) (string, error) {
+	switch d {
+	case qdrant.Distance_Cosine:
+		return "Cosine", nil
+	case qdrant.Distance_Dot:
+		return "Dot", nil
+	case qdrant.Distance_Euclid:
+		return "Euclid", nil
+	case qdrant.Distance_Manhattan:
+		return "Manhattan", nil
+	default:
+		return "", fmt.Errorf("unknown Qdrant distance enum: %d", d)
+	}
+}
+
 // extractQdrantFieldInfo extracts FieldInfo map from Qdrant collection info for ValidateSchemaStrict.
 // D3: Returns error if required config/named vectors are missing (fail closed).
+// E1: All distance enums mapped; unknown distance returns error.
 func extractQdrantFieldInfo(info *qdrant.CollectionInfo) (map[string]FieldInfo, error) {
 	if info == nil || info.GetConfig() == nil || info.GetConfig().GetParams() == nil {
 		return nil, fmt.Errorf("collection has no config params")
@@ -629,14 +647,11 @@ func extractQdrantFieldInfo(info *qdrant.CollectionInfo) (map[string]FieldInfo, 
 			Dims: int64(params.GetSize()),
 		}
 		// Map Qdrant distance to string for ValidateSchemaStrict
-		switch params.GetDistance() {
-		case qdrant.Distance_Cosine:
-			fi.Distance = "Cosine"
-		case qdrant.Distance_Dot:
-			fi.Distance = "Dot"
-		case qdrant.Distance_Euclid:
-			fi.Distance = "Euclid"
+		distStr, mapErr := mapQdrantDistance(params.GetDistance())
+		if mapErr != nil {
+			return nil, mapErr
 		}
+		fi.Distance = distStr
 		fields[name] = fi
 	}
 	return fields, nil

@@ -2690,3 +2690,115 @@ func TestIndex_BackgroundCleanupBeforeDone(t *testing.T) {
 	calls := su.getCalls()
 	_ = calls
 }
+
+// --- E3: Post-write resource verification tests ---
+
+// TestE3_Index_PostWriteVerify_ResourceReplaced verifies that Index detects
+// resource replacement during the sync indexing operation.
+// The onInvoke callback changes the resourceID during syncIndexer.invoke,
+// which is between checkFingerprint and verifyBoundResource.
+func TestE3_Index_PostWriteVerify_ResourceReplaced(t *testing.T) {
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+		resourceID: "original-resource",
+	}
+
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	r := &Rag{
+		syncIndexer: &fakeSyncIndexer{
+			ids: []string{"id1"},
+			onInvoke: func(ctx context.Context, knowledgeName string, source document.Source) ([]string, error) {
+				// Simulate resource replacement during the sync indexing operation.
+				// This happens between checkFingerprint (before) and verifyBoundResource (after).
+				fakeVS.mu.Lock()
+				fakeVS.resourceID = "replaced-resource"
+				fakeVS.mu.Unlock()
+				return []string{"id1"}, nil
+			},
+		},
+		asyncIndexer:  &fakeAsyncIndexer{},
+		bgRootCtx:     bgRootCtx,
+		bgRootCancel:  bgRootCancel,
+		bgSem:         make(chan struct{}, 8),
+		done:          make(chan struct{}),
+		taskTimeout:   5 * time.Minute,
+		maxBackground: 8,
+		vectorStore:   fakeVS,
+		boundResourceID: "original-resource", // E3: bound to original resource
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
+	}
+
+	_, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	if err == nil {
+		t.Fatal("E3: Index should fail when resource is replaced during operation")
+	}
+	if !errors.Is(err, vector.ErrResourceReplaced) {
+		t.Errorf("E3: expected ErrResourceReplaced, got: %v", err)
+	}
+}
+
+// TestE3_Index_PostWriteVerify_ResourceUnchanged_Success verifies that Index succeeds
+// when the resourceID remains unchanged during the operation.
+func TestE3_Index_PostWriteVerify_ResourceUnchanged_Success(t *testing.T) {
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+		resourceID: "stable-resource",
+	}
+
+	bgRootCtx, bgRootCancel := context.WithCancel(context.Background())
+	asyncDone := make(chan struct{})
+	r := &Rag{
+		syncIndexer: &fakeSyncIndexer{ids: []string{"id1"}},
+		asyncIndexer: &fakeAsyncIndexer{
+			onIndex: func(ctx context.Context, knowledgeName string, documentsID int64, docsIDs []string) error {
+				defer close(asyncDone)
+				return nil
+			},
+		},
+		bgRootCtx:     bgRootCtx,
+		bgRootCancel:  bgRootCancel,
+		bgSem:         make(chan struct{}, 8),
+		done:          make(chan struct{}),
+		taskTimeout:   5 * time.Minute,
+		maxBackground: 8,
+		vectorStore:   fakeVS,
+		boundResourceID: "stable-resource", // Bound to same resource
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
+	}
+	r.asyncWait = func(ctx context.Context) {}
+
+	ids, err := r.Index(context.Background(), &IndexReq{URI: "test.pdf", KnowledgeName: "kb1", DocumentsId: 1})
+	if err != nil {
+		t.Fatalf("E3: Index with unchanged resource should succeed, got: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 id, got %d", len(ids))
+	}
+
+	// Wait for background to finish
+	<-asyncDone
+}

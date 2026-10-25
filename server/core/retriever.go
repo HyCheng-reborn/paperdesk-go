@@ -46,6 +46,7 @@ type RetrieveReq struct {
 
 // Retrieve 检索
 // B5: 入口创建 RequestBudget 并注入 ctx，使下游所有模型调用共享同一累计 owner。
+// E3: Post-read verification detects resource replacement during search operation.
 func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
 	// 输入校验
 	if req == nil {
@@ -188,7 +189,17 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 	}
 
 	// 单一流程聚合
-	return aggregateResults(allResults, req.TopK)
+	allResults, aggErr := aggregateResults(allResults, req.TopK)
+	if aggErr != nil {
+		return nil, fmt.Errorf("aggregate results: %w", aggErr)
+	}
+
+	// E3: Post-read verification — detect resource replacement during search.
+	if verifyErr := x.verifyBoundResource(ctx); verifyErr != nil {
+		return nil, fmt.Errorf("post-read resource verification failed: %w", verifyErr)
+	}
+
+	return allResults, nil
 }
 
 // aggregateResults 聚合多轮检索结果：同 ID 保留最高分，按分数降序排序，截取 TopK

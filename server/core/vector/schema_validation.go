@@ -3,14 +3,13 @@ package vector
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // FieldInfo represents a vector field's schema properties for strict validation.
 type FieldInfo struct {
 	FieldType string      // "dense_vector" for ES, "" for Qdrant (named vector)
 	Dims      interface{} // json.Number, int64, float64, string, or nil — strict type check
-	Distance  string      // ES: "cosine"/"dot_product"/"l2_norm"; Qdrant: "Cosine"/"Dot"/"Euclid"
+	Distance  string      // ES: "cosine"/"dot_product"/"l2_norm"; Qdrant: "Cosine"/"Dot"/"Euclid"/"Manhattan"
 	Index     *bool       // ES dense_vector index property (nil = not set)
 }
 
@@ -20,7 +19,10 @@ var RequiredVectorFields = []string{"content_vector", "qa_content_vector"}
 // ValidateSchemaStrict validates that the actual schema matches the fingerprint declaration.
 // Missing/invalid/unknown fields → error. No silent skipping.
 // Used by both ES and Qdrant CreateIndex (post-creation verification) and ReadFingerprint (runtime verification).
-func ValidateSchemaStrict(fp *Fingerprint, fields map[string]FieldInfo) error {
+// backend parameter distinguishes ES vs Qdrant semantics:
+//   - "es": FieldType must be "dense_vector"; Distance uses ES names (cosine/dot_product/l2_norm)
+//   - "qdrant": FieldType ignored (named vectors don't have type); Distance uses Qdrant names (Cosine/Dot/Euclid/Manhattan)
+func ValidateSchemaStrict(fp *Fingerprint, fields map[string]FieldInfo, backend string) error {
 	if fp == nil {
 		return fmt.Errorf("ValidateSchemaStrict: nil fingerprint")
 	}
@@ -36,10 +38,13 @@ func ValidateSchemaStrict(fp *Fingerprint, fields map[string]FieldInfo) error {
 	for _, name := range RequiredVectorFields {
 		fi := fields[name]
 
-		// Field type check (ES only — Qdrant named vectors don't have type)
-		if fi.FieldType != "" && fi.FieldType != "dense_vector" {
-			return fmt.Errorf("%w: field %q type %q, expected dense_vector", ErrFingerprintMismatch, name, fi.FieldType)
+		// Field type check: ES requires "dense_vector"; Qdrant ignores (named vectors don't have type)
+		if backend == "es" {
+			if fi.FieldType != "dense_vector" {
+				return fmt.Errorf("%w: field %q type %q, expected dense_vector", ErrFingerprintMismatch, name, fi.FieldType)
+			}
 		}
+		// Qdrant: FieldType ignored (named vectors don't have type field)
 
 		// Dimensions — strict integer check
 		dims, err := strictDims(fi.Dims)
@@ -50,12 +55,13 @@ func ValidateSchemaStrict(fp *Fingerprint, fields map[string]FieldInfo) error {
 			return fmt.Errorf("%w: field %q dims %d, expected %d", ErrFingerprintMismatch, name, dims, fp.Dimensions)
 		}
 
-		// Distance/similarity mapping
-		if fi.Distance != "" {
-			if !distanceMatchesSimilarity(fi.Distance, fp.Similarity) {
-				return fmt.Errorf("%w: field %q distance %q doesn't match similarity %q",
-					ErrFingerprintMismatch, name, fi.Distance, fp.Similarity)
-			}
+		// Distance/similarity mapping — REQUIRED (no empty bypass)
+		if fi.Distance == "" {
+			return fmt.Errorf("%w: field %q has no distance/similarity info", ErrFingerprintMismatch, name)
+		}
+		if !distanceMatchesSimilarity(fi.Distance, fp.Similarity) {
+			return fmt.Errorf("%w: field %q distance %q doesn't match similarity %q",
+				ErrFingerprintMismatch, name, fi.Distance, fp.Similarity)
 		}
 	}
 
@@ -101,17 +107,30 @@ func strictDims(v interface{}) (int, error) {
 // distanceMatchesSimilarity checks if a backend-specific distance string matches
 // the fingerprint's similarity metric.
 // ES distances: "cosine", "dot_product", "l2_norm"
-// Qdrant distances: "Cosine", "Dot", "Euclid"
+// Qdrant distances: "Cosine", "Dot", "Euclid", "Manhattan"
 // Fingerprint similarities: "cosine", "dot", "euclidean"
+// Unknown distance values → false (reject).
 func distanceMatchesSimilarity(distance, similarity string) bool {
-	switch strings.ToLower(distance) {
+	switch distance {
+	// ES names
 	case "cosine":
 		return similarity == "cosine"
-	case "dot_product", "dot":
+	case "dot_product":
 		return similarity == "dot"
-	case "l2_norm", "euclid":
+	case "l2_norm":
 		return similarity == "euclidean"
+	// Qdrant names
+	case "Cosine":
+		return similarity == "cosine"
+	case "Dot":
+		return similarity == "dot"
+	case "Euclid":
+		return similarity == "euclidean"
+	case "Manhattan":
+		// Manhattan doesn't match any currently supported similarity metric
+		return false
 	default:
+		// Unknown distance → reject
 		return false
 	}
 }

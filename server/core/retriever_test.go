@@ -951,3 +951,99 @@ func TestRetrieve_SameScoreSortByID(t *testing.T) {
 		t.Fatalf("third doc should be d-c, got %s", docs[2].ID)
 	}
 }
+
+// --- E3: Post-read resource verification tests ---
+
+// TestE3_Retrieve_PostReadVerify_ResourceReplaced verifies that Retrieve detects
+// resource replacement during the search operation.
+func TestE3_Retrieve_PostReadVerify_ResourceReplaced(t *testing.T) {
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+		resourceID: "original-resource",
+	}
+
+	cm := &fakeChatModel{queries: []string{"query"}}
+	dr := &fakeDocRetriever{
+		onRetrieve: func(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+			// Simulate resource replacement during search (between checkFingerprint and verifyBoundResource)
+			fakeVS.mu.Lock()
+			fakeVS.resourceID = "replaced-resource"
+			fakeVS.mu.Unlock()
+			return []*schema.Document{{ID: "doc1", Content: "result"}}, nil
+		},
+	}
+
+	r := &Rag{
+		docRet:        dr,
+		rwModel:       cm,
+		cm:            cm,
+		vectorStore:   fakeVS,
+		boundResourceID: "original-resource",
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
+	}
+
+	_, err := r.Retrieve(context.Background(), &RetrieveReq{Query: "test", TopK: 10, KnowledgeName: "kb"})
+	if err == nil {
+		t.Fatal("E3: Retrieve should fail when resource is replaced during operation")
+	}
+	if !errors.Is(err, vector.ErrResourceReplaced) {
+		t.Errorf("E3: expected ErrResourceReplaced, got: %v", err)
+	}
+}
+
+// TestE3_Retrieve_PostReadVerify_ResourceUnchanged_Success verifies that Retrieve succeeds
+// when the resourceID remains unchanged during the operation.
+func TestE3_Retrieve_PostReadVerify_ResourceUnchanged_Success(t *testing.T) {
+	fakeVS := &fakeVectorStore{
+		indexExists: true,
+		fingerprint: &vector.Fingerprint{
+			Version:          "v1",
+			EmbeddingModelID: "test-model",
+			Dimensions:       1024,
+			ProviderName:     "test",
+			Similarity:       "cosine",
+		},
+		resourceID: "stable-resource",
+	}
+
+	cm := &fakeChatModel{queries: []string{"query"}}
+	dr := &fakeDocRetriever{
+		results: map[string][]*schema.Document{
+			"query": {{ID: "doc1", Content: "result"}},
+		},
+	}
+
+	r := &Rag{
+		docRet:        dr,
+		rwModel:       cm,
+		cm:            cm,
+		vectorStore:   fakeVS,
+		boundResourceID: "stable-resource",
+		conf: &config.Config{
+			IndexName:           "test-index",
+			EmbeddingModel:      "test-model",
+			EmbeddingDimensions: 1024,
+			Provider:            &config.ProviderConfig{Name: "test"},
+		},
+	}
+
+	docs, err := r.Retrieve(context.Background(), &RetrieveReq{Query: "test", TopK: 10, KnowledgeName: "kb"})
+	if err != nil {
+		t.Fatalf("E3: Retrieve with unchanged resource should succeed, got: %v", err)
+	}
+	if len(docs) != 1 {
+		t.Fatalf("expected 1 doc, got %d", len(docs))
+	}
+}

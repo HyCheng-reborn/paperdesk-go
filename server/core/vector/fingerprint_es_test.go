@@ -1088,3 +1088,193 @@ func TestES_CreateIndex_ResourceNotOverwritten(t *testing.T) {
 		t.Errorf("D2: replacement UUID should not be overwritten, got %q", uuid)
 	}
 }
+
+// --- E1: ES ReadFingerprint schema validation entry tests ---
+
+// TestES_ReadFingerprint_MissingFieldType verifies that ReadFingerprint rejects
+// an index where the vector field has no "type" property (empty FieldType).
+func TestES_ReadFingerprint_MissingFieldType(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Properties missing "type" field on content_vector
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists: true,
+		uuid:   "e1-missing-type-uuid",
+		meta: map[string]any{
+			"go-rag-fingerprint": fpMap,
+		},
+		properties: map[string]map[string]any{
+			// content_vector has no "type" key — FieldType will be empty
+			"content_vector":     {"dims": json.Number("1024"), "similarity": "cosine"},
+			"qa_content_vector": {"type": "dense_vector", "dims": json.Number("1024"), "similarity": "cosine"},
+		},
+	}
+	fake.mu.Unlock()
+
+	_, _, err := store.ReadFingerprint(ctx, "test-index")
+	if err == nil {
+		t.Fatal("ReadFingerprint should fail when field type is missing")
+	}
+	if !errors.Is(err, ErrFingerprintMismatch) {
+		t.Errorf("E1: expected ErrFingerprintMismatch, got: %v", err)
+	}
+}
+
+// TestES_ReadFingerprint_NonStringFieldType verifies that ReadFingerprint rejects
+// an index where the vector field "type" is not a string (e.g. numeric).
+func TestES_ReadFingerprint_NonStringFieldType(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Properties with non-string "type" (numeric instead of string)
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists: true,
+		uuid:   "e1-nonstring-type-uuid",
+		meta: map[string]any{
+			"go-rag-fingerprint": fpMap,
+		},
+		properties: map[string]map[string]any{
+			// type is a number, not a string — type assertion fails → FieldType stays empty
+			"content_vector":     {"type": float64(123), "dims": json.Number("1024"), "similarity": "cosine"},
+			"qa_content_vector": {"type": "dense_vector", "dims": json.Number("1024"), "similarity": "cosine"},
+		},
+	}
+	fake.mu.Unlock()
+
+	_, _, err := store.ReadFingerprint(ctx, "test-index")
+	if err == nil {
+		t.Fatal("ReadFingerprint should fail when field type is non-string")
+	}
+	if !errors.Is(err, ErrFingerprintMismatch) {
+		t.Errorf("E1: expected ErrFingerprintMismatch for non-string type, got: %v", err)
+	}
+}
+
+// TestES_ReadFingerprint_MissingSimilarity verifies that ReadFingerprint rejects
+// an index where the vector field has no "similarity" property (empty Distance).
+func TestES_ReadFingerprint_MissingSimilarity(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Properties missing "similarity" field
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists: true,
+		uuid:   "e1-missing-sim-uuid",
+		meta: map[string]any{
+			"go-rag-fingerprint": fpMap,
+		},
+		properties: map[string]map[string]any{
+			// No "similarity" key — Distance will be empty
+			"content_vector":     {"type": "dense_vector", "dims": json.Number("1024")},
+			"qa_content_vector": {"type": "dense_vector", "dims": json.Number("1024"), "similarity": "cosine"},
+		},
+	}
+	fake.mu.Unlock()
+
+	_, _, err := store.ReadFingerprint(ctx, "test-index")
+	if err == nil {
+		t.Fatal("ReadFingerprint should fail when similarity is missing")
+	}
+	if !errors.Is(err, ErrFingerprintMismatch) {
+		t.Errorf("E1: expected ErrFingerprintMismatch for missing similarity, got: %v", err)
+	}
+}
+
+// TestES_ReadFingerprint_WrongSimilarity verifies that ReadFingerprint rejects
+// an index where similarity is dot_product but fingerprint declares cosine.
+func TestES_ReadFingerprint_WrongSimilarity(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint() // similarity=cosine
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Properties with dot_product similarity but fingerprint says cosine
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists: true,
+		uuid:   "e1-wrong-sim-uuid",
+		meta: map[string]any{
+			"go-rag-fingerprint": fpMap,
+		},
+		properties: map[string]map[string]any{
+			"content_vector":     {"type": "dense_vector", "dims": json.Number("1024"), "similarity": "dot_product"},
+			"qa_content_vector": {"type": "dense_vector", "dims": json.Number("1024"), "similarity": "dot_product"},
+		},
+	}
+	fake.mu.Unlock()
+
+	_, _, err := store.ReadFingerprint(ctx, "test-index")
+	if err == nil {
+		t.Fatal("ReadFingerprint should fail when similarity doesn't match fingerprint")
+	}
+	if !errors.Is(err, ErrFingerprintMismatch) {
+		t.Errorf("E1: expected ErrFingerprintMismatch for wrong similarity, got: %v", err)
+	}
+}
+
+// TestES_ReadFingerprint_ValidSchema_Success verifies that ReadFingerprint succeeds
+// with a valid schema matching the fingerprint (cosine + dense_vector + correct dims).
+func TestES_ReadFingerprint_ValidSchema_Success(t *testing.T) {
+	fake := newFakeEServer()
+	store, server := newTestESVectorStore(t, fake)
+	defer server.Close()
+	ctx := context.Background()
+
+	fp := testFingerprint()
+	fpJSON, _ := fp.MarshalJSON()
+	var fpMap map[string]any
+	json.Unmarshal(fpJSON, &fpMap)
+
+	// Valid properties matching fingerprint
+	fake.mu.Lock()
+	fake.indices["test-index"] = &fakeESIndexState{
+		exists: true,
+		uuid:   "e1-valid-uuid",
+		meta: map[string]any{
+			"go-rag-fingerprint": fpMap,
+		},
+		properties: defaultTestProperties(),
+	}
+	fake.mu.Unlock()
+
+	readFP, resourceID, err := store.ReadFingerprint(ctx, "test-index")
+	if err != nil {
+		t.Fatalf("E1: ReadFingerprint with valid schema should succeed, got: %v", err)
+	}
+	if resourceID != "e1-valid-uuid" {
+		t.Errorf("resourceID = %q, want %q", resourceID, "e1-valid-uuid")
+	}
+	if !fp.Equal(readFP) {
+		t.Errorf("fingerprint mismatch: got %+v, want %+v", readFP, fp)
+	}
+}

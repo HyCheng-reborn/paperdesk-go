@@ -227,7 +227,7 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 
 ## 状态
 
-2C-2 R1-R7 修复完成，待第三轮独立复核。
+2C-2 R1-R7 修复完成，D1-D4 修复完成，E1-E3 修复完成，待第六轮独立复核。
 
 ## 附录：独立复核阻塞修复记录（F1-F8）
 
@@ -285,3 +285,38 @@ IndexAsync() → checkFingerprint() → embedding → vector store
 **Qdrant**：SQL 中随机生成的 UUID 无法证明 collection 的化身（incarnation）——外部删除并重建同名 collection 后 SQL 记录仍相同。当前最小契约是 SQL resourceID + Ready 标志 + collection 存在性检查；完整化身追踪（例如基于 Qdrant collection info 的 immutable ID）推迟到设计 §5.8。
 
 状态：2C-2 D1-D4 修复完成，待第五轮独立复核。
+
+## 附录 E1-E3：第五轮独立复核修复（基线 79ea0ab）
+
+### E1：Schema 校验空值旁路消除
+
+**问题**：`ValidateSchemaStrict` 中 `Distance` 为空字符串时跳过距离比较，`FieldType` 为空时跳过类型检查。ES 和 Qdrant 的提取路径在字段缺失/类型错误/未知枚举时产生空字符串，导致非法 schema 通过校验（包括合法 Manhattan 距离被当作 cosine 接受）。
+
+**修复**：
+- `schema_validation.go`：添加 `backend` 参数区分 ES/Qdrant 语义；`Distance` 改为必填（空即拒绝）；ES `FieldType` 必填且必须为 `dense_vector`；Qdrant `FieldType` 忽略；扩展 `distanceMatchesSimilarity` 覆盖所有已知枚举，Manhattan 拒绝匹配任何支持的 similarity，未知枚举返回 false。
+- `es.go`：提取路径不再产生空 Distance/FieldType 旁路；`ValidateSchemaStrict` 调用传递 `"es"`。
+- `qdrant.go`：新增 `mapQdrantDistance` 映射所有 Qdrant 距离枚举（Cosine/Dot/Euclid/Manhattan），未知枚举返回 error；`ValidateSchemaStrict` 调用传递 `"qdrant"`。
+
+**测试**：所有回归测试通过 `ReadFingerprint` 入口验证完整提取→校验链路。
+
+### E2：Qdrant 图构造 SDK 自动创建消除
+
+**问题**：`NewQdrantIndexer` 构造 eino SDK `einoIndexer`，SDK 内部调用 `ensureCollection`。当 collection 在存在性检查后消失时，SDK 自动创建 unnamed collection。
+
+**修复**：
+- `qdrant_indexer.go`：核实 `einoIndexer` 未被 `Store` 使用（实际走 `StoreWithNamedVectors` 自定义实现），移除 `einoIndexer` 字段和 `einoqdrant.NewIndexer` 构造调用。集合创建完全由受控 `CreateIndex` 路径负责。
+
+### E3：操作后资源验证（Option A）
+
+**问题**：`IndexAsync` 在入口调用 `checkFingerprint` 验证一次，但后续 embedding + Store 操作使用逻辑索引名（可变）。如果 embedding 期间同名目标被替换（UUID A → UUID B），bulk 写入将模型 A 的向量写入资源 B。
+
+**修复**：
+- `rag.go`：新增 `verifyBoundResource` 方法，读取当前 resourceID 并与 `boundResourceID` 比对。
+- `indexer.go`：`Index` 和 `IndexAsync` 在实际操作完成后调用 `verifyBoundResource` 检测操作中资源替换。
+- `retriever.go`：`Retrieve` 在搜索聚合后调用 `verifyBoundResource`。
+
+**TOCTOU 限制**：`checkFingerprint`（入口）和 `verifyBoundResource`（操作后）之间存在时间窗口。完全原子绑定需要 Option C（不可变物理名称），需单独审批。
+
+**待决设计项**：
+- Option B：ES 条件写入（`if_seq_no` + `if_primary_term`），原子性保证，但需修改 ES bulk indexer 配置；Qdrant 无等效机制。
+- Option C：不可变物理名称（UUID 作为物理索引名 + 逻辑→物理映射表），从根本上消除名称复用问题，但需 DDL 迁移和重大架构变更。

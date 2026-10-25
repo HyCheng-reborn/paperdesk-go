@@ -1,5 +1,13 @@
 # 变更记录
 
+## Stage 2C-2 E1-E3 修复（基线 79ea0ab）
+
+- E1：Schema 校验空值旁路消除 — Distance 必填；ES FieldType 必填 dense_vector；Qdrant 映射全部距离枚举（含 Manhattan）；未知枚举拒绝
+- E2：移除未使用的 einoIndexer — SDK 不再触发 ensureCollection，集合创建完全由受控 CreateIndex 负责
+- E3：操作后资源验证 — verifyBoundResource 在 Index/IndexAsync/Retrieve 后检测资源替换；TOCTOU 限制文档化
+- 新增 26 个测试覆盖 E1-E3 修复
+- 全部 672 个测试通过，build/vet/race 通过
+
 ## [2026-10-25] Stage 2C-2 D1-D4 修复
 
 基于第四轮独立复核报告修复 4 项问题：

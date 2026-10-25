@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/qdrant/go-client/qdrant"
 	gormmodel "github.com/wangle201210/go-rag/server/internal/model/gorm"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -305,5 +306,185 @@ func TestQdrant_WriteFingerprint_AutoGenerateResourceID(t *testing.T) {
 	}
 	if resourceID == "" {
 		t.Error("auto-generated resourceID should not be empty")
+	}
+}
+
+// --- E1: Qdrant mapQdrantDistance tests ---
+
+func TestQdrant_MapDistance_UnknownEnum0_Error(t *testing.T) {
+	_, err := mapQdrantDistance(qdrant.Distance(0))
+	if err == nil {
+		t.Fatal("E1: unknown distance enum 0 should return error")
+	}
+	if !strings.Contains(err.Error(), "unknown Qdrant distance enum") {
+		t.Errorf("E1: expected 'unknown Qdrant distance enum' error, got: %v", err)
+	}
+}
+
+func TestQdrant_MapDistance_UnknownEnum99_Error(t *testing.T) {
+	_, err := mapQdrantDistance(qdrant.Distance(99))
+	if err == nil {
+		t.Fatal("E1: unknown distance enum 99 should return error")
+	}
+	if !strings.Contains(err.Error(), "unknown Qdrant distance enum") {
+		t.Errorf("E1: expected 'unknown Qdrant distance enum' error, got: %v", err)
+	}
+}
+
+func TestQdrant_MapDistance_AllKnown(t *testing.T) {
+	tests := []struct {
+		dist qdrant.Distance
+		want string
+	}{
+		{qdrant.Distance_Cosine, "Cosine"},
+		{qdrant.Distance_Dot, "Dot"},
+		{qdrant.Distance_Euclid, "Euclid"},
+		{qdrant.Distance_Manhattan, "Manhattan"},
+	}
+	for _, tt := range tests {
+		got, err := mapQdrantDistance(tt.dist)
+		if err != nil {
+			t.Errorf("mapQdrantDistance(%v) unexpected error: %v", tt.dist, err)
+		}
+		if got != tt.want {
+			t.Errorf("mapQdrantDistance(%v) = %q, want %q", tt.dist, got, tt.want)
+		}
+	}
+}
+
+// --- E1: Qdrant extractQdrantFieldInfo tests ---
+
+func TestQdrant_ExtractFieldInfo_NilInfo_Error(t *testing.T) {
+	_, err := extractQdrantFieldInfo(nil)
+	if err == nil {
+		t.Fatal("E1: nil CollectionInfo should return error")
+	}
+}
+
+func TestQdrant_ExtractFieldInfo_Manhattan_CosineFingerprint_Mismatch(t *testing.T) {
+	// E1: Manhattan distance should not match cosine similarity
+	info := &qdrant.CollectionInfo{
+		Config: &qdrant.CollectionConfig{
+			Params: &qdrant.CollectionParams{
+				VectorsConfig: &qdrant.VectorsConfig{
+					Config: &qdrant.VectorsConfig_ParamsMap{
+						ParamsMap: &qdrant.VectorParamsMap{
+							Map: map[string]*qdrant.VectorParams{
+								"content_vector": {
+									Size:     1024,
+									Distance: qdrant.Distance_Manhattan,
+								},
+								"qa_content_vector": {
+									Size:     1024,
+									Distance: qdrant.Distance_Manhattan,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fields, err := extractQdrantFieldInfo(info)
+	if err != nil {
+		t.Fatalf("extractQdrantFieldInfo: %v", err)
+	}
+
+	// ValidateSchemaStrict should reject Manhattan with cosine fingerprint
+	fp := testFingerprint() // similarity=cosine
+	schemaErr := ValidateSchemaStrict(fp, fields, "qdrant")
+	if schemaErr == nil {
+		t.Fatal("E1: Manhattan distance with cosine fingerprint should be rejected")
+	}
+	if !errors.Is(schemaErr, ErrFingerprintMismatch) {
+		t.Errorf("E1: expected ErrFingerprintMismatch, got: %v", schemaErr)
+	}
+}
+
+func TestQdrant_ExtractFieldInfo_ValidCosine_Success(t *testing.T) {
+	// E1: Valid Cosine distance with cosine fingerprint should succeed
+	info := &qdrant.CollectionInfo{
+		Config: &qdrant.CollectionConfig{
+			Params: &qdrant.CollectionParams{
+				VectorsConfig: &qdrant.VectorsConfig{
+					Config: &qdrant.VectorsConfig_ParamsMap{
+						ParamsMap: &qdrant.VectorParamsMap{
+							Map: map[string]*qdrant.VectorParams{
+								"content_vector": {
+									Size:     1024,
+									Distance: qdrant.Distance_Cosine,
+								},
+								"qa_content_vector": {
+									Size:     1024,
+									Distance: qdrant.Distance_Cosine,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fields, err := extractQdrantFieldInfo(info)
+	if err != nil {
+		t.Fatalf("extractQdrantFieldInfo: %v", err)
+	}
+
+	fp := testFingerprint() // similarity=cosine, dims=1024
+	schemaErr := ValidateSchemaStrict(fp, fields, "qdrant")
+	if schemaErr != nil {
+		t.Fatalf("E1: valid Cosine distance with cosine fingerprint should succeed, got: %v", schemaErr)
+	}
+}
+
+func TestQdrant_ExtractFieldInfo_UnknownDistance_Error(t *testing.T) {
+	// E1: Unknown distance enum (0) should return error from extractQdrantFieldInfo
+	info := &qdrant.CollectionInfo{
+		Config: &qdrant.CollectionConfig{
+			Params: &qdrant.CollectionParams{
+				VectorsConfig: &qdrant.VectorsConfig{
+					Config: &qdrant.VectorsConfig_ParamsMap{
+						ParamsMap: &qdrant.VectorParamsMap{
+							Map: map[string]*qdrant.VectorParams{
+								"content_vector": {
+									Size:     1024,
+									Distance: qdrant.Distance(0), // Unknown
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := extractQdrantFieldInfo(info)
+	if err == nil {
+		t.Fatal("E1: unknown distance enum 0 should return error from extractQdrantFieldInfo")
+	}
+	if !strings.Contains(err.Error(), "unknown Qdrant distance enum") {
+		t.Errorf("E1: expected 'unknown Qdrant distance enum' error, got: %v", err)
+	}
+}
+
+// --- E1: Qdrant distanceMatchesSimilarity integration ---
+
+func TestQdrant_DistanceMatchesSimilarity_Manhattan_AlwaysFalse(t *testing.T) {
+	// E1: Manhattan doesn't match any supported similarity
+	for _, sim := range []string{"cosine", "dot", "euclidean"} {
+		if distanceMatchesSimilarity("Manhattan", sim) {
+			t.Errorf("E1: Manhattan should not match %q", sim)
+		}
+	}
+}
+
+func TestQdrant_DistanceMatchesSimilarity_Unknown_AlwaysFalse(t *testing.T) {
+	// E1: Unknown distances always rejected
+	for _, dist := range []string{"hamming", "angular", ""} {
+		if distanceMatchesSimilarity(dist, "cosine") {
+			t.Errorf("E1: unknown distance %q should not match cosine", dist)
+		}
 	}
 }

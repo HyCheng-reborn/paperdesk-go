@@ -932,3 +932,176 @@ func TestD4_CheckFingerprint_SameFingerprintDifferentResourceID_Rejected(t *test
 		t.Errorf("D4: expected ErrResourceReplaced, got: %v", err)
 	}
 }
+
+// --- E3: verifyBoundResource tests ---
+
+// TestE3_VerifyBoundResource_MatchingResourceID_Success verifies that
+// verifyBoundResource succeeds when the stored resourceID matches boundResourceID.
+func TestE3_VerifyBoundResource_MatchingResourceID_Success(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "e3-match-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-match"
+
+	// Bind to resource-match
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+
+	// verifyBoundResource should succeed (resourceID still matches)
+	err = r.verifyBoundResource(context.Background())
+	if err != nil {
+		t.Errorf("E3: verifyBoundResource with matching resourceID should succeed, got: %v", err)
+	}
+}
+
+// TestE3_VerifyBoundResource_ChangedResourceID_Error verifies that
+// verifyBoundResource returns ErrResourceReplaced when resourceID changes.
+func TestE3_VerifyBoundResource_ChangedResourceID_Error(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "e3-change-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-A"
+
+	// Bind to resource-A
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+
+	// Simulate resource replacement after binding
+	vs.mu.Lock()
+	vs.resourceID = "resource-B"
+	vs.mu.Unlock()
+
+	// verifyBoundResource should detect the change
+	err = r.verifyBoundResource(context.Background())
+	if err == nil {
+		t.Fatal("E3: verifyBoundResource should detect resourceID change")
+	}
+	if !errors.Is(err, vector.ErrResourceReplaced) {
+		t.Errorf("E3: expected ErrResourceReplaced, got: %v", err)
+	}
+}
+
+// TestE3_VerifyBoundResource_EmptyResourceID_Error verifies that
+// verifyBoundResource fails closed when stored resourceID is empty.
+func TestE3_VerifyBoundResource_EmptyResourceID_Error(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "e3-empty-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "resource-A"
+
+	// Bind to resource-A
+	err := r.VerifyFingerprint(context.Background(), vs)
+	if err != nil {
+		t.Fatalf("VerifyFingerprint should succeed: %v", err)
+	}
+
+	// Simulate storage returning empty resourceID
+	vs.mu.Lock()
+	vs.resourceID = ""
+	vs.mu.Unlock()
+
+	// verifyBoundResource should fail closed
+	err = r.verifyBoundResource(context.Background())
+	if err == nil {
+		t.Fatal("E3: verifyBoundResource should fail with empty stored resourceID")
+	}
+}
+
+// TestE3_VerifyBoundResource_EmptyBoundResourceID_Skip verifies that
+// verifyBoundResource skips verification when boundResourceID is empty (backward compat).
+func TestE3_VerifyBoundResource_EmptyBoundResourceID_Skip(t *testing.T) {
+	vs := &fakeVectorStore{indexExists: true}
+	conf := &config.Config{
+		IndexName:           "e3-skip-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := newTestRagWithFingerprint(nil, nil, vs, conf)
+
+	// Don't call VerifyFingerprint — boundResourceID stays empty
+	// (simulates test setup or pre-VerifyFingerprint state)
+
+	fp := &vector.Fingerprint{
+		Version:          "v1",
+		EmbeddingModelID: "text-embedding-v4",
+		Dimensions:       1024,
+		ProviderName:     "unknown",
+		Similarity:       "cosine",
+	}
+	vs.fingerprint = fp
+	vs.resourceID = "some-resource"
+
+	// verifyBoundResource should skip (return nil) when boundResourceID is empty
+	err := r.verifyBoundResource(context.Background())
+	if err != nil {
+		t.Errorf("E3: verifyBoundResource with empty boundResourceID should skip (return nil), got: %v", err)
+	}
+}
+
+// TestE3_VerifyBoundResource_NilVectorStore_Error verifies that
+// verifyBoundResource returns error when vectorStore is nil.
+func TestE3_VerifyBoundResource_NilVectorStore_Error(t *testing.T) {
+	conf := &config.Config{
+		IndexName:           "e3-nil-vs-index",
+		EmbeddingModel:      "text-embedding-v4",
+		EmbeddingDimensions: 1024,
+		Provider:            &config.ProviderConfig{Name: "unknown"},
+	}
+	r := &Rag{
+		conf:            conf,
+		boundResourceID: "some-resource",
+		// vectorStore is nil
+	}
+
+	err := r.verifyBoundResource(context.Background())
+	if err == nil {
+		t.Fatal("E3: verifyBoundResource with nil vectorStore should fail")
+	}
+}

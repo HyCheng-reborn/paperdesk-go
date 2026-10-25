@@ -190,7 +190,7 @@ func (s *ESVectorStore) verifyESSchemaStrict(ctx context.Context, indexName stri
 		}
 		fields[fieldName] = fi
 	}
-	return ValidateSchemaStrict(fp, fields)
+	return ValidateSchemaStrict(fp, fields, "es")
 }
 
 // IndexExists 检查索引是否存在
@@ -504,7 +504,7 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 		}
 		fields[fieldName] = fi
 	}
-	if schemaErr := ValidateSchemaStrict(fp, fields); schemaErr != nil {
+	if schemaErr := ValidateSchemaStrict(fp, fields, "es"); schemaErr != nil {
 		return nil, "", schemaErr
 	}
 

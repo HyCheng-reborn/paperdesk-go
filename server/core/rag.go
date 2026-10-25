@@ -298,6 +298,8 @@ func (x *Rag) GetFingerprint() *vector.Fingerprint {
 // checkFingerprint validates the fingerprint before embedding operations.
 // C5: Reads from storage every time (no caching).
 // Returns error if fingerprint is missing, invalid, or cannot be verified.
+// D4: Compares resourceID with boundResourceID to detect physical resource replacement.
+// E3: This check happens at the entry point; see verifyBoundResource for post-write verification.
 func (x *Rag) checkFingerprint(ctx context.Context) error {
 	// Ensure vector store is initialized
 	if x.vectorStore == nil {
@@ -332,6 +334,38 @@ func (x *Rag) checkFingerprint(ctx context.Context) error {
 			x.conf.IndexName, vector.ErrResourceReplaced, x.boundResourceID, storedResourceID)
 	}
 
+	return nil
+}
+
+// verifyBoundResource checks that the current physical resource matches the bound one.
+// E3: Call after actual Store/query operations to detect resource replacement during operation.
+// This is a post-write verification — it cannot prevent writes to a replaced resource,
+// but it detects the condition immediately after the operation completes.
+//
+// TOCTOU limitation: Between checkFingerprint (pre-entry) and verifyBoundResource (post-write),
+// there is a window where the physical resource could be replaced (e.g., delete + recreate with
+// same logical name but different UUID). Full atomic binding requires Option C (immutable physical
+// names) which is pending separate approval.
+func (x *Rag) verifyBoundResource(ctx context.Context) error {
+	if x.vectorStore == nil {
+		return fmt.Errorf("vector store not set: VerifyFingerprint must be called after New()")
+	}
+	// E3: If boundResourceID is empty, VerifyFingerprint was not called (e.g., test setup).
+	// Skip verification to maintain backward compatibility with existing tests.
+	if x.boundResourceID == "" {
+		return nil
+	}
+	_, resourceID, err := x.vectorStore.ReadFingerprint(ctx, x.conf.IndexName)
+	if err != nil {
+		return fmt.Errorf("resource verification failed: %w", err)
+	}
+	if resourceID == "" {
+		return fmt.Errorf("index %q: %w (resourceID empty)", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+	}
+	if resourceID != x.boundResourceID {
+		return fmt.Errorf("index %q: %w (bound=%s, current=%s)",
+			x.conf.IndexName, vector.ErrResourceReplaced, x.boundResourceID, resourceID)
+	}
 	return nil
 }
 

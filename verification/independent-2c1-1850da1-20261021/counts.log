@@ -1,6 +1,0 @@
-focused : top-level PASS=18, RUN=41, DATA RACE=0, EXIT: 0
-affected : top-level PASS=223, RUN=260, DATA RACE=0, EXIT: 0
-race : top-level PASS=223, RUN=260, DATA RACE=0, EXIT: 0
-full : top-level PASS=0, RUN=0, DATA RACE=0, EXIT: 0
-vet : top-level PASS=0, RUN=0, DATA RACE=0, EXIT: 0
-build : top-level PASS=0, RUN=0, DATA RACE=0, EXIT: 0

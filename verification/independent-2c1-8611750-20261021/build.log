@@ -1,2 +1,0 @@
-TARGET: 8611750bb89dbf0de268b04a212ca873d500cb6f CMD: go build ./... GOFLAGS: 
-EXIT: 0

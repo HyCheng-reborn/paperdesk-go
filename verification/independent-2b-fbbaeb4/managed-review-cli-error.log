@@ -1,8 +1,0 @@
-SHA: fbbaeb4c12ab48db68c778ac38bb64676ddcb5d1
-LAYER: target + review tests; NO overlay
-CWD: C:\Zhy\code\go-rag-review-1d3\server
-CMD: go test ./core/providers/openai ./internal/logic/chat -run ^TestReview(Managed(RealClose|NoBudgetABC|CloseWaitsReceiver|ParentCancelUnderBackpressure|ChatFailureBackpressure)|SessionEarlyFrontendClose)$ -count= 1 -timeout=60s -v
-invalid value "" for flag -count: parse error
-usage: go test [build/test flags] [packages] [build/test flags & test binary flags]
-Run 'go help test' and 'go help testflag' for details.
-EXIT: 2

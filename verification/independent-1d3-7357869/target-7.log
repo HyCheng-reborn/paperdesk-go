@@ -1,7 +1,0 @@
-SHA: 735786966e3e8e8e0f1eb238045ca49209410505
-LAYER: clean target
-CWD: C:\Zhy\code\go-rag-review-1d3\server
-CMD: go vet ./...
-GOPROXY=off GOSUMDB=off
-START: 2026-10-18T16:54:21.0731583+08:00
-EXIT: 0

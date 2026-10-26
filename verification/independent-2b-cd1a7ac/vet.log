@@ -1,8 +1,0 @@
-SHA: cd1a7acf9b2a381dc12471aa45ac9dff50475447
-CWD: C:\Zhy\code\go-rag-review-1d3\server
-CMD: go vet ./...
-DATE: 2026-10-20T19:52:16.3879203+08:00
-# github.com/wangle201210/go-rag/server/core/providers/bailian
-# [github.com/wangle201210/go-rag/server/core/providers/bailian]
-vet.exe: core\providers\bailian\integration_test.go:330:20: wrapped.Recv undefined (type *providers.StreamSession has no field or method Recv)
-EXIT: 1

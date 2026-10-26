@@ -1,5 +1,0 @@
-SHA: 91ab52dd3f942da00fadcdbb8963a5537a0e4c9a
-CWD: C:\Zhy\code\go-rag-review-1d3\server
-CMD: go vet ./...
-DATE: 2026-10-21T00:20:03.3126423+08:00
-EXIT: 0

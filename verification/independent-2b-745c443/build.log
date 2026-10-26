@@ -1,9 +1,0 @@
-SHA: 745c4433b4a99542c441b7a3d6fe958f88688caa
-CWD: C:\Zhy\code\go-rag-review-1d3\server
-CMD: go build ./...
-DATE: 2026-10-20T00:56:33.2855699+08:00
-# github.com/wangle201210/go-rag/server/core/providers/bailian
-core\providers\bailian\chat.go:139:18: undefined: providers.RequestBudgetFromContext
-core\providers\bailian\embedding.go:155:18: undefined: providers.RequestBudgetFromContext
-core\providers\bailian\rerank.go:86:18: undefined: providers.RequestBudgetFromContext
-EXIT: 1

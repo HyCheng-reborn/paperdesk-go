@@ -1,9 +1,0 @@
-
-Algorithm : SHA256
-Hash      : A2D60CA0538EB6BE8C6B32EB996F0DC5993C039210791AE63C04169B996006B3
-Path      : C:\Zhy\code\go-rag\server\core\providers\adapter.go
-
-Algorithm : SHA256
-Hash      : A2D60CA0538EB6BE8C6B32EB996F0DC5993C039210791AE63C04169B996006B3
-Path      : C:\Zhy\code\go-rag\verification\independent-2b-be28e91\supplement-sources\core_providers_adapter.go
-

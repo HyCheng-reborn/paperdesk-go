@@ -1,9 +1,0 @@
-SHA: df260ddfb12694e7064d74fb63cc1c228f8ebbfe
-CWD: C:\Zhy\code\go-rag-review-1d3\server
-CMD: go test -race ./core/providers/... -run ^(TestBudget_(ReservationOverflow_(Input|Output|CrossScope)|NegativeUsageConservative|TotalOnlyUsage|SettlementOverflow|NegativeProcessLimit|OverflowSlotRelease|OwnerCancelPropagates|DeadlineNotRefreshedByRetry|TransferKeepsAbsoluteDeadline|ConcurrentReserve_MaxRequests|DualScope_PartialFailure|RetryNoRefresh|TransferToBackground|IdempotentFinalize|ConcurrentFinalize)|TestRegistry_Resolver(CannotMutateProfile|CannotMutateKeyOptions|HoldsCopy))$ -count=10 -timeout=180s -v
-DATE: 2026-10-19T15:13:39.4450928+08:00
-GOPROXY=off GOSUMDB=off
-exit status 0xc0000139
-FAIL	github.com/wangle201210/go-rag/server/core/providers	0.064s
-FAIL
-EXIT: 1

@@ -1,4 +1,0 @@
-TARGET: 1850da1fcff2e66c1ed61594139e7e2e068fd775 CMD: go build ./... GOFLAGS: 
-open C:\Users\zhy\AppData\Local\go-build\74\741a4743c938a270e6da70f86cdfb7f28a8e98eade9186112e950ce7c6b9ebd8-d: Access is denied.
-pattern ./...: open C:\Users\zhy\AppData\Local\go-build\53\536e1065d44057effbe49df80415ae95c3351e07e075c487b35579c9ec2ff06c-d: Access is denied.
-EXIT: 1

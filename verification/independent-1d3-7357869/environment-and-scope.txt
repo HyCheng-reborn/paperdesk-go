@@ -1,8 +1,0 @@
-SHA: 735786966e3e8e8e0f1eb238045ca49209410505
-BASE: 89cc769440b6b405c2ef16eb78a035f486f03fab
-CWD: C:/Zhy/code/go-rag-review-1d3/server
-GO: go version go1.27.1 windows/amd64
-GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=gcc CXX=g++ GOFLAGS=(empty) GOTOOLCHAIN=auto
-GCC=MinGW-W64 8.1.0 (unchanged from prior review)
-GOPROXY=off GOSUMDB=off; no online/integration tags
-Old reports and temporary tests preserved before detached switch

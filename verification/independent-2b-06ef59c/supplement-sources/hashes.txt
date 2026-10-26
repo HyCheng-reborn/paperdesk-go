@@ -1,5 +1,0 @@
-
-Algorithm       Hash                                                                   Path
----------       ----                                                                   ----
-SHA256          59729DD414395F975F77C9697A1588A484100EB185B2FFDACBDD990A64CD8B0B       C:\Zhy\code\go-rag\verification\…
-

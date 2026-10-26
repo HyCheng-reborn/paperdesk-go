@@ -440,7 +440,7 @@ type RequestBudget struct {
 3. **未知/缺失/不匹配**：返回可识别的 Missing/UnknownVersion/Mismatch/Initializing 错误并拒绝索引、后台写入及查询；禁止按当前配置“认领”来源不明的旧索引。仅在 PaperDesk 控制下新建的物理索引才能首次记录身份，不能看到空库/同维就自动写入身份。
 4. **新建与并发**：ES CreateIndex 携带完整 `_meta`，遇 already_exists 只读回验明身份，不能覆盖胜出者。Qdrant manifest 以 backend/store-namespace/唯一物理名建立唯一约束，事务/CAS 状态 Creating→Ready；固定初始化 owner/generation，其他进程遇 Creating 有限等待或返回 initializing。创建成功后读回两个 named vector 的真实参数，再 CAS Ready；失败保留 Failed/Creating 可诊断记录，不发布服务，不自动删已存在资源。存在但无 Ready 证明的 collection 拒绝。进程锁不冒充跨进程锁。
 5. **旧索引及外部变更**：人工选择新物理名，从原始论文/chunks 重新 Embedding，校验身份与数量后人工切配置/alias；保留旧索引供回退，不改旧向量、不自动删除。Qdrant 无通用物理 generation 可验证字段，外部同名删除重建可能使 manifest 失真：首版要求独占管理、不可复用随机 generation 物理名、人工恢复必须连同 manifest；若部署不能保证这一点，Qdrant guard 不得解除，需另行确认服务升级/原生 metadata 方案。此限制不能写成已解决。
-6. **guard 入口与解除**：未来集中在 core.New 的 exists/create/read-back 发布前、vector 公开 CreateIndex、同步/异步 Store 前及两个 Retriever 查询前。Qdrant SDK.ensureCollection 是隐式第二创建点，2C-2 必须去掉/约束其自动创建，不能在指纹检查后悄悄造无身份集合。后台任务复用同一身份但仍检查目标，不刷新预算或吞取消。只有两后端共享比较、并发创建/失败、不匹配/缺失阻断、真实装配离线测试及所选存储约束通过独立复核后，才讨论 2C-3 guard 解除；在线可用性由 2D 独立授权。
+6. **guard 入口与解除**：未来集中在 core.New 的 exists/create/read-back 发布前、vector 公开 CreateIndex、同步/异步 Store 前及两个 Retriever 查询前。Qdrant SDK.ensureCollection 是隐式第二创建点，2C-2 必须去掉/约束其自动创建，不能在指纹检查后悄悄造无身份集合。后台任务复用同一身份但仍检查目标，不刷新预算或吞取消。只有两后端共享比较、并发创建/失败、不匹配/缺失阻断、真实装配离线测试及所选存储约束通过独立复核后，才讨论 2C-3 guard 解除；在线可用性由 2D 独立授权。**边界补充（2026-10-26）：这里的“两后端共享比较”指共享 fingerprint 比较代码路径的离线证据，不等于任一后端生产可用；Qdrant 生产绑定因 incarnation/namespace 未决继续禁用，不是受控 ES 路径 2C-3 的硬前置（详见 `design/stage2c3-plan.md` §1）。**
 
 
 **独立复核后的约束细化（仍仅为 2C-2 设计建议，2026-10-21）**：
@@ -677,7 +677,7 @@ type TokenEstimate struct {
 
 **2C-1 状态**：实施完成，待独立复核；2C-2 设计建议待确认（§5.8），2C/Stage 2 未整体完成。
 
-**首批范围**：2C-1 = `vector.Config` 增维度字段 + ES/Qdrant CreateIndex 与 indexer VectorDim 从 `ProviderProfile.Dimensions` 读取（暂不改 fingerprint），完全可离线验证；2C-2 = fingerprint 存取+校验+阻断；2C-3 = guard 解除。
+**首批范围**：2C-1 = `vector.Config` 增维度字段 + ES/Qdrant CreateIndex 与 indexer VectorDim 从 `ProviderProfile.Dimensions` 读取（暂不改 fingerprint），完全可离线验证；2C-2 = fingerprint 存取+校验+阻断；2C-3 = guard 解除。**2C-3 的实施范围、现状核对、装配顺序与离线验收矩阵见 `design/stage2c3-plan.md`（2026-10-26 整理，详细实施方案待确认，未实施；门禁未解除）。**
 
 **待决策/待验证**：fingerprint 具体格式与存储位置（ES index settings/mapping 字段 vs 外部元数据）、旧索引 fingerprint 缺失/身份未知的处理策略（拒绝 vs 人工重建，不得默认放行）、实际生效的 ES/Qdrant schema builder、真实 Embedding 返回维度与声明一致——均不自行创造，留待决策/2D 探针。
 

@@ -1,5 +1,11 @@
 # 变更记录
 
+## Stage 2C-2 P2：Chat 与 Embedding 身份隔离（实现待复核）
+
+- `ComputeFingerprintMeta` 与实际 Embedding 分支保持一致：仅在 `Provider.EmbeddingModel` 非空时采用 Provider 的 provider/model；Chat-only Provider 不改变旧 Embedding 的 `legacy` 身份。
+- 补充 Chat-only 的指纹/digest 稳定、启动与运行门控、错误标签不自动认领、新 profile 仍禁用的回归；既有仅配置 Chat 的测试夹具改为声明 `legacy` 指纹。
+- 不覆盖已有指纹、不增加迁移或重建动作，不改变受控生命周期边界或验收状态；Qdrant 与新 profile 门禁保持。
+
 ## Stage 2C-2 E1-E3 修复（基线 79ea0ab，提交 fce88e2）
 
 > 本节区分三类信息：源码可确认行为 / 实现者声明 / 独立验证结果。**本批没有独立复核执行记录**，以下不构成验收通过。

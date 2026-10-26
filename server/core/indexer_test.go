@@ -83,7 +83,7 @@ func newIndexerTestRag(syncIdx syncIndexer, asyncIdx asyncIndexer) *Rag {
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
@@ -567,7 +567,7 @@ func TestIndex_AdmissionFull_Rejects(t *testing.T) {
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
@@ -1364,7 +1364,7 @@ func newOrchestrationTestRag(
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
@@ -1962,7 +1962,7 @@ func TestIndex_BackgroundTimeout_MarksFailed(t *testing.T) {
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
@@ -2386,7 +2386,7 @@ func newFullChainTestRag(
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "test-resource-uuid", // C5: Non-empty resourceID required for fail-closed check
@@ -2704,7 +2704,7 @@ func TestE3_Index_PostWriteVerify_ResourceReplaced(t *testing.T) {
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "original-resource",
@@ -2758,7 +2758,7 @@ func TestE3_Index_PostWriteVerify_ResourceUnchanged_Success(t *testing.T) {
 			Version:          "v1",
 			EmbeddingModelID: "test-model",
 			Dimensions:       1024,
-			ProviderName:     "test",
+			ProviderName:     "legacy",
 			Similarity:       "cosine",
 		},
 		resourceID: "stable-resource",

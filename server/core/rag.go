@@ -285,11 +285,11 @@ func (x *Rag) computeExpectedFingerprint() (*vector.Fingerprint, error) {
 func ComputeFingerprintMeta(conf *config.Config) (*vector.Fingerprint, error) {
 	providerName := "legacy"
 	modelID := conf.EmbeddingModel
-	if conf.Provider != nil {
+	// Match common.NewEmbedding: a chat-only Provider does not select the
+	// Provider embedding branch and must not change the legacy identity.
+	if conf.Provider != nil && conf.Provider.EmbeddingModel != "" {
 		providerName = conf.Provider.Name
-		if conf.Provider.EmbeddingModel != "" {
-			modelID = conf.Provider.EmbeddingModel
-		}
+		modelID = conf.Provider.EmbeddingModel
 	}
 	if modelID == "" {
 		return nil, fmt.Errorf("embedding model not configured")

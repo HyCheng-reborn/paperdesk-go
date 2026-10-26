@@ -132,7 +132,7 @@ func TestCheckFingerprint_MissingCache_ReadFromStore(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -163,7 +163,7 @@ func TestCheckFingerprint_Mismatch(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "different-model",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = storedFP
@@ -242,7 +242,7 @@ func TestRetrieve_FingerprintGate(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "different-model",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = storedFP
@@ -321,7 +321,7 @@ func TestIndexAsync_FingerprintGate(t *testing.T) {
 		Version:          "v99",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = storedFP
@@ -386,7 +386,7 @@ func TestVerifyFingerprint_ExistingIndexCorruptedFingerprint_FailClosed(t *testi
 		Version:          "v99",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = corruptedFP
@@ -427,7 +427,7 @@ func TestVerifyFingerprint_ExistingIndexMismatchedFingerprint_NotOverwritten(t *
 		Version:          "v1",
 		EmbeddingModelID: "different-model",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = mismatchedFP
@@ -494,7 +494,7 @@ func TestVerifyFingerprint_ExistingIndexMatchingFingerprint_Succeeds(t *testing.
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = matchingFP
@@ -520,7 +520,7 @@ func TestVerifyFingerprint_ConcurrentWrite_OnlyOneSucceeds(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "test",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = nil // No fingerprint yet
@@ -579,7 +579,7 @@ func TestVerifyFingerprint_EmptyResourceID_FailClosed(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -610,7 +610,7 @@ func TestCheckFingerprint_EmptyStoredResourceID_FailClosed(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -646,7 +646,7 @@ func TestCheckFingerprint_ReadsFromStorageEveryTime(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -685,7 +685,7 @@ func TestCheckFingerprint_StorageChangeDetectedImmediately(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = matchingFP
@@ -702,7 +702,7 @@ func TestCheckFingerprint_StorageChangeDetectedImmediately(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "different-model",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.mu.Lock()
@@ -740,7 +740,7 @@ func TestCheckFingerprint_ConcurrentReadsAllFromStorage(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -792,7 +792,7 @@ func TestD4_VerifyFingerprint_RecordsBoundResourceID(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -824,7 +824,7 @@ func TestD4_CheckFingerprint_ResourceIDChanges_Rejected(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -867,7 +867,7 @@ func TestD4_CheckFingerprint_EmptyResourceID_FailClosed_D4(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -907,7 +907,7 @@ func TestD4_CheckFingerprint_SameFingerprintDifferentResourceID_Rejected(t *test
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -951,7 +951,7 @@ func TestE3_VerifyBoundResource_MatchingResourceID_Success(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -986,7 +986,7 @@ func TestE3_VerifyBoundResource_ChangedResourceID_Error(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -1029,7 +1029,7 @@ func TestE3_VerifyBoundResource_EmptyResourceID_Error(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp
@@ -1072,7 +1072,7 @@ func TestE3_VerifyBoundResource_EmptyBoundResourceID_Skip(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.fingerprint = fp

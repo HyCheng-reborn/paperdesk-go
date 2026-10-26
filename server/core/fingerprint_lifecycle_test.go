@@ -23,7 +23,7 @@ func TestLifecycle_PartialFailure_Rollback(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "wrong-model",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 
@@ -71,7 +71,7 @@ func TestLifecycle_ContextCancel_NoHTTPSent(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 	vs.inner.fingerprint = fp
@@ -303,7 +303,7 @@ func TestCreationChain_ExistingIndex_VerifyOnly(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "text-embedding-v4",
 		Dimensions:       1024,
-		ProviderName:     "unknown", // Matches fakeVectorStore type switch
+		ProviderName:     "legacy", // Matches the legacy embedding branch
 		Similarity:       "cosine",
 	}
 
@@ -355,7 +355,7 @@ func TestCreationChain_ExistingIndex_WrongFingerprint(t *testing.T) {
 		Version:          "v1",
 		EmbeddingModelID: "wrong-model",
 		Dimensions:       512,
-		ProviderName:     "unknown",
+		ProviderName:     "legacy",
 		Similarity:       "cosine",
 	}
 

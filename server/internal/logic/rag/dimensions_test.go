@@ -104,8 +104,8 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	var requests atomic.Int32
 	// F1: Pre-populate valid fingerprint in _meta (no auto-backfill).
-	// The fingerprint must match the config: model=text-embedding-3-large, dims=768, provider=openai.
-	initFP, _ := vector.NewFingerprint("v1", "text-embedding-3-large", 768, "openai", "cosine")
+	// The fingerprint must match the config: model=text-embedding-3-large, dims=768, provider=legacy (chat-only Provider).
+	initFP, _ := vector.NewFingerprint("v1", "text-embedding-3-large", 768, "legacy", "cosine")
 	initFPMeta, _ := json.Marshal(map[string]any{
 		"go-rag-fingerprint": map[string]any{
 			"version":            initFP.Version,

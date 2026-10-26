@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"time"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -13,6 +14,10 @@ type Config struct {
 	Client       *elasticsearch.Client // ES 客户端
 	QdrantClient *qdrant.Client        // Qdrant 客户端
 	IndexName    string                // index name / collection name
+	// Explicit deployment attestation; false by default. This is not a CAS.
+	ManagedResourceLifecycle bool
+	// Captures the verified concrete target; installed before graph construction.
+	VectorIOGuard func(context.Context) error
 	// embedding 时使用
 	APIKey              string
 	BaseURL             string
@@ -70,9 +75,11 @@ func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
 
 func (x *Config) Copy() *Config {
 	cp := &Config{
-		Client:       x.Client,
-		QdrantClient: x.QdrantClient,
-		IndexName:    x.IndexName,
+		Client:                   x.Client,
+		QdrantClient:             x.QdrantClient,
+		IndexName:                x.IndexName,
+		ManagedResourceLifecycle: x.ManagedResourceLifecycle,
+		VectorIOGuard:            x.VectorIOGuard,
 		// embedding 时使用
 		APIKey:                x.APIKey,
 		BaseURL:               x.BaseURL,

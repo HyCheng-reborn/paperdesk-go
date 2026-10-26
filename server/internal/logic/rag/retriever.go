@@ -72,6 +72,13 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	if err != nil {
 		return nil, err
 	}
+	// A disabled embedding profile must not create or claim any resource.
+	if cfg.Provider != nil && cfg.Provider.EmbeddingModel != "" {
+		return nil, common.ErrEmbeddingGuardNotReady
+	}
+	if err := vector.CheckManagedLifecycle(&cfg.VectorCfg); err != nil {
+		return nil, err
+	}
 	ctx := context.Background()
 
 	// 根据 VectorStore 类型提取客户端
@@ -97,20 +104,21 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 
 	// D1: 计算 fingerprint（用于受控创建）
 	confForNew := &config.Config{
-		Client:                client,
-		QdrantClient:          qdrantClient,
-		IndexName:             cfg.VectorCfg.IndexName,
-		APIKey:                cfg.EmbeddingAPIKey,
-		BaseURL:               cfg.BaseURL,
-		EmbeddingModel:        cfg.EmbeddingModel,
-		EmbeddingDimensions:   cfg.EmbeddingDimensions,
-		ChatModel:             cfg.ChatModel,
-		QAEnabled:             cfg.QAEnabled,
-		QAMaxConcurrent:       cfg.QAMaxConcurrent,
-		MaxBackgroundTasks:    cfg.MaxBackgroundTasks,
-		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
-		Provider:              cfg.Provider,
-		Registry:              reg,
+		Client:                   client,
+		QdrantClient:             qdrantClient,
+		IndexName:                cfg.VectorCfg.IndexName,
+		ManagedResourceLifecycle: cfg.VectorCfg.ManagedResourceLifecycle,
+		APIKey:                   cfg.EmbeddingAPIKey,
+		BaseURL:                  cfg.BaseURL,
+		EmbeddingModel:           cfg.EmbeddingModel,
+		EmbeddingDimensions:      cfg.EmbeddingDimensions,
+		ChatModel:                cfg.ChatModel,
+		QAEnabled:                cfg.QAEnabled,
+		QAMaxConcurrent:          cfg.QAMaxConcurrent,
+		MaxBackgroundTasks:       cfg.MaxBackgroundTasks,
+		BackgroundTaskTimeout:    cfg.BackgroundTaskTimeout,
+		Provider:                 cfg.Provider,
+		Registry:                 reg,
 	}
 
 	fp, fpErr := core.ComputeFingerprintMeta(confForNew)
@@ -138,7 +146,13 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		}
 	}
 
-	// D1: core.New 在 CreateIndex 之后（SDK ensureCollection 发现 collection 已存在，跳过创建）
+	// Bind the concrete target before constructing any Store/retrieval graph.
+	guard, bindErr := vector.BindPhysicalTarget(ctx, vs, confForNew.IndexName, fp)
+	if bindErr != nil {
+		return nil, fmt.Errorf("bind physical target: %w", bindErr)
+	}
+	confForNew.VectorIOGuard = guard
+	// SDK collection creation has been removed; only the controlled path above creates.
 	rag, err := core.New(ctx, confForNew)
 	if err != nil {
 		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
@@ -148,6 +162,7 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 
 	// 验证 fingerprint（只读路径，无论创建还是已存在）
 	if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+		_ = rag.Shutdown(ctx)
 		return nil, verifyErr
 	}
 
@@ -333,6 +348,9 @@ type VectorStoreFactory interface {
 type defaultVectorStoreFactory struct{}
 
 func (f *defaultVectorStoreFactory) Create(cfg *vector.Config) (vector.VectorStore, error) {
+	if err := vector.CheckManagedLifecycle(cfg); err != nil {
+		return nil, err
+	}
 	vs, err := vector.NewVectorStore(cfg)
 	if err != nil {
 		return nil, err
@@ -522,6 +540,9 @@ func InitWithRealDeps() error {
 	if err != nil {
 		return fmt.Errorf("rag: %w", err)
 	}
+	if err := vector.CheckManagedLifecycle(&cfg.VectorCfg); err != nil {
+		return err
+	}
 	// F5: Check fingerprint table readiness for Qdrant (no implicit AutoMigrate)
 	if cfg.VectorCfg.Type == "qdrant" {
 		gormDB, dbErr := dao.GetGormDB()
@@ -628,6 +649,11 @@ func buildVectorConfigFromCfg(ctx context.Context) (*vector.Config, error) {
 		Type:      vectorType,
 		IndexName: indexName,
 	}
+	managed, err := readManagedLifecycle(ctx, &defaultConfigGetter{})
+	if err != nil {
+		return nil, err
+	}
+	vectorCfg.ManagedResourceLifecycle = managed
 
 	if vectorType == "es" || vectorType == "elasticsearch" {
 		esAddr, err := cfgGet(ctx, "vector.es.address")

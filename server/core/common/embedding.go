@@ -60,16 +60,22 @@ func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedd
 	if err != nil {
 		return nil, err
 	}
-	return &dimensionEmbedder{Embedder: eb, dimensions: dimensions}, nil
+	return &dimensionEmbedder{Embedder: eb, dimensions: dimensions, guard: conf.VectorIOGuard}, nil
 }
 
 // dimensionEmbedder checks legacy responses before vector write/search.
 type dimensionEmbedder struct {
 	embedding.Embedder
 	dimensions int
+	guard      func(context.Context) error
 }
 
 func (e *dimensionEmbedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float64, error) {
+	if e.guard != nil {
+		if err := e.guard(ctx); err != nil {
+			return nil, fmt.Errorf("vector target before embedding: %w", err)
+		}
+	}
 	vectors, err := e.Embedder.EmbedStrings(ctx, texts, opts...)
 	if err != nil {
 		return nil, err
@@ -80,6 +86,13 @@ func (e *dimensionEmbedder) EmbedStrings(ctx context.Context, texts []string, op
 	for _, v := range vectors {
 		if len(v) != e.dimensions {
 			return nil, fmt.Errorf("%w: response=%d configured=%d", config.ErrEmbeddingDimensions, len(v), e.dimensions)
+		}
+	}
+	// E3: do not hand vectors to Store/query if identity changed during embedding.
+	// The remaining check-to-I/O window requires the managed lifecycle contract.
+	if e.guard != nil {
+		if err := e.guard(ctx); err != nil {
+			return nil, fmt.Errorf("vector target after embedding: %w", err)
 		}
 	}
 	return vectors, nil

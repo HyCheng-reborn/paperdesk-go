@@ -58,11 +58,12 @@ type SearchResponse struct {
 
 // Config 向量存储配置
 type Config struct {
-	EmbeddingDimensions int           // zero means unspecified at the configuration boundary
-	Type                string        // 类型：es 或 qdrant
-	IndexName           string        // 索引名称
-	ES                  *ESConfig     // ES 配置
-	Qdrant              *QdrantConfig // Qdrant 配置
+	EmbeddingDimensions      int           // zero means unspecified at the configuration boundary
+	Type                     string        // 类型：es 或 qdrant
+	IndexName                string        // 索引名称
+	ManagedResourceLifecycle bool          // Explicit attestation of exclusive management and no name reuse.
+	ES                       *ESConfig     // ES 配置
+	Qdrant                   *QdrantConfig // Qdrant 配置
 }
 
 // ESConfig Elasticsearch 配置

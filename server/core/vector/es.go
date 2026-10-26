@@ -66,6 +66,9 @@ func (s *ESVectorStore) CreateIndex(ctx context.Context, indexName string, fp *F
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := ValidatePhysicalName(indexName); err != nil {
+		return err
+	}
 
 	// 构建 mapping（使用 fp.Dimensions 或 s.dimensions 回退）
 	dims := s.dimensions
@@ -417,6 +420,9 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 	if err := ctx.Err(); err != nil {
 		return nil, "", err
 	}
+	if err := ValidatePhysicalName(indexName); err != nil {
+		return nil, "", err
+	}
 	// Use get index API to read mapping with _meta and settings (R6: pass ctx)
 	res, err := s.client.Indices.Get(
 		[]string{indexName},
@@ -461,8 +467,8 @@ func (s *ESVectorStore) ReadFingerprint(ctx context.Context, indexName string) (
 	}
 	// Extract _meta of the index
 	indexState, ok := result[indexName]
-	if !ok {
-		return nil, "", ErrFingerprintMissing
+	if len(result) != 1 || !ok {
+		return nil, "", fmt.Errorf("%w: requested %q did not resolve to exactly that concrete index", ErrPhysicalTargetRequired, indexName)
 	}
 	if indexState.Mappings.Meta == nil {
 		return nil, "", ErrFingerprintMissing

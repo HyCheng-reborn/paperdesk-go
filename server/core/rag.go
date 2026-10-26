@@ -101,6 +101,18 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	if len(conf.IndexName) == 0 {
 		return nil, fmt.Errorf("indexName is empty")
 	}
+	if err := vector.ValidatePhysicalName(conf.IndexName); err != nil {
+		return nil, err
+	}
+	if conf.QdrantClient != nil {
+		return nil, vector.ErrResourceBindingNotReady
+	}
+	if !conf.ManagedResourceLifecycle {
+		return nil, vector.ErrManagedLifecycleRequired
+	}
+	if conf.VectorIOGuard == nil {
+		return nil, vector.ErrResourceBindingNotReady
+	}
 
 	// Fix 4: 不在此处临时设置全局 Registry。内部需要 Registry 时通过 conf.Registry 显式传入。
 	// 成功后由调用方（defaultRagFactory）发布全局 Registry；失败不影响全局状态。
@@ -208,6 +220,12 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) error {
 	if vs == nil {
 		return fmt.Errorf("nil VectorStore")
+	}
+	if _, qdrant := vs.(*vector.QdrantVectorStore); qdrant {
+		return vector.ErrResourceBindingNotReady
+	}
+	if _, es := vs.(*vector.ESVectorStore); es && (!x.conf.ManagedResourceLifecycle || x.conf.VectorIOGuard == nil) {
+		return vector.ErrManagedLifecycleRequired
 	}
 	x.vectorStore = vs
 

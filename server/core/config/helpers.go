@@ -68,6 +68,11 @@ func (c *Config) CreateIndex(ctx context.Context) error {
 
 // DeleteDocument 删除文档
 func (c *Config) DeleteDocument(ctx context.Context, documentID string) error {
+	if c.VectorIOGuard != nil {
+		if err := c.VectorIOGuard(ctx); err != nil {
+			return err
+		}
+	}
 	if c.Client != nil {
 		// ES
 		res, err := c.Client.Delete(c.IndexName, documentID)
@@ -104,6 +109,11 @@ func (c *Config) DeleteDocument(ctx context.Context, documentID string) error {
 
 // GetKnowledgeBaseList 获取知识库列表
 func (c *Config) GetKnowledgeBaseList(ctx context.Context) ([]string, error) {
+	if c.VectorIOGuard != nil {
+		if err := c.VectorIOGuard(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if c.Client != nil {
 		// ES - 使用聚合查询
 		// TODO: 实现 ES 的知识库列表获取
@@ -158,6 +168,11 @@ func (c *Config) GetKnowledgeBaseList(ctx context.Context) ([]string, error) {
 
 // SearchDocumentsByIDs 根据文档 ID 列表搜索文档
 func (c *Config) SearchDocumentsByIDs(ctx context.Context, knowledgeName string, docIDs []string, size int) ([]*schema.Document, error) {
+	if c.VectorIOGuard != nil {
+		if err := c.VectorIOGuard(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if c.Client != nil {
 		// ES
 		esQuery := &types.Query{

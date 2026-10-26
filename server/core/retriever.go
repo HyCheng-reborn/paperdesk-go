@@ -263,6 +263,11 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 
 	// 关键字路三：ES BM25（conf.Client != nil 时生效）
 	if x.conf.Client != nil {
+		if x.conf.VectorIOGuard != nil {
+			if err := x.conf.VectorIOGuard(ctx); err != nil {
+				return nil, fmt.Errorf("bm25 target verification: %w", err)
+			}
+		}
 		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.excludeIDs, esTopK)
 		if bm25Err != nil {
 			g.Log().Warningf(ctx, "bm25 retrieve failed, skip: %v", bm25Err)

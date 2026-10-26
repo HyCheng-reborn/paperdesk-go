@@ -1,22 +1,24 @@
 # 变更记录
 
-## Stage 2C-2 E1-E3 修复（基线 79ea0ab）
+## Stage 2C-2 E1-E3 修复（基线 79ea0ab，提交 fce88e2）
 
-- E1：Schema 校验空值旁路消除 — Distance 必填；ES FieldType 必填 dense_vector；Qdrant 映射全部距离枚举（含 Manhattan）；未知枚举拒绝
-- E2：移除未使用的 einoIndexer — SDK 不再触发 ensureCollection，集合创建完全由受控 CreateIndex 负责
-- E3：操作后资源验证 — verifyBoundResource 在 Index/IndexAsync/Retrieve 后检测资源替换；TOCTOU 限制文档化
-- 新增 26 个测试覆盖 E1-E3 修复
-- 全部 672 个测试通过，build/vet/race 通过
+> 本节区分三类信息：源码可确认行为 / 实现者声明 / 独立验证结果。**本批没有独立复核执行记录**，以下不构成验收通过。
 
-## [2026-10-25] Stage 2C-2 D1-D4 修复
+- **E1（源码可确认）**：`server/core/vector/schema_validation.go` 的 `ValidateSchemaStrict` 要求 `Distance` 非空；`backend="es"` 时要求 `FieldType == "dense_vector"`；`strictDims` 拒绝 float64/string/nil。`mapQdrantDistance`（`qdrant.go`）显式映射 Cosine/Dot/Euclid/Manhattan，未知枚举返回 error；`distanceMatchesSimilarity` 对 Manhattan 与未知距离返回 false。ES 提取路径（`es.go`）在 type 缺失/非字符串、similarity 缺失时仍产出空值，现由校验器拒绝（fail closed），而非提取阶段报错。
+- **E2（源码可确认，结论受限）**：`server/core/indexer/qdrant_indexer.go` 已删除 `einoIndexer` 字段与 `einoqdrant.NewIndexer` 构造调用，`Store` 走 `StoreWithNamedVectors`；全仓已无 `einoqdrant` 引用。但“集合只由受控 CreateIndex 创建”属源码审计结论，未独立复验；`QdrantIndexer.asyncIndexer` 字段仍无赋值/使用点。
+- **E3（仅操作后检测）**：`verifyBoundResource` 在 `Index`（indexer.go:167）、`IndexAsync`（indexer.go:272）、`Retrieve`（retriever.go:198）完成后比对 resourceID。可检测持续到复查时刻的替换并返回错误；**不能撤销已写入的数据，也不能阻止写入已被替换的资源**。写入副作用（Index/IndexAsync）与“检索结果不返回”（Retrieve）是两类影响。原子目标绑定仍待 Option B/C 专项设计。
+- **测试**：本批新增 26 个 `func Test`（按 `git diff 79ea0ab fce88e2 -- '*_test.go'` 静态统计，可复核）。
+- **验证声明（未核实）**：实现者声明 672 个测试通过、build/vet/race 通过；仓库内无本批日志（`verification/` 下无 stage2c2 目录）。上一轮声明为 794，两者统计口径（是否按 RUN 行、是否含 `-race`/`-count` 重复、覆盖包范围）未说明，不能直接比较；也不得把部分包的 race 通过写成全仓 race 通过。
+
+## [2026-10-25] Stage 2C-2 D1-D4 修复（提交 79ea0ab）
 
 基于第四轮独立复核报告修复 4 项问题：
-- D1: factory 重构 — CreateIndex 先于 core.New 消除 SDK 隐式创建；Qdrant AlreadyExists 归一化
+- D1: factory 重构 — CreateIndex 先于 core.New（当时声称消除 SDK 隐式创建；第五轮复核 E2 证实 core.New 仍触发 SDK ensureCollection，本批 E2 才移除该构造）；Qdrant AlreadyExists 归一化
 - D2: ES 安全加固 — 移除 deleteIndexBestEffort 和 PutMapping 后补；UUID 只读
-- D3: 严格 schema 校验 — 共享校验器；必需字段/整数维度/距离映射
-- D4: 资源固定 — boundResourceID 启动绑定；每次比对检测替换
+- D3: 严格 schema 校验 — 共享校验器（`schema_validation.go`）；必需字段/整数维度/距离映射；空语义值旁路由 E1 收口
+- D4: 资源固定 — boundResourceID 启动绑定；每次入口比对检测替换（不覆盖操作中的替换，见 E3）
 
-Tests: 794 pass, 0 fail. Build/vet/race clean.
+Tests: 实现者声明 794 pass, 0 fail，build/vet/race clean（无原始日志入仓，未核实；与 672 的统计口径未说明）。
 
 ## [2026-10-25] Stage 2C-2 C1-C6 修复
 
@@ -1513,3 +1515,13 @@ Stage 1C 覆盖两个问题：
 
 - v1.0 → v1.1 → v1.1.1 → v1.1.2（当前）
 - 详见 docs/go-rag_PaperDesk_改进方案_v1.1.2.md
+
+## E3 受控物理目标首版（实现待复核）
+
+- 用户批准限定支持具体物理名，拒绝 alias/多目标；默认未确认受控生命周期时生产初始化失败。
+- 在图构造前捕获名称/UUID/完整指纹；embedding 返回后及无 embedding 的检索/后台读取路径增加 guard。
+- Qdrant incarnation 未决，生产绑定保持禁用；ErrEmbeddingGuardNotReady 仍活跃。
+- 未新增映射表、DDL、自动切换或清理；没有任意外部替换下的原子保证。部署前提见 docs/stage2c2-e3-design.md。
+
+- 受控 ES bulk 在完成 embedding 与最终 guard 后同步发批，避免锁定 SDK 错误分支遗留后台 worker；分批与回执逐项验证，不改变预算 owner，不自动回滚已成功批次。
+- 本批以本地收尾提交入库（未推送、未合并），验证结论仅来自实现者自测，不构成独立验收，验收状态未变更。

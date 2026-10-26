@@ -429,6 +429,8 @@ type RequestBudget struct {
 
 ### 5.8 Stage 2C-2 fingerprint 决策建议（待确认；未实施/未验收）
 
+**E3 首版范围补充决定（2026-10-25 用户确认）**：仅支持单个具体物理名称，拒绝 alias/多目标；实际写入、查询及后台任务固定同一已验证目标。以显式部署确认为前提，要求独占生命周期、物理名称永不复用、固定后端命名空间及禁止自动创建；无法保证的路径继续禁用。暂不新增映射表、DDL、自动切换或清理，Qdrant incarnation 未决期间不启用生产路径，新 embedding profile 门禁保持。此决定只批准该最小支持边界，不代表下列完整建议均获批准，也不代表 2C-2 验收通过。实现说明见 `docs/stage2c2-e3-design.md`。
+
 **已批准依据**：§5.2–5.4、§7.3 要求 query/document 同源、建索引记录身份、读写校验、不匹配拒绝；同维度不等于同模型；旧身份未知不可默认放行；先 fingerprint 和阻断，后解除 guard。以下格式、存储及并发细节是建议，尚待确认，不是本批代码。
 
 **推荐方案**：ES 使用 mapping `_meta.paperdesk_embedding`；锁定 Qdrant 客户端下使用现有关系库中的独立 manifest 表，绑定受控创建的唯一物理 collection 名称与 generation。不给业务向量混入哨兵 point，不升级依赖；保留以后原生 collection metadata 的替换空间。两后端共享 fingerprint 比较规则，但不假装有跨设施原子事务。

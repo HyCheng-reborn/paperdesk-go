@@ -3,7 +3,7 @@
 ## 当前状态
 
 **日期**：2026-10-25
-**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2A 已闭合 race 验收（E1）；Stage 2B 已在既定离线范围内通过独立复核**（被验收完整 SHA `c15287a71a61f2b3c0d619c071265d08c76d3555`，修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`，未发现剩余阻塞）。2C-1 维度配置单源贯通及真实 YAML json.Number 及原始小数/指数类型边界修复实施完成，待独立复核；**2C-2 索引指纹持久化与身份验证独立复核阻塞修复（F1-F8）完成，R1-R7 第二轮复核修复完成，C1-C6 第三轮复核修复完成，D1-D4 第四轮复核修复完成，E1-E3 第五轮复核修复完成，待第六轮独立复核**；2C-3/2D 未实施，2C 未整体完成；**不宣布整个 Stage 2 完成**。
+**阶段**：Stage 1 代码改进及既定离线验收完成（基线 `71c4c81`）。**Stage 2A 已闭合 race 验收（E1）；Stage 2B 已在既定离线范围内通过独立复核**（被验收完整 SHA `c15287a71a61f2b3c0d619c071265d08c76d3555`，修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`，未发现剩余阻塞）。2C-1 维度配置单源贯通及真实 YAML json.Number 及原始小数/指数类型边界修复实施完成，待独立复核；**2C-2 索引指纹持久化与身份验证独立复核阻塞修复（F1-F8）完成，R1-R7 第二轮复核修复完成，C1-C6 第三轮复核修复完成，D1-D4 第四轮复核修复完成，E1-E3 第五轮复核修复已提交（`fce88e2`，实现者自述，无本批独立执行记录；E3 仅为操作后检测、原子目标绑定待决），待独立复核**；2C-3/2D 未实施，2C 未整体完成；**不宣布整个 Stage 2 完成**。
 **复核方式**：1-Pre/1A/1B/1C/1D-1/1D-2 为源码及提交日志复核，复核方未独立重跑测试；**1D-3 由本地 Codex 在干净工作树独立重跑**（普通/race/关键用例十轮/串行全量/build/vet，见 1D-3 验收记录）
 **验收基线**：Stage 1A `3b8f7a0efc27595d1b50aa2addb2523ed20a2ef0`；Stage 1C-2 `26e55ee2ea43daf703ed72da60425ff5b7980cba`；Stage 1D-1 `644642712bcb04e820e345598a98d99c78277175`；Stage 1D-2 `d7618e5a092f0b29e6441e98e32d86075b199172`；Stage 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`；**Stage 2A 目标 `df260ddfb12694e7064d74fb63cc1c228f8ebbfe`（E1 race 已闭合，见 verification/stage2a-race-evidence-r2/）**；**Stage 2B 已验收 `c15287a71a61f2b3c0d619c071265d08c76d3555`（修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`）**
 **说明**：`7fb5b77` 为 Stage 1C-2 验收记录及生命周期 race 补证提交（纯文档/证据变更），不替换业务验收基线 `26e55ee`
@@ -690,8 +690,21 @@
 |---|---|---|---|
 | 2A | 角色接口 + 共享预算核心 + 生产共享链 | ✅ | ✅ 已闭合（目标 `df260dd`；E1 race 已补齐，见 stage2a-race-evidence-r2） |
 | 2B | 百炼适配 + 错误映射 + 预算 + 默认工厂与业务接线 | ✅（httptest） | ✅ 已在既定离线范围内通过独立复核（被验收 SHA `c15287a`） |
-| 2C | 维度/索引 fingerprint + 不匹配阻断 | ✅（httptest + fake） | ⬜ 2C-1 待独立复核；2C-2 F1-F8 修复完成，R1-R7 完成，C1-C6 完成，D1-D4 完成，E1-E3 完成，待第六轮独立复核；2C-3/2D 未实施，2C 未整体完成 |
+| 2C | 维度/索引 fingerprint + 不匹配阻断 | ✅（httptest + fake） | ⬜ 2C-1 待独立复核；2C-2 F1-F8 修复完成，R1-R7 完成，C1-C6 完成，D1-D4 完成，E1-E3 已提交（`fce88e2`，实现者自述，无本批独立执行记录；E3 仅操作后检测、原子绑定待决），待独立复核；2C-3/2D 未实施，2C 未整体完成 |
 | 2D | 在线探针（仅制定方案，不执行） | ❌ | ⬜ 待实施 |
+
+### Stage 2C-2 E1-E3 交付状态（2026-10-25，提交 `fce88e2`；未经验收）
+
+> 仅记录源码核对结果与实现者声明，**不构成验收通过，不改变验收状态**。固定目标 `fce88e2eb15dd07d7ad8cd3c5d49f528b0e0cb7b`，父提交 `79ea0ab`，原始基线 `2dc0b82`，分支 `codex/stage2c2-fingerprint`；参考上一轮独立报告（目标 79ea0ab）。
+
+| 项目 | 源码可确认 | 未独立验证 / 待决 |
+|---|---|---|
+| 正常受控创建 | factory 单次存在性检查 → 受控 `CreateIndex`（携带 fingerprint）→ `core.New` → `VerifyFingerprint` → 发布 Registry | 真实 ES/Qdrant 创建与并发创建路径 |
+| 集合消失后的 SDK 创建副作用 | `qdrant_indexer.go` 已移除 `einoIndexer` 字段与 `einoqdrant.NewIndexer` 构造；全仓无 `einoqdrant` 引用；`Store` 走 `StoreWithNamedVectors` | 79ea0ab 复核确认该副作用存在；本提交仅源码层移除，未复验“存在后消失”场景；`QdrantIndexer.asyncIndexer` 字段仍无赋值/使用点 |
+| 两个入口间的 ID 替换 | `checkFingerprint` 比对 `boundResourceID`，不一致返回 `ErrResourceReplaced`，本次操作不进入 embedding/存储 | 真实设施下的 delete+recreate 验证 |
+| 入口后（embedding 期间）替换 | 仅操作后 `verifyBoundResource` 检测并返回错误（`indexer.go:167`、`indexer.go:272`、`retriever.go:198`）；写入已发生且不回滚，检索侧仅表现为结果不返回 | 原子目标绑定：Option B（ES `if_seq_no`/`if_primary_term` 是否等价于物理 UUID/incarnation 绑定）**需专项设计验证**；Option C（不可变物理名称 + 映射表）**待批准**，不是既定要求 |
+| 测试计数 | 本批新增 26 个 `func Test`（按 diff 静态统计） | 实现者声明 672 通过（上一轮 794），统计口径未说明、无日志入仓；独立实测仅为上一轮“17 个 tested packages” |
+| 保留边界 | — | 真实 ES/Qdrant/MySQL 与在线 embedding 未验证；`ErrEmbeddingGuardNotReady` 仍开启；未开 2C-3、未执行 2D 探针 |
 
 ### Stage 2B 验收记录（本地 Codex 独立复核，2026-10-21）
 
@@ -741,3 +754,5 @@
 ### 独立验收证据位置（未进 Git，仅本地未跟踪）
 
 - 1D-3 及前序独立复核原始报告与日志位于本地未跟踪目录 `verification/independent-1d3-{71c4c81,3e24a53,7357869,89cc769,9e59029}/`（本轮已只读核实仍存在），以及 `verification/stage1d3-r4/`、错位的 `server/verification/stage1d3a/`。**这些证据未进入 Git**（`git status` 显示为 `??` 未跟踪）；本轮不批量添加/删除/移动原始证据、不因此重开修复轮次。被验收代码以已推送提交为准（如 1D-3 `71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`），报告路径仅用于溯源。
+
+E3 首版范围已获用户确认：仅具体物理目标与受控生命周期；实现待独立复核，2C-2 验收状态不变。Qdrant/new-profile 门禁保持。详见 docs/stage2c2-e3-design.md。

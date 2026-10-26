@@ -189,6 +189,7 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	defer srv.Close()
 	cfg := validRagConfig()
 	cfg.VectorCfg = vector.Config{Type: "es", IndexName: "test", ES: &vector.ESConfig{Address: srv.URL}, EmbeddingDimensions: 768}
+	cfg.VectorCfg.ManagedResourceLifecycle = true // local fake satisfies the managed-lifecycle contract
 	cfg.EmbeddingDimensions = 768
 	disabled := false
 	cfg.QAEnabled = &disabled

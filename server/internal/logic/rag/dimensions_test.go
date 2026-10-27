@@ -72,7 +72,7 @@ func TestDimensions_InitFactoryPropagation(t *testing.T) {
 	}
 }
 func TestDimensions_InitFailClosed(t *testing.T) {
-	for _, scenario := range []string{"conflict", "negative", "guard"} {
+	for _, scenario := range []string{"conflict", "negative"} {
 		t.Run(scenario, func(t *testing.T) {
 			resetState()
 			defer resetState()
@@ -85,9 +85,6 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 			case "negative":
 				c.EmbeddingDimensions = -1
 				want = config.ErrEmbeddingDimensions
-			case "guard":
-				c.Provider = &config.ProviderConfig{EmbeddingModel: "m", EmbeddingDimensions: 768}
-				want = common.ErrEmbeddingGuardNotReady
 			}
 			vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
 			rf := &dimensionRagFactory{}
@@ -98,6 +95,25 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 				t.Fatal("factory called on invalid config")
 			}
 		})
+	}
+}
+
+// TestDimensions_InitProviderPathNotBlockedAtGuard verifies that 2C-3 no longer
+// blocks the provider embedding path at the InitWith guard level.
+// The guard check moved to common.NewEmbedding (guardedEmbedder).
+func TestDimensions_InitProviderPathNotBlockedAtGuard(t *testing.T) {
+	resetState()
+	defer resetState()
+	c := validRagConfig()
+	c.EmbeddingDimensions = 768
+	c.Provider = &config.ProviderConfig{EmbeddingModel: "m", EmbeddingDimensions: 768}
+	vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
+	rf := &dimensionRagFactory{}
+	// 2C-3: InitWith should NOT return ErrEmbeddingGuardNotReady for active provider path.
+	// It will fail deeper (e.g. buildRegistry credential resolution) but not at the guard.
+	err := InitWith(c, vf, rf)
+	if errors.Is(err, common.ErrEmbeddingGuardNotReady) {
+		t.Fatal("provider path should not be blocked at InitWith guard level after 2C-3")
 	}
 }
 

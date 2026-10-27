@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -12,24 +13,58 @@ import (
 	"github.com/wangle201210/go-rag/server/core/config"
 )
 
-// B2: Embedding 生产门控错误。
+// 2C-3: Embedding profile 错误哨兵。
 var (
-	ErrEmbeddingGuardNotReady = errors.New("embedding: new profile requires Stage 2C guard (dimension fingerprint + mismatch blocking) before production use")
+	// ErrEmbeddingProfileNotReady profile 已配置但无法构造（Registry 不可用、适配器构建失败等）。
+	ErrEmbeddingProfileNotReady = errors.New("embedding: profile configured but not constructible")
+
+	// ErrEmbeddingIdentityMismatch Registry 返回的模型身份或维度与配置解析不一致。
+	ErrEmbeddingIdentityMismatch = errors.New("embedding: identity or dimensions mismatch between Registry and config resolution")
+
+	// ErrEmbeddingConfigInvalid 配置验证失败（缺少 API key、无效维度等）。
+	ErrEmbeddingConfigInvalid = errors.New("embedding: invalid configuration")
+
+	// ErrEmbeddingGuardNotReady 保留用于向后兼容的测试引用；生产代码不再使用。
+	// Deprecated: 使用 ErrEmbeddingProfileNotReady 代替。
+	ErrEmbeddingGuardNotReady = ErrEmbeddingProfileNotReady
 )
 
-func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedder, err error) {
-	// B2: Embedding guard — 新 Embedding profile 在 2C guard 不存在时 fail closed。
-	// 区分两种情况：
-	//   1. 未配置 Provider 或 Provider.EmbeddingModel 为空 → 继续旧路径（不拒绝）
-	//   2. 明确配置了新 Embedding profile → 拒绝（2C guard 不存在）
-	if conf != nil && conf.Provider != nil && conf.Provider.EmbeddingModel != "" {
-		// 明确配置了新 Embedding profile → fail closed
-		return nil, fmt.Errorf("%w: provider=%q model=%q",
-			ErrEmbeddingGuardNotReady, conf.Provider.Name, conf.Provider.EmbeddingModel)
-	}
+// IsActiveProviderEmbedding reports whether the config selects the Provider
+// Embedding branch. This is ONLY branch selection — it does not prove
+// identity, dimensions, Registry, or physical binding are ready.
+func IsActiveProviderEmbedding(conf *config.Config) bool {
+	return conf != nil && conf.Provider != nil && conf.Provider.EmbeddingModel != ""
+}
 
-	// B4: Registry 存在但 Embedding 未配置 → 继续旧路径（不委派 Registry）
-	// 仅当 Provider 配置存在且 EmbeddingModel 非空时才尝试 Registry（上方已拒绝）
+// HasProviderChatModel reports whether the config selects a Provider Chat model.
+func HasProviderChatModel(conf *config.Config) bool {
+	return conf != nil && conf.Provider != nil && conf.Provider.ChatModel != ""
+}
+
+// ResolveEmbeddingIdentity returns (providerName, modelID, dimensions) using
+// the same branch condition as ComputeFingerprintMeta.
+// Both legacy and Provider branches validate through ResolveEmbeddingDimensions.
+func ResolveEmbeddingIdentity(conf *config.Config) (providerName, modelID string, dimensions int, err error) {
+	if IsActiveProviderEmbedding(conf) {
+		dims, dimErr := config.ResolveEmbeddingDimensions(conf.EmbeddingDimensions, conf.Provider)
+		if dimErr != nil {
+			return "", "", 0, fmt.Errorf("%w: provider dimensions: %v", ErrEmbeddingConfigInvalid, dimErr)
+		}
+		return conf.Provider.Name, conf.Provider.EmbeddingModel, dims, nil
+	}
+	// Legacy path
+	dims, dimErr := conf.ResolveDimensions()
+	if dimErr != nil {
+		return "", "", 0, dimErr
+	}
+	return "legacy", conf.EmbeddingModel, dims, nil
+}
+
+func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedder, err error) {
+	// 2C-3: Active Provider path — via conf.Registry.GetEmbedder
+	if IsActiveProviderEmbedding(conf) {
+		return newProviderEmbedding(ctx, conf)
+	}
 
 	// 旧路径：直接从 config 构建
 	dimensions, err := conf.ResolveDimensions()
@@ -60,17 +95,64 @@ func NewEmbedding(ctx context.Context, conf *config.Config) (eb embedding.Embedd
 	if err != nil {
 		return nil, err
 	}
-	return &dimensionEmbedder{Embedder: eb, dimensions: dimensions, guard: conf.VectorIOGuard}, nil
+	return &guardedEmbedder{Embedder: eb, dimensions: dimensions, guard: conf.VectorIOGuard}, nil
 }
 
-// dimensionEmbedder checks legacy responses before vector write/search.
-type dimensionEmbedder struct {
+// newProviderEmbedding constructs an embedder via conf.Registry (2C-3 active path).
+func newProviderEmbedding(ctx context.Context, conf *config.Config) (embedding.Embedder, error) {
+	// 1. Registry must be injected by factory — not global
+	if conf.Registry == nil {
+		return nil, fmt.Errorf("%w: conf.Registry is nil for provider embedding", ErrEmbeddingProfileNotReady)
+	}
+
+	// 2. Resolve expected identity from config
+	_, expectedModel, expectedDims, err := ResolveEmbeddingIdentity(conf)
+	if err != nil {
+		return nil, fmt.Errorf("%w: resolve identity: %v", ErrEmbeddingProfileNotReady, err)
+	}
+
+	// 3. Get EmbedRole from Registry
+	embedRole, err := conf.Registry.GetEmbedder(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: Registry.GetEmbedder: %v", ErrEmbeddingProfileNotReady, err)
+	}
+	if embedRole == nil {
+		return nil, fmt.Errorf("%w: Registry.GetEmbedder returned nil", ErrEmbeddingProfileNotReady)
+	}
+
+	// 4. Verify identity: model ID and dimensions must match
+	roleModelID := embedRole.ModelID()
+	// Compare using Profile.Model + Version semantics:
+	// expectedModel is the raw model name from config; roleModelID may include @version.
+	// We check that roleModelID starts with expectedModel (allowing @version suffix).
+	if roleModelID != expectedModel && !strings.HasPrefix(roleModelID, expectedModel+"@") {
+		return nil, fmt.Errorf("%w: Registry model=%q config model=%q",
+			ErrEmbeddingIdentityMismatch, roleModelID, expectedModel)
+	}
+	if embedRole.Dimensions() != expectedDims {
+		return nil, fmt.Errorf("%w: Registry dims=%d config dims=%d",
+			ErrEmbeddingIdentityMismatch, embedRole.Dimensions(), expectedDims)
+	}
+
+	// 5. Wrap as guardedEmbedder (guard before/after + dimension + finite check)
+	// Provider name is bound via fingerprint (ComputeFingerprintMeta uses same ResolveEmbeddingIdentity).
+	// Model ID + dimensions mismatch check above is the identity gate.
+	return &guardedEmbedder{
+		Embedder:   embedRole,
+		dimensions: expectedDims,
+		guard:      conf.VectorIOGuard,
+	}, nil
+}
+
+// guardedEmbedder wraps an embedding.Embedder with guard checks and response validation.
+// Serves both legacy and new Provider paths (2C-3).
+type guardedEmbedder struct {
 	embedding.Embedder
 	dimensions int
 	guard      func(context.Context) error
 }
 
-func (e *dimensionEmbedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float64, error) {
+func (e *guardedEmbedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float64, error) {
 	if e.guard != nil {
 		if err := e.guard(ctx); err != nil {
 			return nil, fmt.Errorf("vector target before embedding: %w", err)
@@ -81,15 +163,19 @@ func (e *dimensionEmbedder) EmbedStrings(ctx context.Context, texts []string, op
 		return nil, err
 	}
 	if len(vectors) != len(texts) {
-		return nil, fmt.Errorf("%w: response count", config.ErrEmbeddingDimensions)
+		return nil, fmt.Errorf("%w: response count %d != input count %d", config.ErrEmbeddingDimensions, len(vectors), len(texts))
 	}
-	for _, v := range vectors {
+	for i, v := range vectors {
 		if len(v) != e.dimensions {
-			return nil, fmt.Errorf("%w: response=%d configured=%d", config.ErrEmbeddingDimensions, len(v), e.dimensions)
+			return nil, fmt.Errorf("%w: response[%d] dims=%d configured=%d", config.ErrEmbeddingDimensions, i, len(v), e.dimensions)
+		}
+		for j, f := range v {
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return nil, fmt.Errorf("%w: response[%d][%d] non-finite value", config.ErrEmbeddingDimensions, i, j)
+			}
 		}
 	}
 	// E3: do not hand vectors to Store/query if identity changed during embedding.
-	// The remaining check-to-I/O window requires the managed lifecycle contract.
 	if e.guard != nil {
 		if err := e.guard(ctx); err != nil {
 			return nil, fmt.Errorf("vector target after embedding: %w", err)

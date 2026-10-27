@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/gogf/gf/v2/container/gvar"
-	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
@@ -41,7 +40,9 @@ func TestManagedFactoryDisabledProfileCannotCreateResource(t *testing.T) {
 	cfg.VectorCfg.ManagedResourceLifecycle = true
 	cfg.Provider = &config.ProviderConfig{Name: "openai", EmbeddingModel: "new-profile", EmbeddingDimensions: cfg.EmbeddingDimensions}
 	_, err := (&defaultRagFactory{}).Create(cfg, nil)
-	if !errors.Is(err, common.ErrEmbeddingGuardNotReady) {
+	// 2C-3: Guard moved from factory level to common.NewEmbedding (guardedEmbedder).
+	// Qdrant binding check (ErrResourceBindingNotReady) fires first in CheckManagedLifecycle.
+	if !errors.Is(err, vector.ErrResourceBindingNotReady) {
 		t.Fatal(err)
 	}
 }

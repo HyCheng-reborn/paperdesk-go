@@ -150,7 +150,7 @@ func BuildEmbedRole(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
 		BaseURL:    p.Endpoint,
 		HTTPClient: cfg.Transport.Client(), // 复用统一 transport
 	}
-	if p.Dimensions > 0 {
+	if p.Dimensions > 0 && p.Capabilities.SupportsDimensionsRequest {
 		d := p.Dimensions
 		ecfg.Dimensions = &d
 	}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gcfg"
-	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
 )
 
@@ -72,19 +71,12 @@ func TestDimensions_YAMLFileProductionChain(t *testing.T) {
 				t.Fatalf("not propagated: %+v", normalized)
 			}
 			if c.provider != "" {
-				resetState()
-				t.Cleanup(resetState)
 				if normalized.Provider.EmbeddingDimensions != c.want {
 					t.Fatal(normalized.Provider)
 				}
-				vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
-				rf := &dimensionRagFactory{}
-				if err = InitWith(raw, vf, rf); !errors.Is(err, common.ErrEmbeddingGuardNotReady) {
-					t.Fatal("provider gate bypassed", err)
-				}
-				if vf.got != 0 || rf.got != 0 {
-					t.Fatal("gate contacted factories")
-				}
+				// 2C-3: Provider path no longer blocked by guard at InitWith level.
+				// Dimension propagation is verified above via normalizeDimensions.
+				// The guard/validation moved to common.NewEmbedding (guardedEmbedder).
 			}
 		})
 	}

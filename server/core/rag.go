@@ -95,9 +95,9 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	}
 	conf = conf.Copy()
 	conf.EmbeddingDimensions = dimensions
-	if conf.Provider != nil && conf.Provider.EmbeddingModel != "" {
-		return nil, common.ErrEmbeddingGuardNotReady
-	}
+	// 2C-3: Active Provider embedding path no longer blocked here.
+	// Guard moved to common.NewEmbedding which goes through conf.Registry.GetEmbedder.
+	// Identity/dimensions/binding validation happens at construction time, not at entry.
 	if len(conf.IndexName) == 0 {
 		return nil, fmt.Errorf("indexName is empty")
 	}
@@ -282,19 +282,15 @@ func (x *Rag) computeExpectedFingerprint() (*vector.Fingerprint, error) {
 
 // ComputeFingerprintMeta builds a Fingerprint from config for identity binding.
 // Standalone function usable before Rag creation (called from factory).
+// 2C-3: Uses ResolveEmbeddingIdentity for single-source identity.
 func ComputeFingerprintMeta(conf *config.Config) (*vector.Fingerprint, error) {
-	providerName := "legacy"
-	modelID := conf.EmbeddingModel
-	// Match common.NewEmbedding: a chat-only Provider does not select the
-	// Provider embedding branch and must not change the legacy identity.
-	if conf.Provider != nil && conf.Provider.EmbeddingModel != "" {
-		providerName = conf.Provider.Name
-		modelID = conf.Provider.EmbeddingModel
+	providerName, modelID, dims, err := common.ResolveEmbeddingIdentity(conf)
+	if err != nil {
+		return nil, err
 	}
 	if modelID == "" {
 		return nil, fmt.Errorf("embedding model not configured")
 	}
-	dims := conf.EmbeddingDimensions
 	if dims <= 0 {
 		return nil, fmt.Errorf("invalid embedding dimensions: %d", dims)
 	}

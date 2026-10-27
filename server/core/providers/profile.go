@@ -184,9 +184,11 @@ func (p *ProviderProfile) CacheKey() string {
 	writeCacheField(&b, "dims", strconv.Itoa(p.Dimensions))
 	writeCacheField(&b, "cred", p.CredentialIdentity)
 	// Capabilities 参与身份：能力不同的 Profile 不可共享缓存实例
-	writeCacheField(&b, "cap", fmt.Sprintf("%t,%t,%t,%t",
+	// 2C-3: SupportsDimensionsRequest 加入身份指纹
+	writeCacheField(&b, "cap", fmt.Sprintf("%t,%t,%t,%t,%t",
 		p.Capabilities.Stream, p.Capabilities.StructuredOutput,
-		p.Capabilities.ToolCalling, p.Capabilities.Usage))
+		p.Capabilities.ToolCalling, p.Capabilities.Usage,
+		p.Capabilities.SupportsDimensionsRequest))
 	// KeyOptions 排序后逐个长度前缀编码，保证顺序无关且无歧义
 	if len(p.KeyOptions) > 0 {
 		keys := make([]string, 0, len(p.KeyOptions))

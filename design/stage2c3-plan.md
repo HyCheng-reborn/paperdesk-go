@@ -1,6 +1,7 @@
-# Stage 2C-3 实施设计（详细实施方案，未实施）
+# Stage 2C-3 实施设计（详细实施方案，已实施，待独立复核）
 
-**状态**：2C-3 详细实施设计已完成，**未实施、未验收**。本文不含代码改动，也不代表任何门禁已解除或 Stage 2 完成。
+**状态**：2C-3 详细实施设计已确认并实施，**待独立复核**（2026-10-27）。
+**实施与设计差异**：实现基本遵循设计文档 D1-D7 决策；`ErrEmbeddingGuardNotReady` 保留为 `ErrEmbeddingProfileNotReady` 的别名以兼容测试引用；`guardedEmbedder` 统一 legacy 与新 profile 的 guard 与响应校验；`SupportsDimensionsRequest` 通过 YAML 配置声明而非真实能力证明。
 **本批授权边界**：仅制定实施方案。**未授权**解除门禁、**未授权** 2C-3 实施、**未授权** 2D 在线调用。
 **依据**：`design/stage2-plan.md` §5.8 第 6 条（guard 入口与解除）、§7.3（依赖顺序与解除条件）、§7.2 首批范围。
 **已验收前置**：**Stage 2C-2（含 P2）已在批准的受控 ES 生命周期及既定离线范围内通过独立复核**，目标 `a60bcee7e2de9fc6b1ff7e5158ccee22d7636bae`（复核来源为云端独立复核，非本地 `verification/` 目录）。2C-1 基线 `2dc0b82` 已在既定离线范围通过独立复核；本文不扩大该结论。

@@ -72,10 +72,8 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	if err != nil {
 		return nil, err
 	}
-	// A disabled embedding profile must not create or claim any resource.
-	if cfg.Provider != nil && cfg.Provider.EmbeddingModel != "" {
-		return nil, common.ErrEmbeddingGuardNotReady
-	}
+	// 2C-3: Active Provider embedding path no longer blocked here.
+	// Guard/validation moved to common.NewEmbedding via conf.Registry.
 	if err := vector.CheckManagedLifecycle(&cfg.VectorCfg); err != nil {
 		return nil, err
 	}
@@ -280,6 +278,7 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 			Endpoint:     baseURL,
 			Model:        pc.EmbeddingModel,
 			Dimensions:   dims,
+			Capabilities: providers.Capabilities{SupportsDimensionsRequest: pc.SupportsDimensionsRequest},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("embed profile: %w", err)
@@ -580,9 +579,9 @@ func InitWith(cfg RagConfig, vsFactory VectorStoreFactory, ragFactory RagFactory
 	if err != nil {
 		return err
 	}
-	if cfg.Provider != nil && cfg.Provider.EmbeddingModel != "" {
-		return common.ErrEmbeddingGuardNotReady
-	}
+	// 2C-3: Active Provider path no longer blocked at entry.
+	// Validation is per-role: Provider Embedding replaces legacy Embedding check,
+	// Provider Chat replaces legacy Chat check.
 	// 验证配置（在工厂调用之前）
 	if cfg.VectorCfg.Type == "" {
 		return fmt.Errorf("rag: vector.type not configured")
@@ -590,10 +589,12 @@ func InitWith(cfg RagConfig, vsFactory VectorStoreFactory, ragFactory RagFactory
 	if cfg.VectorCfg.IndexName == "" {
 		return fmt.Errorf("rag: vector.indexName not configured")
 	}
-	if cfg.EmbeddingModel == "" {
+	hasProviderEmbedding := cfg.Provider != nil && cfg.Provider.EmbeddingModel != ""
+	if cfg.EmbeddingModel == "" && !hasProviderEmbedding {
 		return fmt.Errorf("rag: embedding.model not configured")
 	}
-	if cfg.ChatModel == "" {
+	hasProviderChat := cfg.Provider != nil && cfg.Provider.ChatModel != ""
+	if cfg.ChatModel == "" && !hasProviderChat {
 		return fmt.Errorf("rag: chat.model not configured")
 	}
 

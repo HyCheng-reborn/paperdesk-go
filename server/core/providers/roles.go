@@ -44,10 +44,11 @@ type RerankRole interface {
 // Capabilities 声明 Provider 支持的最小能力集（stage2-plan §3.4.3）。
 // 在 Profile 构造时确定，不可变；不假设所有 Provider 均支持上述能力。
 type Capabilities struct {
-	Stream           bool // 是否支持流式
-	StructuredOutput bool // 是否支持结构化输出（JSON Schema / tool calling）
-	ToolCalling      bool // 是否支持 tool calling
-	Usage            bool // 是否返回 usage 信息
+	Stream                    bool // 是否支持流式
+	StructuredOutput          bool // 是否支持结构化输出（JSON Schema / tool calling）
+	ToolCalling               bool // 是否支持 tool calling
+	Usage                     bool // 是否返回 usage 信息
+	SupportsDimensionsRequest bool // 2C-3: 模型是否接受 dimensions 请求参数（本地配置声明，非真实能力证明）
 }
 
 // 编译期断言：ChatRole 与 Eino model.BaseChatModel 双向兼容，

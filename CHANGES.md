@@ -1,5 +1,16 @@
 # 变更记录
 
+## Stage 2C-3：受控 ES 路径新 Embedding profile 接线（实现待复核）
+
+- 统一分支选择 `IsActiveProviderEmbedding` 与身份解析 `ResolveEmbeddingIdentity`，四处门禁收敛为同一判定
+- `guardedEmbedder` 替代 `dimensionEmbedder`，legacy 与新 profile 共用 guard + 响应校验（数量/维度/NaN/Inf）
+- 新 profile 经 `conf.Registry.GetEmbedder` 取得适配器，校验 Profile 模型/维度与指纹一致
+- `SupportsDimensionsRequest` 贯通 YAML → ProviderConfig → Capabilities → BuildEmbedRole → HTTP 请求
+- `InitWith` 按角色分别判断：Provider Embedding 替代 legacy Embedding 必填，Provider Chat 替代 legacy Chat 必填
+- `ErrEmbeddingGuardNotReady` 移除，新错误 `ErrEmbeddingProfileNotReady` / `ErrEmbeddingIdentityMismatch`
+- Qdrant 继续 `ErrResourceBindingNotReady`；managedResourceLifecycle 默认关闭不变
+- 新增 45 个测试，总计 909 个测试全部通过；build/vet/race 通过
+
 ## Stage 2C-2 P2：Chat 与 Embedding 身份隔离（实现待复核）
 
 - `ComputeFingerprintMeta` 与实际 Embedding 分支保持一致：仅在 `Provider.EmbeddingModel` 非空时采用 Provider 的 provider/model；Chat-only Provider 不改变旧 Embedding 的 `legacy` 身份。

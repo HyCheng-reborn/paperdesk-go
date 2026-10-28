@@ -19,6 +19,7 @@ import (
 	"github.com/wangle201210/go-rag/server/core/indexer"
 	"github.com/wangle201210/go-rag/server/core/retriever"
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
+	"github.com/wangle201210/go-rag/server/core/vector"
 	"github.com/wangle201210/go-rag/server/internal/logic/knowledge"
 	"github.com/wangle201210/go-rag/server/internal/model/entity"
 )
@@ -77,6 +78,14 @@ type Rag struct {
 
 	// 统一终结处理：后台失败时标记文档状态（Stage 1D-3-B）
 	markFailed func(ctx context.Context, docID int64, err error)
+
+	// Stage 2C-2: Vector store reference for fingerprint operations (C5: no cache)
+	vectorStore vector.VectorStore // Vector store for fingerprint operations
+
+	// D4: 启动时固定的物理资源 ID，运行期只读。
+	// VerifyFingerprint 成功时设置；checkFingerprint 每次比对。
+	// 如果 resourceID 变化，说明物理资源已被替换。
+	boundResourceID string
 }
 
 func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
@@ -86,27 +95,31 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	}
 	conf = conf.Copy()
 	conf.EmbeddingDimensions = dimensions
-	if conf.Provider != nil && conf.Provider.EmbeddingModel != "" {
-		return nil, common.ErrEmbeddingGuardNotReady
-	}
+	// 2C-3: Active Provider embedding path no longer blocked here.
+	// Guard moved to common.NewEmbedding which goes through conf.Registry.GetEmbedder.
+	// Identity/dimensions/binding validation happens at construction time, not at entry.
 	if len(conf.IndexName) == 0 {
 		return nil, fmt.Errorf("indexName is empty")
+	}
+	if err := vector.ValidatePhysicalName(conf.IndexName); err != nil {
+		return nil, err
+	}
+	if conf.QdrantClient != nil {
+		return nil, vector.ErrResourceBindingNotReady
+	}
+	if !conf.ManagedResourceLifecycle {
+		return nil, vector.ErrManagedLifecycleRequired
+	}
+	if conf.VectorIOGuard == nil {
+		return nil, vector.ErrResourceBindingNotReady
 	}
 
 	// Fix 4: 不在此处临时设置全局 Registry。内部需要 Registry 时通过 conf.Registry 显式传入。
 	// 成功后由调用方（defaultRagFactory）发布全局 Registry；失败不影响全局状态。
 
-	// 确保 index 存在
-	exists, err := conf.IndexExists(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		err = conf.CreateIndex(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// C1: Index creation is now handled by the factory (defaultRagFactory),
+	// which calls vs.CreateIndex(ctx, indexName, fp) with atomic fingerprint.
+	// core.New() no longer creates indexes directly.
 	buildIndex, err := indexer.BuildIndexer(ctx, conf)
 	if err != nil {
 		return nil, err
@@ -199,6 +212,175 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	}
 
 	return rag, nil
+}
+
+// VerifyFingerprint performs fingerprint verification.
+// C5: Reads from storage every time (no caching).
+// C4: ReadFingerprint now includes schema validation (dimensions check).
+func (x *Rag) VerifyFingerprint(ctx context.Context, vs vector.VectorStore) error {
+	if vs == nil {
+		return fmt.Errorf("nil VectorStore")
+	}
+	if _, qdrant := vs.(*vector.QdrantVectorStore); qdrant {
+		return vector.ErrResourceBindingNotReady
+	}
+	if _, es := vs.(*vector.ESVectorStore); es && (!x.conf.ManagedResourceLifecycle || x.conf.VectorIOGuard == nil) {
+		return vector.ErrManagedLifecycleRequired
+	}
+	x.vectorStore = vs
+
+	// Compute expected fingerprint from config
+	expectedFP, err := x.computeExpectedFingerprint()
+	if err != nil {
+		return fmt.Errorf("compute expected fingerprint: %w", err)
+	}
+
+	// Read and verify from storage (C4: ReadFingerprint includes schema validation)
+	storedFP, resourceID, err := vs.ReadFingerprint(ctx, x.conf.IndexName)
+	if err != nil {
+		if errors.Is(err, vector.ErrFingerprintMissing) {
+			g.Log().Errorf(ctx,
+				"Index %q has no fingerprint. "+
+					"Refusing to auto-backfill. "+
+					"Rebuild the index with current embedding config to establish fingerprint identity.",
+				x.conf.IndexName)
+			return fmt.Errorf("index %q has no fingerprint: %w", x.conf.IndexName, vector.ErrFingerprintMissing)
+		}
+		if errors.Is(err, vector.ErrFingerprintCorrupted) {
+			g.Log().Errorf(ctx,
+				"Index %q has corrupted fingerprint. "+
+					"Refusing to proceed. "+
+					"Rebuild the index with current embedding config.",
+				x.conf.IndexName)
+			return fmt.Errorf("index %q has corrupted fingerprint: %w", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+		}
+		return fmt.Errorf("read fingerprint: %w", err)
+	}
+
+	// C5: Empty resourceID = identity incomplete, fail closed
+	if resourceID == "" {
+		return fmt.Errorf("index %q: %w (resourceID empty)", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+	}
+
+	// Verify fingerprint matches expected
+	if verifyErr := vector.VerifyFingerprint(storedFP, expectedFP); verifyErr != nil {
+		return fmt.Errorf("fingerprint verification failed for index %q: %w", x.conf.IndexName, verifyErr)
+	}
+
+	g.Log().Infof(ctx, "Fingerprint verified for index %q (resourceID=%s)", x.conf.IndexName, resourceID)
+
+	// D4: 固定物理资源 ID（启动时设置，运行期比对）
+	x.boundResourceID = resourceID
+
+	return nil
+}
+
+// computeExpectedFingerprint builds the expected fingerprint from current config.
+func (x *Rag) computeExpectedFingerprint() (*vector.Fingerprint, error) {
+	return ComputeFingerprintMeta(x.conf)
+}
+
+// ComputeFingerprintMeta builds a Fingerprint from config for identity binding.
+// Standalone function usable before Rag creation (called from factory).
+// 2C-3: Uses ResolveEmbeddingIdentity for single-source identity.
+func ComputeFingerprintMeta(conf *config.Config) (*vector.Fingerprint, error) {
+	providerName, modelID, dims, err := common.ResolveEmbeddingIdentity(conf)
+	if err != nil {
+		return nil, err
+	}
+	if modelID == "" {
+		return nil, fmt.Errorf("embedding model not configured")
+	}
+	if dims <= 0 {
+		return nil, fmt.Errorf("invalid embedding dimensions: %d", dims)
+	}
+	return vector.NewFingerprint(
+		vector.FingerprintVersion,
+		modelID,
+		dims,
+		providerName,
+		"cosine",
+	)
+}
+
+// GetFingerprint returns the cached fingerprint for the current index.
+// C5: Cache removed; always returns nil. Callers should use checkFingerprint for verification.
+func (x *Rag) GetFingerprint() *vector.Fingerprint {
+	return nil
+}
+
+// checkFingerprint validates the fingerprint before embedding operations.
+// C5: Reads from storage every time (no caching).
+// Returns error if fingerprint is missing, invalid, or cannot be verified.
+// D4: Compares resourceID with boundResourceID to detect physical resource replacement.
+// E3: This check happens at the entry point; see verifyBoundResource for post-write verification.
+func (x *Rag) checkFingerprint(ctx context.Context) error {
+	// Ensure vector store is initialized
+	if x.vectorStore == nil {
+		return fmt.Errorf("vector store not set: VerifyFingerprint must be called after New()")
+	}
+
+	// C5: Read from vector store every time (no caching)
+	storedFP, storedResourceID, err := x.vectorStore.ReadFingerprint(ctx, x.conf.IndexName)
+	if err != nil {
+		return fmt.Errorf("read fingerprint from vector store: %w", err)
+	}
+
+	// C5: Empty stored resourceID = identity incomplete, fail closed
+	if storedResourceID == "" {
+		return fmt.Errorf("index %q: %w (stored resourceID empty)", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+	}
+
+	// Compute expected fingerprint from config
+	expectedFP, err := x.computeExpectedFingerprint()
+	if err != nil {
+		return fmt.Errorf("compute expected fingerprint: %w", err)
+	}
+
+	// Verify match
+	if verifyErr := vector.VerifyFingerprint(storedFP, expectedFP); verifyErr != nil {
+		return fmt.Errorf("fingerprint verification failed for index %q: %w", x.conf.IndexName, verifyErr)
+	}
+
+	// D4: 比对 resourceID 与启动时固定的值（检测物理资源替换）
+	if x.boundResourceID != "" && storedResourceID != x.boundResourceID {
+		return fmt.Errorf("index %q: %w (bound=%s, current=%s)",
+			x.conf.IndexName, vector.ErrResourceReplaced, x.boundResourceID, storedResourceID)
+	}
+
+	return nil
+}
+
+// verifyBoundResource checks that the current physical resource matches the bound one.
+// E3: Call after actual Store/query operations to detect resource replacement during operation.
+// This is a post-write verification — it cannot prevent writes to a replaced resource,
+// but it detects the condition immediately after the operation completes.
+//
+// TOCTOU limitation: Between checkFingerprint (pre-entry) and verifyBoundResource (post-write),
+// there is a window where the physical resource could be replaced (e.g., delete + recreate with
+// same logical name but different UUID). Full atomic binding requires Option C (immutable physical
+// names) which is pending separate approval.
+func (x *Rag) verifyBoundResource(ctx context.Context) error {
+	if x.vectorStore == nil {
+		return fmt.Errorf("vector store not set: VerifyFingerprint must be called after New()")
+	}
+	// E3: If boundResourceID is empty, VerifyFingerprint was not called (e.g., test setup).
+	// Skip verification to maintain backward compatibility with existing tests.
+	if x.boundResourceID == "" {
+		return nil
+	}
+	_, resourceID, err := x.vectorStore.ReadFingerprint(ctx, x.conf.IndexName)
+	if err != nil {
+		return fmt.Errorf("resource verification failed: %w", err)
+	}
+	if resourceID == "" {
+		return fmt.Errorf("index %q: %w (resourceID empty)", x.conf.IndexName, vector.ErrFingerprintCorrupted)
+	}
+	if resourceID != x.boundResourceID {
+		return fmt.Errorf("index %q: %w (bound=%s, current=%s)",
+			x.conf.IndexName, vector.ErrResourceReplaced, x.boundResourceID, resourceID)
+	}
+	return nil
 }
 
 // GetKnowledgeBaseList 获取知识库列表

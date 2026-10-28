@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	database "github.com/wangle201210/go-rag/server/internal/dao/db"
+	gormmodel "github.com/wangle201210/go-rag/server/internal/model/gorm"
 	"gorm.io/gorm"
 )
 
@@ -114,6 +115,35 @@ func Migrate() error {
 		return fmt.Errorf("dao: InitDB must be called before Migrate")
 	}
 	return db.AutoMigrate()
+}
+
+// MigrateFingerprintTable explicitly migrates only the index_fingerprints table.
+// This is NOT called during normal startup (design requirement).
+// Must be called after InitDB succeeds.
+func MigrateFingerprintTable() error {
+	dbMu.Lock()
+	defer dbMu.Unlock()
+	if !dbInit || db == nil {
+		return fmt.Errorf("dao: InitDB must be called before MigrateFingerprintTable")
+	}
+	gormDB := db.GormDB()
+	if gormDB == nil {
+		return fmt.Errorf("dao: GORM DB not available")
+	}
+	return gormDB.AutoMigrate(&gormmodel.IndexFingerprint{})
+}
+
+// CheckFingerprintTableReady verifies that the index_fingerprints table exists.
+// F5: Used during normal startup instead of implicit AutoMigrate.
+// Returns error if table is missing (operator must run MigrateFingerprintTable explicitly).
+func CheckFingerprintTableReady(gormDB *gorm.DB) error {
+	if gormDB == nil {
+		return fmt.Errorf("dao: nil *gorm.DB")
+	}
+	if !gormDB.Migrator().HasTable(&gormmodel.IndexFingerprint{}) {
+		return errors.New("fingerprint: index_fingerprints table missing; run MigrateFingerprintTable before startup")
+	}
+	return nil
 }
 
 // InitWithMigrate 连接数据库并执行迁移（兼容入口，等价于 InitDB + Migrate）。

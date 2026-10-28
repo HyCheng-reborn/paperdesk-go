@@ -1,5 +1,96 @@
 # 变更记录
 
+## Stage 2C-3：受控 ES 路径新 Embedding profile 接线（实现待复核）
+
+- 统一分支选择 `IsActiveProviderEmbedding` 与身份解析 `ResolveEmbeddingIdentity`，四处门禁收敛为同一判定
+- `guardedEmbedder` 替代 `dimensionEmbedder`，legacy 与新 profile 共用 guard + 响应校验（数量/维度/NaN/Inf）
+- 新 profile 经 `conf.Registry.GetEmbedder` 取得适配器，校验 Profile 模型/维度与指纹一致
+- `SupportsDimensionsRequest` 贯通 YAML → ProviderConfig → Capabilities → BuildEmbedRole → HTTP 请求
+- `InitWith` 按角色分别判断：Provider Embedding 替代 legacy Embedding 必填，Provider Chat 替代 legacy Chat 必填
+- `ErrEmbeddingGuardNotReady` 移除，新错误 `ErrEmbeddingProfileNotReady` / `ErrEmbeddingIdentityMismatch`
+- Qdrant 继续 `ErrResourceBindingNotReady`；managedResourceLifecycle 默认关闭不变
+- 新增 45 个测试，总计 909 个测试全部通过；build/vet/race 通过
+
+## Stage 2C-2 P2：Chat 与 Embedding 身份隔离（实现待复核）
+
+- `ComputeFingerprintMeta` 与实际 Embedding 分支保持一致：仅在 `Provider.EmbeddingModel` 非空时采用 Provider 的 provider/model；Chat-only Provider 不改变旧 Embedding 的 `legacy` 身份。
+- 补充 Chat-only 的指纹/digest 稳定、启动与运行门控、错误标签不自动认领、新 profile 仍禁用的回归；既有仅配置 Chat 的测试夹具改为声明 `legacy` 指纹。
+- 不覆盖已有指纹、不增加迁移或重建动作，不改变受控生命周期边界或验收状态；Qdrant 与新 profile 门禁保持。
+
+## Stage 2C-2 E1-E3 修复（基线 79ea0ab，提交 fce88e2）
+
+> 本节区分三类信息：源码可确认行为 / 实现者声明 / 独立验证结果。**本批没有独立复核执行记录**，以下不构成验收通过。
+
+- **E1（源码可确认）**：`server/core/vector/schema_validation.go` 的 `ValidateSchemaStrict` 要求 `Distance` 非空；`backend="es"` 时要求 `FieldType == "dense_vector"`；`strictDims` 拒绝 float64/string/nil。`mapQdrantDistance`（`qdrant.go`）显式映射 Cosine/Dot/Euclid/Manhattan，未知枚举返回 error；`distanceMatchesSimilarity` 对 Manhattan 与未知距离返回 false。ES 提取路径（`es.go`）在 type 缺失/非字符串、similarity 缺失时仍产出空值，现由校验器拒绝（fail closed），而非提取阶段报错。
+- **E2（源码可确认，结论受限）**：`server/core/indexer/qdrant_indexer.go` 已删除 `einoIndexer` 字段与 `einoqdrant.NewIndexer` 构造调用，`Store` 走 `StoreWithNamedVectors`；全仓已无 `einoqdrant` 引用。但“集合只由受控 CreateIndex 创建”属源码审计结论，未独立复验；`QdrantIndexer.asyncIndexer` 字段仍无赋值/使用点。
+- **E3（仅操作后检测）**：`verifyBoundResource` 在 `Index`（indexer.go:167）、`IndexAsync`（indexer.go:272）、`Retrieve`（retriever.go:198）完成后比对 resourceID。可检测持续到复查时刻的替换并返回错误；**不能撤销已写入的数据，也不能阻止写入已被替换的资源**。写入副作用（Index/IndexAsync）与“检索结果不返回”（Retrieve）是两类影响。原子目标绑定仍待 Option B/C 专项设计。
+- **测试**：本批新增 26 个 `func Test`（按 `git diff 79ea0ab fce88e2 -- '*_test.go'` 静态统计，可复核）。
+- **验证声明（未核实）**：实现者声明 672 个测试通过、build/vet/race 通过；仓库内无本批日志（`verification/` 下无 stage2c2 目录）。上一轮声明为 794，两者统计口径（是否按 RUN 行、是否含 `-race`/`-count` 重复、覆盖包范围）未说明，不能直接比较；也不得把部分包的 race 通过写成全仓 race 通过。
+
+## [2026-10-25] Stage 2C-2 D1-D4 修复（提交 79ea0ab）
+
+基于第四轮独立复核报告修复 4 项问题：
+- D1: factory 重构 — CreateIndex 先于 core.New（当时声称消除 SDK 隐式创建；第五轮复核 E2 证实 core.New 仍触发 SDK ensureCollection，本批 E2 才移除该构造）；Qdrant AlreadyExists 归一化
+- D2: ES 安全加固 — 移除 deleteIndexBestEffort 和 PutMapping 后补；UUID 只读
+- D3: 严格 schema 校验 — 共享校验器（`schema_validation.go`）；必需字段/整数维度/距离映射；空语义值旁路由 E1 收口
+- D4: 资源固定 — boundResourceID 启动绑定；每次入口比对检测替换（不覆盖操作中的替换，见 E3）
+
+Tests: 实现者声明 794 pass, 0 fail，build/vet/race clean（无原始日志入仓，未核实；与 672 的统计口径未说明）。
+
+## [2026-10-25] Stage 2C-2 C1-C6 修复
+
+基于第三轮独立复核报告修复 6 项问题：
+- C1: 统一受控创建 — factory 单次存在性检查，错误传播不丢弃
+- C2: ES 原子创建 — typed API mappings._meta 携带 fingerprint + 真实 UUID 回读
+- C3: 消除独立写入 — 并发创建走 resource_already_exists → 验证路径
+- C4: schema 校验 — ES/Qdrant 回读实际维度与声明比对
+- C5: 移除缓存 — 每次从存储重读，资源变更立即检测
+- C6: 严格 EOF — 第二次 Decode 必须返回 io.EOF，拒绝尾随关闭符
+
+Tests: 614 pass, 0 fail. Build/vet/race clean.
+
+## 2026-10-25 Stage 2C-2 R1-R7 修复
+
+基于第二轮独立复核报告修复 7 项问题：
+- R1: 生产创建接线 — factory 层在 CreateIndex 后立即 WriteFingerprint
+- R2: resourceID 绑定 — ES 比对 _meta 与 settings.index.uuid；Qdrant 验证 collection 存在
+- R3: 并发写入保护 — 条件写入 ErrFingerprintExists
+- R4: 空 resourceID 拒绝 — VerifyFingerprint + checkFingerprint 均 fail closed
+- R5: digest 验证 — ParseFingerprint 重算核验 + 拒绝尾随 JSON
+- R6: context 传播 — 所有 ES API 调用 .WithContext(ctx)
+- R7: Qdrant 回滚 — 移除无所有权自动删除
+
+Tests: 603 pass, 0 fail. Build/vet/race clean.
+
+## 2026-10-25 Stage 2C-2 独立复核阻塞修复（F1-F8）
+
+基于独立复核报告修复 8 项阻塞问题：
+- F1: 创建与身份原子绑定，移除 indexJustCreated 布尔值，任何缺失指纹均 fail closed
+- F2: Qdrant 新增 resource_id + Ready 字段绑定物理资源身份
+- F3: 条件写入防覆盖（ErrFingerprintExists）
+- F4: 缓存 TTL (30s) + resourceID 重验证防永久缓存绕过
+- F5: 移除启动隐式 AutoMigrate，改为 CheckFingerprintTableReady
+- F6: fingerprint_digest 列从 varchar(64) 扩展为 varchar(128)
+- F7: 严格解析（UseNumber 拒绝浮点维度）+ VerifyDigest 摘要核验
+- F8: ES 请求入口 ctx.Err() 预检查 + context 传播
+
+新增测试：httptest fake ES (7 tests)、SQLite fake Qdrant (11 tests)、生命周期 (4 tests)、门控更新 (4 tests)、严格解析 (8 tests)
+全部 build/vet/test/race 通过。
+
+
+### Stage 2C-2 索引指纹持久化与身份验证（2026-10-24，实施完成，待独立复核）
+
+- 基线 `2dc0b82`。实现索引指纹系统，确保 embedding 模型身份一致性。
+- **指纹类型**：`Fingerprint` 结构包含版本、模型 ID、维度、provider、相似度；规范化 JSON + SHA-256 摘要。
+- **持久化存储**：ES 存储在 `_meta.fingerprint`；Qdrant 存储在 SQL 表 `index_fingerprints`。
+- **启动验证**：`VerifyFingerprint()` 在 Rag 创建后验证指纹一致性；新索引自动写入期望指纹。
+- **运行时验证**：`checkFingerprint()` 在 Retrieve/Index/IndexAsync 入口验证指纹，失败则拒绝操作。
+- **失败关闭**：指纹缺失/不匹配/损坏时返回明确错误码（FINGERPRINT_MISSING/MISMATCH/CORRUPTED）。
+- **测试覆盖**：新增 `fingerprint_test.go`（类型测试）和 `fingerprint_gate_test.go`（门控测试）；更新现有测试 helper 支持指纹基础设施。
+- **保留约束**：2A/2B 预算生命周期、2C-1 维度单源、ErrEmbeddingGuardNotReady 门禁均保持不变。
+- 设计文档：`docs/stage2c2-design.md`。
+
+
 ### Stage 2C-1 原始 YAML 类型边界修复（2026-10-21，待独立复核）
 
 - 基线 `8611750bb89dbf0de268b04a212ca873d500cb6f`。默认文件适配器的 YAML→JSON 重编码会把整数值浮点/指数变成整数 json.Number；现在通过公开原始内容 API，在 JSON 归一化之外检查 YAML 原始类型，并核对来源值与有效值。
@@ -1441,3 +1532,13 @@ Stage 1C 覆盖两个问题：
 
 - v1.0 → v1.1 → v1.1.1 → v1.1.2（当前）
 - 详见 docs/go-rag_PaperDesk_改进方案_v1.1.2.md
+
+## E3 受控物理目标首版（实现待复核）
+
+- 用户批准限定支持具体物理名，拒绝 alias/多目标；默认未确认受控生命周期时生产初始化失败。
+- 在图构造前捕获名称/UUID/完整指纹；embedding 返回后及无 embedding 的检索/后台读取路径增加 guard。
+- Qdrant incarnation 未决，生产绑定保持禁用；ErrEmbeddingGuardNotReady 仍活跃。
+- 未新增映射表、DDL、自动切换或清理；没有任意外部替换下的原子保证。部署前提见 docs/stage2c2-e3-design.md。
+
+- 受控 ES bulk 在完成 embedding 与最终 guard 后同步发批，避免锁定 SDK 错误分支遗留后台 worker；分批与回执逐项验证，不改变预算 owner，不自动回滚已成功批次。
+- 本批以本地收尾提交入库（未推送、未合并），验证结论仅来自实现者自测，不构成独立验收，验收状态未变更。

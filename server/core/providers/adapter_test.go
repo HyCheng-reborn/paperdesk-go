@@ -309,3 +309,69 @@ func contentOf(m *schema.Message) string {
 	}
 	return m.Content
 }
+
+// TestBuildEmbedRole_SupportsDimensionsRequest verifies that the dimensions
+// parameter is only sent in the HTTP request when SupportsDimensionsRequest=true.
+func TestBuildEmbedRole_SupportsDimensionsRequest(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		supportsDimReq    bool
+		profileDims       int
+		expectDimsInBody  bool
+	}{
+		{"true_sends_dimensions", true, 768, true},
+		{"false_omits_dimensions", false, 768, false},
+		{"zero_dims_never_sends", true, 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotDimensionsInBody bool
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/embeddings") {
+					raw, _ := io.ReadAll(r.Body)
+					var body map[string]json.RawMessage
+					if err := json.Unmarshal(raw, &body); err == nil {
+						_, gotDimensionsInBody = body["dimensions"]
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(embeddingBody))
+					return
+				}
+				w.WriteHeader(404)
+			}))
+			defer srv.Close()
+
+			profile, err := NewProviderProfile(ProviderProfile{
+				ProviderName: "test",
+				Protocol:     ProtocolOpenAICompat,
+				Endpoint:     srv.URL,
+				Model:        "test-model",
+				Dimensions:   tc.profileDims,
+				Capabilities: Capabilities{SupportsDimensionsRequest: tc.supportsDimReq},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := context.Background()
+			tr := NewTransport()
+			role, err := BuildEmbedRole(ctx, BuildConfig{
+				Profile:   profile,
+				APIKey:    "test-key",
+				Transport: tr,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = role.EmbedStrings(ctx, []string{"hello", "world"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if gotDimensionsInBody != tc.expectDimsInBody {
+				t.Errorf("dimensions in body = %v, want %v (supports=%v, profileDims=%d)",
+					gotDimensionsInBody, tc.expectDimsInBody, tc.supportsDimReq, tc.profileDims)
+			}
+		})
+	}
+}

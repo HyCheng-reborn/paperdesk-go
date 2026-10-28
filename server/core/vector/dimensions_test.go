@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/qdrant/go-client/qdrant"
-	"github.com/wangle201210/go-rag/server/core/config"
-	coretypes "github.com/wangle201210/go-rag/server/core/types"
-	"github.com/wangle201210/go-rag/server/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/qdrant/go-client/qdrant"
+	"github.com/wangle201210/go-rag/server/core/config"
+	coretypes "github.com/wangle201210/go-rag/server/core/types"
+	"github.com/wangle201210/go-rag/server/internal/testutil"
 )
 
 func TestDimensions_ESBothCreatePaths(t *testing.T) {
@@ -42,7 +43,7 @@ func TestDimensions_ESBothCreatePaths(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer v.Close()
-	if e = v.CreateIndex(context.Background(), "test"); e != nil {
+	if e = v.CreateIndex(context.Background(), "test", nil); e != nil {
 		t.Fatal(e)
 	}
 	s := v.(*ESVectorStore)
@@ -85,7 +86,7 @@ func TestDimensions_QdrantBothCreatePaths(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	s := &QdrantVectorStore{client: c, dimensions: 768}
-	if e := s.CreateIndex(ctx, "test"); e != nil {
+	if e := s.CreateIndex(ctx, "test", nil); e != nil {
 		t.Fatal(e)
 	}
 	conf := &config.Config{QdrantClient: c, IndexName: "test", EmbeddingDimensions: 768}

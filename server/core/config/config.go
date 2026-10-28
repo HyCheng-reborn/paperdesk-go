@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"time"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -13,6 +14,10 @@ type Config struct {
 	Client       *elasticsearch.Client // ES 客户端
 	QdrantClient *qdrant.Client        // Qdrant 客户端
 	IndexName    string                // index name / collection name
+	// Explicit deployment attestation; false by default. This is not a CAS.
+	ManagedResourceLifecycle bool
+	// Captures the verified concrete target; installed before graph construction.
+	VectorIOGuard func(context.Context) error
 	// embedding 时使用
 	APIKey              string
 	BaseURL             string
@@ -55,6 +60,10 @@ type ProviderConfig struct {
 	MaxInputTokens  int64 `yaml:"max_input_tokens"`  // 最大输入 token（0=不限）
 	MaxOutputTokens int64 `yaml:"max_output_tokens"` // 最大输出 token（0=不限）
 	MaxConcurrency  int   `yaml:"max_concurrency"`   // 最大并发（0=不限）
+
+	// 2C-3: 模型是否接受 dimensions 请求参数（本地配置声明，非真实能力证明）。
+	// YAML 严格布尔解析；缺失默认 false（不下发 dimensions 参数）。
+	SupportsDimensionsRequest bool `yaml:"supports_dimensions_request"`
 }
 
 func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
@@ -70,9 +79,11 @@ func (x *Config) GetChatModelConfig() *openai.ChatModelConfig {
 
 func (x *Config) Copy() *Config {
 	cp := &Config{
-		Client:       x.Client,
-		QdrantClient: x.QdrantClient,
-		IndexName:    x.IndexName,
+		Client:                   x.Client,
+		QdrantClient:             x.QdrantClient,
+		IndexName:                x.IndexName,
+		ManagedResourceLifecycle: x.ManagedResourceLifecycle,
+		VectorIOGuard:            x.VectorIOGuard,
 		// embedding 时使用
 		APIKey:                x.APIKey,
 		BaseURL:               x.BaseURL,

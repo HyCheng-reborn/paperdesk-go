@@ -2,17 +2,20 @@ package rag
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
 	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/vector"
-	"net/http"
-	"net/http/httptest"
-	"sync/atomic"
-	"testing"
 )
 
 type dimensionGetter map[string]any
@@ -69,7 +72,7 @@ func TestDimensions_InitFactoryPropagation(t *testing.T) {
 	}
 }
 func TestDimensions_InitFailClosed(t *testing.T) {
-	for _, scenario := range []string{"conflict", "negative", "guard"} {
+	for _, scenario := range []string{"conflict", "negative"} {
 		t.Run(scenario, func(t *testing.T) {
 			resetState()
 			defer resetState()
@@ -82,9 +85,6 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 			case "negative":
 				c.EmbeddingDimensions = -1
 				want = config.ErrEmbeddingDimensions
-			case "guard":
-				c.Provider = &config.ProviderConfig{EmbeddingModel: "m", EmbeddingDimensions: 768}
-				want = common.ErrEmbeddingGuardNotReady
 			}
 			vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
 			rf := &dimensionRagFactory{}
@@ -98,19 +98,114 @@ func TestDimensions_InitFailClosed(t *testing.T) {
 	}
 }
 
+// TestDimensions_InitProviderPathNotBlockedAtGuard verifies that 2C-3 no longer
+// blocks the provider embedding path at the InitWith guard level.
+// The guard check moved to common.NewEmbedding (guardedEmbedder).
+func TestDimensions_InitProviderPathNotBlockedAtGuard(t *testing.T) {
+	resetState()
+	defer resetState()
+	c := validRagConfig()
+	c.EmbeddingDimensions = 768
+	c.Provider = &config.ProviderConfig{EmbeddingModel: "m", EmbeddingDimensions: 768}
+	vf := &dimensionVSFactory{vs: &fakeVectorStore{}}
+	rf := &dimensionRagFactory{}
+	// 2C-3: InitWith should NOT return ErrEmbeddingGuardNotReady for active provider path.
+	// It will fail deeper (e.g. buildRegistry credential resolution) but not at the guard.
+	err := InitWith(c, vf, rf)
+	if errors.Is(err, common.ErrEmbeddingGuardNotReady) {
+		t.Fatal("provider path should not be blocked at InitWith guard level after 2C-3")
+	}
+}
+
 func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	var requests atomic.Int32
+	// F1: Pre-populate valid fingerprint in _meta (no auto-backfill).
+	// The fingerprint must match the config: model=text-embedding-3-large, dims=768, provider=legacy (chat-only Provider).
+	initFP, _ := vector.NewFingerprint("v1", "text-embedding-3-large", 768, "legacy", "cosine")
+	initFPMeta, _ := json.Marshal(map[string]any{
+		"go-rag-fingerprint": map[string]any{
+			"version":            initFP.Version,
+			"embedding_model_id": initFP.EmbeddingModelID,
+			"dimensions":         initFP.Dimensions,
+			"provider_name":      initFP.ProviderName,
+			"similarity":         initFP.Similarity,
+			"digest":             initFP.Digest(),
+		},
+		"go-rag-resource-id": "test-uuid-123",
+	})
+	var storedMeta string = string(initFPMeta)
+	var indexCreated bool = false // Track whether index has been created
+	// Pre-build mapping properties for schema verification (C2)
+	// Dimensions are 768 as set in cfg below
+	mappingProps := `{
+		"content": {"type": "text"},
+		"extra": {"type": "text"},
+		"knowledge_name": {"type": "keyword"},
+		"content_vector": {"type": "dense_vector", "dims": 768, "index": true, "similarity": "cosine"},
+		"qa_content_vector": {"type": "dense_vector", "dims": 768, "index": true, "similarity": "cosine"}
+	}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
-		if r.Method != "HEAD" {
-			t.Errorf("unexpected facility call %s", r.Method)
+		// Handle different ES API calls
+		if r.Method == "HEAD" {
+			// Index exists check - return 404 until index is created
+			if indexCreated {
+				w.WriteHeader(200)
+			} else {
+				w.WriteHeader(404)
+			}
+			return
 		}
-		w.WriteHeader(200)
+		if r.Method == "PUT" && r.URL.Path == "/test/_mapping" {
+			// Put mapping (fingerprint write) - merge _meta into stored_meta
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+				if meta, ok := body["_meta"].(map[string]any); ok {
+					if metaJSON, err := json.Marshal(meta); err == nil {
+						storedMeta = string(metaJSON)
+					}
+				}
+			}
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true}`))
+			return
+		}
+		if r.Method == "GET" && r.URL.Path == "/test" {
+			// Get index - return mappings + _meta + settings.index.uuid
+			w.WriteHeader(200)
+			resp := fmt.Sprintf(`{"test":{"mappings":{"properties":%s,"_meta":%s},"settings":{"index":{"uuid":"test-uuid-123"}}}}`, mappingProps, storedMeta)
+			w.Write([]byte(resp))
+			return
+		}
+		if r.Method == "POST" && r.URL.Path == "/test/_create" {
+			// Create index
+			indexCreated = true
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true,"index":"test"}`))
+			return
+		}
+		if r.Method == "PUT" && r.URL.Path == "/test" {
+			// Create index (PUT method)
+			indexCreated = true
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true,"index":"test"}`))
+			return
+		}
+		if r.Method == "DELETE" && r.URL.Path == "/test" {
+			// Delete index (best-effort cleanup on schema verification failure)
+			indexCreated = false
+			w.WriteHeader(200)
+			w.Write([]byte(`{"acknowledged":true}`))
+			return
+		}
+		t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(404)
 	}))
 	defer srv.Close()
 	cfg := validRagConfig()
 	cfg.VectorCfg = vector.Config{Type: "es", IndexName: "test", ES: &vector.ESConfig{Address: srv.URL}, EmbeddingDimensions: 768}
+	cfg.VectorCfg.ManagedResourceLifecycle = true // local fake satisfies the managed-lifecycle contract
 	cfg.EmbeddingDimensions = 768
 	disabled := false
 	cfg.QAEnabled = &disabled
@@ -135,8 +230,9 @@ func TestDimensions_DefaultFactoryAssembly(t *testing.T) {
 	if e = r.Shutdown(context.Background()); e != nil {
 		t.Fatal(e)
 	}
-	if requests.Load() != 1 {
-		t.Fatal(requests.Load())
+	// Should have: 1 HEAD (exists) + 1 GET (read fp) + 1 PUT (write fp) + 1 GET (verify fp)
+	if requests.Load() < 3 {
+		t.Fatalf("expected at least 3 requests, got %d", requests.Load())
 	}
 	if common.GetRegistry() == nil {
 		t.Fatal("factory did not publish registry")

@@ -43,6 +43,9 @@ func newAsyncIndexer(ctx context.Context, conf *config.Config) (idr indexer.Inde
 			},
 		}
 		indexerConfig.Embedding = embeddingIns11
+		if conf.VectorIOGuard != nil {
+			return &managedESIndexer{conf: indexerConfig, guard: conf.VectorIOGuard}, nil
+		}
 		idr, err = es8.NewIndexer(ctx, indexerConfig)
 		if err != nil {
 			return nil, err

@@ -46,6 +46,7 @@ type RetrieveReq struct {
 
 // Retrieve 检索
 // B5: 入口创建 RequestBudget 并注入 ctx，使下游所有模型调用共享同一累计 owner。
+// E3: Post-read verification detects resource replacement during search operation.
 func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
 	// 输入校验
 	if req == nil {
@@ -58,6 +59,11 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 	// 预取消检查
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+
+	// Stage 2C-2: Fingerprint validation gate before embedding operations
+	if fpErr := x.checkFingerprint(ctx); fpErr != nil {
+		return nil, fmt.Errorf("fingerprint check failed: %w", fpErr)
 	}
 
 	// B5: 注入请求级预算 owner
@@ -183,7 +189,17 @@ func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Documen
 	}
 
 	// 单一流程聚合
-	return aggregateResults(allResults, req.TopK)
+	allResults, aggErr := aggregateResults(allResults, req.TopK)
+	if aggErr != nil {
+		return nil, fmt.Errorf("aggregate results: %w", aggErr)
+	}
+
+	// E3: Post-read verification — detect resource replacement during search.
+	if verifyErr := x.verifyBoundResource(ctx); verifyErr != nil {
+		return nil, fmt.Errorf("post-read resource verification failed: %w", verifyErr)
+	}
+
+	return allResults, nil
 }
 
 // aggregateResults 聚合多轮检索结果：同 ID 保留最高分，按分数降序排序，截取 TopK
@@ -247,6 +263,11 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 
 	// 关键字路三：ES BM25（conf.Client != nil 时生效）
 	if x.conf.Client != nil {
+		if x.conf.VectorIOGuard != nil {
+			if err := x.conf.VectorIOGuard(ctx); err != nil {
+				return nil, fmt.Errorf("bm25 target verification: %w", err)
+			}
+		}
 		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.excludeIDs, esTopK)
 		if bm25Err != nil {
 			g.Log().Warningf(ctx, "bm25 retrieve failed, skip: %v", bm25Err)

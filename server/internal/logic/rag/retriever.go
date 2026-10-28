@@ -18,6 +18,7 @@ import (
 	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/vector"
+	"github.com/wangle201210/go-rag/server/internal/dao"
 
 	// 导入百炼适配包，触发 init() 注册 builder hooks
 	_ "github.com/wangle201210/go-rag/server/core/providers/bailian"
@@ -71,6 +72,11 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	if err != nil {
 		return nil, err
 	}
+	// 2C-3: Active Provider embedding path no longer blocked here.
+	// Guard/validation moved to common.NewEmbedding via conf.Registry.
+	if err := vector.CheckManagedLifecycle(&cfg.VectorCfg); err != nil {
+		return nil, err
+	}
 	ctx := context.Background()
 
 	// 根据 VectorStore 类型提取客户端
@@ -78,13 +84,13 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	var qdrantClient *qdrant.Client
 
 	if esStore, ok := vs.(*vector.ESVectorStore); ok {
+
 		client = esStore.GetClient()
 	} else if qdrantStore, ok := vs.(*vector.QdrantVectorStore); ok {
 		qdrantClient = qdrantStore.GetClient()
 	}
 
 	// B5: Registry 先作为构建上下文，core.New 成功后才发布。
-	// 失败回滚，不影响旧实例。
 	var reg providers.ProviderRegistry
 	if cfg.Provider != nil {
 		var err error
@@ -92,28 +98,70 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		if err != nil {
 			return nil, fmt.Errorf("build provider registry: %w", err)
 		}
-		// 不在此处 SetRegistry —— 等 core.New 成功后才发布
 	}
 
-	rag, err := core.New(ctx, &config.Config{
-		Client:                client,
-		QdrantClient:          qdrantClient,
-		IndexName:             cfg.VectorCfg.IndexName,
-		APIKey:                cfg.EmbeddingAPIKey,
-		BaseURL:               cfg.BaseURL,
-		EmbeddingModel:        cfg.EmbeddingModel,
-		EmbeddingDimensions:   cfg.EmbeddingDimensions,
-		ChatModel:             cfg.ChatModel,
-		QAEnabled:             cfg.QAEnabled,
-		QAMaxConcurrent:       cfg.QAMaxConcurrent,
-		MaxBackgroundTasks:    cfg.MaxBackgroundTasks,
-		BackgroundTaskTimeout: cfg.BackgroundTaskTimeout,
-		Provider:              cfg.Provider,
-		Registry:              reg, // B5: 显式传入本次 Registry
-	})
+	// D1: 计算 fingerprint（用于受控创建）
+	confForNew := &config.Config{
+		Client:                   client,
+		QdrantClient:             qdrantClient,
+		IndexName:                cfg.VectorCfg.IndexName,
+		ManagedResourceLifecycle: cfg.VectorCfg.ManagedResourceLifecycle,
+		APIKey:                   cfg.EmbeddingAPIKey,
+		BaseURL:                  cfg.BaseURL,
+		EmbeddingModel:           cfg.EmbeddingModel,
+		EmbeddingDimensions:      cfg.EmbeddingDimensions,
+		ChatModel:                cfg.ChatModel,
+		QAEnabled:                cfg.QAEnabled,
+		QAMaxConcurrent:          cfg.QAMaxConcurrent,
+		MaxBackgroundTasks:       cfg.MaxBackgroundTasks,
+		BackgroundTaskTimeout:    cfg.BackgroundTaskTimeout,
+		Provider:                 cfg.Provider,
+		Registry:                 reg,
+	}
+
+	fp, fpErr := core.ComputeFingerprintMeta(confForNew)
+	if fpErr != nil {
+		return nil, fmt.Errorf("compute fingerprint: %w", fpErr)
+	}
+
+	// D1: Single existence check — error propagated
+	indexExisted, err := confForNew.IndexExists(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fingerprint: cannot check index existence: %w", err)
+	}
+
+	// D1: 受控创建在 core.New 之前（防止 SDK ensureCollection 抢先创建 unnamed collection）
+	if !indexExisted {
+		createErr := vs.CreateIndex(ctx, cfg.VectorCfg.IndexName, fp)
+		if createErr != nil {
+			if errors.Is(createErr, vector.ErrIndexAlreadyExists) {
+				// 并发创建 — 继续走验证路径
+				g.Log().Infof(ctx, "Index %q concurrent creation detected, falling through to verification",
+					cfg.VectorCfg.IndexName)
+			} else {
+				return nil, fmt.Errorf("fingerprint: controlled creation failed: %w", createErr)
+			}
+		}
+	}
+
+	// Bind the concrete target before constructing any Store/retrieval graph.
+	guard, bindErr := vector.BindPhysicalTarget(ctx, vs, confForNew.IndexName, fp)
+	if bindErr != nil {
+		return nil, fmt.Errorf("bind physical target: %w", bindErr)
+	}
+	confForNew.VectorIOGuard = guard
+	// SDK collection creation has been removed; only the controlled path above creates.
+	rag, err := core.New(ctx, confForNew)
 	if err != nil {
 		// B5: core.New 失败 → 不发布 Registry，不影响旧实例
+		// D2: 不删除资源（无所有权证明）
 		return nil, err
+	}
+
+	// 验证 fingerprint（只读路径，无论创建还是已存在）
+	if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+		_ = rag.Shutdown(ctx)
+		return nil, verifyErr
 	}
 
 	// B5: core.New 成功后才发布 Registry
@@ -230,6 +278,7 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 			Endpoint:     baseURL,
 			Model:        pc.EmbeddingModel,
 			Dimensions:   dims,
+			Capabilities: providers.Capabilities{SupportsDimensionsRequest: pc.SupportsDimensionsRequest},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("embed profile: %w", err)
@@ -298,7 +347,22 @@ type VectorStoreFactory interface {
 type defaultVectorStoreFactory struct{}
 
 func (f *defaultVectorStoreFactory) Create(cfg *vector.Config) (vector.VectorStore, error) {
-	return vector.NewVectorStore(cfg)
+	if err := vector.CheckManagedLifecycle(cfg); err != nil {
+		return nil, err
+	}
+	vs, err := vector.NewVectorStore(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// Inject SQL database for Qdrant fingerprint storage
+	if _, ok := vs.(*vector.QdrantVectorStore); ok {
+		gormDB, dbErr := dao.GetGormDB()
+		if dbErr != nil {
+			return nil, fmt.Errorf("qdrant requires SQL database for fingerprint storage: %w", dbErr)
+		}
+		vs.(*vector.QdrantVectorStore).SetDB(gormDB)
+	}
+	return vs, nil
 }
 
 // cfgGet 安全读取配置，传播错误而非忽略。
@@ -475,6 +539,19 @@ func InitWithRealDeps() error {
 	if err != nil {
 		return fmt.Errorf("rag: %w", err)
 	}
+	if err := vector.CheckManagedLifecycle(&cfg.VectorCfg); err != nil {
+		return err
+	}
+	// F5: Check fingerprint table readiness for Qdrant (no implicit AutoMigrate)
+	if cfg.VectorCfg.Type == "qdrant" {
+		gormDB, dbErr := dao.GetGormDB()
+		if dbErr != nil {
+			return fmt.Errorf("rag: get gorm db: %w", dbErr)
+		}
+		if checkErr := dao.CheckFingerprintTableReady(gormDB); checkErr != nil {
+			return fmt.Errorf("rag: %w", checkErr)
+		}
+	}
 	return InitWith(cfg, &defaultVectorStoreFactory{}, &defaultRagFactory{})
 }
 
@@ -502,9 +579,9 @@ func InitWith(cfg RagConfig, vsFactory VectorStoreFactory, ragFactory RagFactory
 	if err != nil {
 		return err
 	}
-	if cfg.Provider != nil && cfg.Provider.EmbeddingModel != "" {
-		return common.ErrEmbeddingGuardNotReady
-	}
+	// 2C-3: Active Provider path no longer blocked at entry.
+	// Validation is per-role: Provider Embedding replaces legacy Embedding check,
+	// Provider Chat replaces legacy Chat check.
 	// 验证配置（在工厂调用之前）
 	if cfg.VectorCfg.Type == "" {
 		return fmt.Errorf("rag: vector.type not configured")
@@ -512,10 +589,12 @@ func InitWith(cfg RagConfig, vsFactory VectorStoreFactory, ragFactory RagFactory
 	if cfg.VectorCfg.IndexName == "" {
 		return fmt.Errorf("rag: vector.indexName not configured")
 	}
-	if cfg.EmbeddingModel == "" {
+	hasProviderEmbedding := cfg.Provider != nil && cfg.Provider.EmbeddingModel != ""
+	if cfg.EmbeddingModel == "" && !hasProviderEmbedding {
 		return fmt.Errorf("rag: embedding.model not configured")
 	}
-	if cfg.ChatModel == "" {
+	hasProviderChat := cfg.Provider != nil && cfg.Provider.ChatModel != ""
+	if cfg.ChatModel == "" && !hasProviderChat {
 		return fmt.Errorf("rag: chat.model not configured")
 	}
 
@@ -571,6 +650,11 @@ func buildVectorConfigFromCfg(ctx context.Context) (*vector.Config, error) {
 		Type:      vectorType,
 		IndexName: indexName,
 	}
+	managed, err := readManagedLifecycle(ctx, &defaultConfigGetter{})
+	if err != nil {
+		return nil, err
+	}
+	vectorCfg.ManagedResourceLifecycle = managed
 
 	if vectorType == "es" || vectorType == "elasticsearch" {
 		esAddr, err := cfgGet(ctx, "vector.es.address")

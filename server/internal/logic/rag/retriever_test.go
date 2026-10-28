@@ -3,6 +3,7 @@ package rag
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/wangle201210/go-rag/server/core"
+	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
 
@@ -25,7 +27,7 @@ type fakeVectorStore struct {
 	createIndexErr error
 }
 
-func (f *fakeVectorStore) CreateIndex(ctx context.Context, indexName string) error {
+func (f *fakeVectorStore) CreateIndex(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
 	return f.createIndexErr
 }
 func (f *fakeVectorStore) IndexExists(ctx context.Context, indexName string) (bool, error) {
@@ -39,6 +41,18 @@ func (f *fakeVectorStore) GetKnowledgeBaseList(ctx context.Context, indexName st
 }
 func (f *fakeVectorStore) SearchDocuments(ctx context.Context, req *vector.SearchRequest) (*vector.SearchResponse, error) {
 	return &vector.SearchResponse{}, nil
+}
+func (f *fakeVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *vector.Fingerprint, resourceID string) error {
+	return nil
+}
+func (f *fakeVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*vector.Fingerprint, string, error) {
+	return &vector.Fingerprint{
+		Version:          vector.FingerprintVersion,
+		EmbeddingModelID: "test-model",
+		Dimensions:       1024,
+		ProviderName:     "test",
+		Similarity:       "cosine",
+	}, "", nil
 }
 func (f *fakeVectorStore) Close() error {
 	f.mu.Lock()
@@ -1203,4 +1217,514 @@ func TestReset_ConcurrentInitDoesNotCloseNewInstance(t *testing.T) {
 		t.Fatal("newRag done not closed during cleanup")
 	}
 	resetState()
+}
+
+// --- C1 Factory Decision-Tree Tests ---
+// These tests replicate the factory's C1 decision tree (IndexExists → CreateIndex/Verify)
+// using a tracking VectorStore mock. The simulateFactoryC1 function mirrors the exact logic
+// from defaultRagFactory.Create (lines 99-162 of retriever.go).
+
+// trackingVectorStore is a fakeVectorStore with configurable behavior and operation tracking.
+type trackingVectorStore struct {
+	mu               sync.Mutex
+	closeErr         error
+	closeCount       int
+	indexExistsResult bool
+	indexExistsErr   error
+	createIndexErr   error
+	createIndexFP    *vector.Fingerprint // fingerprint passed to CreateIndex
+	readFP           *vector.Fingerprint
+	readResourceID   string
+	readFPErr        error
+	operations       []string
+}
+
+func (t *trackingVectorStore) CreateIndex(ctx context.Context, indexName string, fp *vector.Fingerprint) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.operations = append(t.operations, "CreateIndex")
+	t.createIndexFP = fp
+	return t.createIndexErr
+}
+func (t *trackingVectorStore) IndexExists(ctx context.Context, indexName string) (bool, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.operations = append(t.operations, "IndexExists")
+	return t.indexExistsResult, t.indexExistsErr
+}
+func (t *trackingVectorStore) DeleteDocument(ctx context.Context, indexName, documentID string) error {
+	return nil
+}
+func (t *trackingVectorStore) GetKnowledgeBaseList(ctx context.Context, indexName string) ([]string, error) {
+	return nil, nil
+}
+func (t *trackingVectorStore) SearchDocuments(ctx context.Context, req *vector.SearchRequest) (*vector.SearchResponse, error) {
+	return &vector.SearchResponse{}, nil
+}
+func (t *trackingVectorStore) WriteFingerprint(ctx context.Context, indexName string, fp *vector.Fingerprint, resourceID string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.operations = append(t.operations, "WriteFingerprint")
+	return nil
+}
+func (t *trackingVectorStore) ReadFingerprint(ctx context.Context, indexName string) (*vector.Fingerprint, string, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.operations = append(t.operations, "ReadFingerprint")
+	return t.readFP, t.readResourceID, t.readFPErr
+}
+func (t *trackingVectorStore) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.closeCount++
+	return t.closeErr
+}
+
+// simulateFactoryC1 replicates the C1 decision tree from defaultRagFactory.Create.
+// It creates a core.Rag via reflection, sets its conf, then follows the same
+// IndexExists → CreateIndex/VerifyFingerprint flow as the production factory.
+// Returns the Rag, the list of VectorStore operations performed, and any error.
+func simulateFactoryC1(ctx context.Context, cfg RagConfig, vs vector.VectorStore) (*core.Rag, []string, error) {
+	var err error
+	cfg, err = normalizeDimensions(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// C1: Check index existence (mirrors defaultRagFactory line 105)
+	indexExisted, err := vs.IndexExists(ctx, cfg.VectorCfg.IndexName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fingerprint: cannot check index existence: %w", err)
+	}
+
+	confForNew := &config.Config{
+		IndexName:           cfg.VectorCfg.IndexName,
+		APIKey:              cfg.EmbeddingAPIKey,
+		BaseURL:             cfg.BaseURL,
+		EmbeddingModel:      cfg.EmbeddingModel,
+		EmbeddingDimensions: cfg.EmbeddingDimensions,
+		ChatModel:           cfg.ChatModel,
+	}
+
+	// Create minimal Rag (simulates core.New success)
+	rag := &core.Rag{}
+	setRagField(rag, "conf", confForNew)
+
+	// C1/C2/C3: Unified controlled creation flow (mirrors defaultRagFactory lines 134-162)
+	if !indexExisted {
+		fp, fpErr := core.ComputeFingerprintMeta(confForNew)
+		if fpErr != nil {
+			return nil, nil, fmt.Errorf("compute fingerprint: %w", fpErr)
+		}
+		createErr := vs.CreateIndex(ctx, cfg.VectorCfg.IndexName, fp)
+		if createErr != nil {
+			if errors.Is(createErr, vector.ErrIndexAlreadyExists) {
+				if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+					return nil, nil, verifyErr
+				}
+			} else {
+				return nil, nil, fmt.Errorf("fingerprint: controlled creation failed: %w", createErr)
+			}
+		} else {
+			if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+				return nil, nil, verifyErr
+			}
+		}
+	} else {
+		if verifyErr := rag.VerifyFingerprint(ctx, vs); verifyErr != nil {
+			return nil, nil, verifyErr
+		}
+	}
+
+	// Extract operation log from trackingVectorStore
+	var ops []string
+	if tvs, ok := vs.(*trackingVectorStore); ok {
+		tvs.mu.Lock()
+		ops = make([]string, len(tvs.operations))
+		copy(ops, tvs.operations)
+		tvs.mu.Unlock()
+	}
+
+	return rag, ops, nil
+}
+
+// validFingerprintForTest returns a fingerprint matching what ComputeFingerprintMeta
+// produces for validRagConfig() after normalizeDimensions (provider="legacy", similarity="cosine").
+func validFingerprintForTest() *vector.Fingerprint {
+	fp, _ := vector.NewFingerprint(vector.FingerprintVersion, "test-embed", 1024, "legacy", "cosine")
+	return fp
+}
+
+// TestFactory_IndexExistsError_Propagated verifies that when IndexExists returns an error,
+// the factory propagates it (C1: error is NOT discarded).
+func TestFactory_IndexExistsError_Propagated(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("index check failed")
+	vs := &trackingVectorStore{
+		indexExistsErr: sentinel,
+	}
+	cfg := validRagConfig()
+
+	_, _, err := simulateFactoryC1(ctx, cfg, vs)
+	if err == nil {
+		t.Fatal("expected error when IndexExists fails")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("expected error to wrap sentinel, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "cannot check index existence") {
+		t.Fatalf("expected 'cannot check index existence' in error, got: %v", err)
+	}
+}
+
+// TestFactory_NewIndex_CreateAndVerify verifies the full creation path:
+// IndexExists=false → CreateIndex(non-nil fingerprint) → VerifyFingerprint → success.
+func TestFactory_NewIndex_CreateAndVerify(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-123",
+	}
+	cfg := validRagConfig()
+
+	rag, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rag == nil {
+		t.Fatal("expected non-nil Rag")
+	}
+
+	// CreateIndex should have been called with a non-nil fingerprint
+	vs.mu.Lock()
+	fp := vs.createIndexFP
+	vs.mu.Unlock()
+	if fp == nil {
+		t.Fatal("CreateIndex should have received a non-nil fingerprint")
+	}
+	if fp.EmbeddingModelID != "test-embed" {
+		t.Errorf("fingerprint model = %q, want %q", fp.EmbeddingModelID, "test-embed")
+	}
+	if fp.Dimensions != 1024 {
+		t.Errorf("fingerprint dimensions = %d, want 1024", fp.Dimensions)
+	}
+
+	// Verify call sequence
+	expectedOps := []string{"IndexExists", "CreateIndex", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}
+
+// TestFactory_ExistingIndex_VerifyOnly verifies that when the index already exists,
+// CreateIndex is NOT called and only verification is performed.
+func TestFactory_ExistingIndex_VerifyOnly(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: true,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-456",
+	}
+	cfg := validRagConfig()
+
+	rag, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rag == nil {
+		t.Fatal("expected non-nil Rag")
+	}
+
+	// CreateIndex should NOT have been called
+	vs.mu.Lock()
+	createCalled := vs.createIndexFP != nil
+	vs.mu.Unlock()
+	if createCalled {
+		t.Fatal("CreateIndex should NOT be called when index already exists")
+	}
+
+	// Verify call sequence: IndexExists → ReadFingerprint (via VerifyFingerprint)
+	expectedOps := []string{"IndexExists", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}
+
+// TestFactory_ExistingIndex_NoFingerprint_Fails verifies that when the index exists
+// but has no fingerprint, the factory returns an error (refuses to proceed).
+func TestFactory_ExistingIndex_NoFingerprint_Fails(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: true,
+		readFPErr:        vector.ErrFingerprintMissing,
+	}
+	cfg := validRagConfig()
+
+	_, _, err := simulateFactoryC1(ctx, cfg, vs)
+	if err == nil {
+		t.Fatal("expected error when fingerprint is missing on existing index")
+	}
+	if !strings.Contains(err.Error(), "no fingerprint") {
+		t.Fatalf("expected 'no fingerprint' in error, got: %v", err)
+	}
+}
+
+// TestFactory_ConcurrentCreate_GoesToVerification verifies that when CreateIndex
+// returns ErrIndexAlreadyExists (concurrent creation race), the factory falls through
+// to the verification path and succeeds if verification passes.
+func TestFactory_ConcurrentCreate_GoesToVerification(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		createIndexErr:   vector.ErrIndexAlreadyExists,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-789",
+	}
+	cfg := validRagConfig()
+
+	rag, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rag == nil {
+		t.Fatal("expected non-nil Rag")
+	}
+
+	// Verify call sequence: IndexExists → CreateIndex (race) → ReadFingerprint (verify)
+	expectedOps := []string{"IndexExists", "CreateIndex", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}
+
+// --- D1: Factory flow tests ---
+
+// TestD1_CreateIndexError_Propagated verifies that when CreateIndex returns a
+// non-ErrIndexAlreadyExists error, the factory propagates it immediately.
+func TestD1_CreateIndexError_Propagated(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("disk full")
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		createIndexErr:   sentinel,
+	}
+	cfg := validRagConfig()
+
+	_, _, err := simulateFactoryC1(ctx, cfg, vs)
+	if err == nil {
+		t.Fatal("expected error from CreateIndex")
+	}
+	if !strings.Contains(err.Error(), "controlled creation failed") {
+		t.Errorf("expected 'controlled creation failed' error, got: %v", err)
+	}
+}
+
+// TestD1_CreateIndexBeforeVerify_Order verifies that CreateIndex happens before
+// ReadFingerprint (verification) in the factory flow.
+func TestD1_CreateIndexBeforeVerify_Order(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-order",
+	}
+	cfg := validRagConfig()
+
+	_, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// D1: CreateIndex must come before ReadFingerprint
+	createIdx := -1
+	readIdx := -1
+	for i, op := range ops {
+		if op == "CreateIndex" && createIdx == -1 {
+			createIdx = i
+		}
+		if op == "ReadFingerprint" && readIdx == -1 {
+			readIdx = i
+		}
+	}
+	if createIdx == -1 {
+		t.Fatal("CreateIndex should have been called")
+	}
+	if readIdx == -1 {
+		t.Fatal("ReadFingerprint should have been called")
+	}
+	if createIdx >= readIdx {
+		t.Errorf("D1: CreateIndex (idx=%d) should happen before ReadFingerprint (idx=%d)", createIdx, readIdx)
+	}
+}
+
+// TestD1_ExistingIndex_NoCreateIndex verifies that when the index already exists,
+// the factory skips CreateIndex and goes directly to verification.
+func TestD1_ExistingIndex_NoCreateIndex(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: true,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "test-uuid-existing",
+	}
+	cfg := validRagConfig()
+
+	_, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// D1: Existing index → no CreateIndex, just IndexExists → ReadFingerprint
+	for _, op := range ops {
+		if op == "CreateIndex" {
+			t.Error("D1: CreateIndex should NOT be called when index already exists")
+		}
+	}
+	expectedOps := []string{"IndexExists", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}
+
+// TestD1_ConcurrentCreate_VerifyReadsResourceID verifies that after concurrent
+// creation detection (ErrIndexAlreadyExists), the verification path reads the
+// resourceID from storage (D4 binding).
+func TestD1_ConcurrentCreate_VerifyReadsResourceID(t *testing.T) {
+	ctx := context.Background()
+	vs := &trackingVectorStore{
+		indexExistsResult: false,
+		createIndexErr:   vector.ErrIndexAlreadyExists,
+		readFP:           validFingerprintForTest(),
+		readResourceID:   "concurrent-resource-uuid",
+	}
+	cfg := validRagConfig()
+
+	rag, ops, err := simulateFactoryC1(ctx, cfg, vs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rag == nil {
+		t.Fatal("expected non-nil Rag")
+	}
+
+	// Verify the verification path was taken
+	expectedOps := []string{"IndexExists", "CreateIndex", "ReadFingerprint"}
+	if !reflect.DeepEqual(ops, expectedOps) {
+		t.Errorf("operations = %v, want %v", ops, expectedOps)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 2C-3: InitWith conditional validation tests
+// ---------------------------------------------------------------------------
+
+// TestInitWith_ProviderEmbeddingLegacyEmpty verifies that when Provider Embedding
+// is configured, legacy EmbeddingModel can be empty without error.
+func TestInitWith_ProviderEmbeddingLegacyEmpty(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.EmbeddingModel = "" // legacy empty
+	cfg.Provider = &config.ProviderConfig{
+		Name:                "openai",
+		EmbeddingModel:      "text-embedding-3-large",
+		EmbeddingDimensions: 768,
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("expected no error when Provider Embedding is set, got: %v", err)
+	}
+}
+
+// TestInitWith_ProviderChatLegacyEmpty verifies that when Provider Chat is
+// configured, legacy ChatModel can be empty without error.
+func TestInitWith_ProviderChatLegacyEmpty(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.ChatModel = "" // legacy empty
+	cfg.Provider = &config.ProviderConfig{
+		Name:      "openai",
+		ChatModel: "gpt-4",
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("expected no error when Provider Chat is set, got: %v", err)
+	}
+}
+
+// TestInitWith_NeitherProviderNorLegacyEmbedding verifies that when neither
+// Provider nor legacy Embedding is configured, InitWith returns error.
+func TestInitWith_NeitherProviderNorLegacyEmbedding(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.EmbeddingModel = "" // legacy empty
+	// No Provider
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error when neither Provider nor legacy Embedding is configured")
+	}
+	if !strings.Contains(err.Error(), "embedding.model") {
+		t.Fatalf("expected embedding.model error, got: %v", err)
+	}
+}
+
+// TestInitWith_NeitherProviderNorLegacyChat verifies that when neither Provider
+// nor legacy Chat is configured, InitWith returns error.
+func TestInitWith_NeitherProviderNorLegacyChat(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.ChatModel = "" // legacy empty
+	// No Provider
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error when neither Provider nor legacy Chat is configured")
+	}
+	if !strings.Contains(err.Error(), "chat.model") {
+		t.Fatalf("expected chat.model error, got: %v", err)
+	}
+}
+
+// TestInitWith_ProviderEmbeddingNoChat verifies that Provider Embedding without
+// Provider Chat and without legacy ChatModel returns error.
+func TestInitWith_ProviderEmbeddingNoChat(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.ChatModel = "" // legacy empty
+	cfg.Provider = &config.ProviderConfig{
+		Name:                "openai",
+		EmbeddingModel:      "text-embedding-3-large",
+		EmbeddingDimensions: 768,
+		// No ChatModel
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error when no chat model is available")
+	}
+	if !strings.Contains(err.Error(), "chat.model") {
+		t.Fatalf("expected chat.model error, got: %v", err)
+	}
 }

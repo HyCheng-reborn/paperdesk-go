@@ -1,0 +1,47 @@
+CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
+CWD: C:\Zhy\code\go-rag\server
+CMD: go test -p 1 ./... -count=1 -timeout=600s
+DATE: 2026-10-28T15:56:18.5136565+08:00
+ATTEMPT: 1
+?   	github.com/wangle201210/go-rag/server	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag/v1	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core	5.660s
+ok  	github.com/wangle201210/go-rag/server/core/common	3.004s
+ok  	github.com/wangle201210/go-rag/server/core/config	1.864s
+?   	github.com/wangle201210/go-rag/server/core/grader	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/indexer	2.958s
+ok  	github.com/wangle201210/go-rag/server/core/providers	2.083s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	9.656s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	4.570s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	2.267s
+ok  	github.com/wangle201210/go-rag/server/core/retriever	2.130s
+?   	github.com/wangle201210/go-rag/server/core/types	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/vector	2.766s
+ok  	github.com/wangle201210/go-rag/server/core/websearch	1.188s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	1.859s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	2.571s
+ok  	github.com/wangle201210/go-rag/server/internal/dao	0.750s
+?   	github.com/wangle201210/go-rag/server/internal/dao/db	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/dao/internal	[no test files]
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.716s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	1.365s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	18.373s
+?   	github.com/wangle201210/go-rag/server/internal/logic/websearch	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/mcp	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/do	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/entity	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/gorm	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/testutil	[no test files]
+?   	github.com/wangle201210/go-rag/server/server	[no test files]
+go : go: unlinkat C:\gotmp\go-build745234778\b1474\core.test.exe: Access is den
+ied.
+所在位置 C:\Zhy\code\go-rag\verification\stage2c3-fix2\run.ps1:60 字符: 5
++     go @a 2>&1 | Out-File $log -Append -Encoding utf8
++     ~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (go: unlinkat C:...cess is denied.
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+ATTEMPT 1 EXIT: 1
+EXIT: 1

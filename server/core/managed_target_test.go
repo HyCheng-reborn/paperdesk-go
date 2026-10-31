@@ -110,7 +110,7 @@ func TestManagedTargetActualGraphs(t *testing.T) {
 					t.Fatal(err)
 				}
 				off := false
-				conf := &config.Config{Client: vs.GetClient(), IndexName: "idx", APIKey: "offline", BaseURL: srv.URL + "/v1", EmbeddingModel: fp.EmbeddingModelID, EmbeddingDimensions: 2, QAEnabled: &off, ManagedResourceLifecycle: true, VectorIOGuard: guard}
+				conf := &config.Config{Client: vs.GetClient(), IndexName: "idx", APIKey: "offline", BaseURL: srv.URL + "/v1", EmbeddingModel: fp.EmbeddingModelID, EmbeddingDimensions: 2, QAEnabled: &off, ManagedResourceLifecycle: true, VectorIOGuard: guard.Guard(), PhysicalBinding: guard}
 				checkError := func(err error) {
 					t.Helper()
 					var want error

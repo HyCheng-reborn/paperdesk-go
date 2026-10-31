@@ -1,0 +1,165 @@
+﻿CMD: go test -race ./core/probe -count=5 -v -run TestProviderRegistrationBuildsProductionChain|TestBailianEmbeddingProfileIsDefensiveCopy|TestBailianEmbeddingIdentityMismatchFailsClosed|TestBailianEmbeddingCancelAndConcurrentBudget|TestStopMarkerDoesNotRetractBudgetCommit
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.07s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.06s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestBailianEmbeddingProfileIsDefensiveCopy
+--- PASS: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch
+    bailian_identity_test.go:301: provider_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: provider name: role="bailian" expected="openai"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch
+    bailian_identity_test.go:301: model_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: model: role="probe-embed" expected="probe-embed-alt"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch
+    bailian_identity_test.go:301: dimensions_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: profile dims=8 config dims=16
+--- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed (0.01s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch (0.00s)
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively
+    bailian_identity_test.go:375: cancel settled: err=Post "http://127.0.0.1:64454/embeddings": context canceled committed=1 inputUsed=4 inFlight=0
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner
+    bailian_identity_test.go:425: concurrent steps: committed=4 inFlight=0 hits=4
+--- PASS: TestBailianEmbeddingCancelAndConcurrentBudget (0.01s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.01s)
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestBailianEmbeddingProfileIsDefensiveCopy
+--- PASS: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch
+    bailian_identity_test.go:301: provider_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: provider name: role="bailian" expected="openai"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch
+    bailian_identity_test.go:301: model_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: model: role="probe-embed" expected="probe-embed-alt"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch
+    bailian_identity_test.go:301: dimensions_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: profile dims=8 config dims=16
+--- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed (0.01s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch (0.00s)
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively
+    bailian_identity_test.go:375: cancel settled: err=Post "http://127.0.0.1:64528/embeddings": context canceled committed=1 inputUsed=4 inFlight=0
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner
+    bailian_identity_test.go:425: concurrent steps: committed=4 inFlight=0 hits=4
+--- PASS: TestBailianEmbeddingCancelAndConcurrentBudget (0.01s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestBailianEmbeddingProfileIsDefensiveCopy
+--- PASS: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch
+    bailian_identity_test.go:301: provider_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: provider name: role="bailian" expected="openai"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch
+    bailian_identity_test.go:301: model_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: model: role="probe-embed" expected="probe-embed-alt"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch
+    bailian_identity_test.go:301: dimensions_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: profile dims=8 config dims=16
+--- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed (0.01s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch (0.00s)
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively
+    bailian_identity_test.go:375: cancel settled: err=Post "http://127.0.0.1:64565/embeddings": context canceled committed=1 inputUsed=4 inFlight=0
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner
+    bailian_identity_test.go:425: concurrent steps: committed=4 inFlight=0 hits=4
+--- PASS: TestBailianEmbeddingCancelAndConcurrentBudget (0.01s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.02s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestBailianEmbeddingProfileIsDefensiveCopy
+--- PASS: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch
+    bailian_identity_test.go:301: provider_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: provider name: role="bailian" expected="openai"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch
+    bailian_identity_test.go:301: model_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: model: role="probe-embed" expected="probe-embed-alt"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch
+    bailian_identity_test.go:301: dimensions_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: profile dims=8 config dims=16
+--- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed (0.01s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch (0.00s)
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively
+    bailian_identity_test.go:375: cancel settled: err=Post "http://127.0.0.1:64601/embeddings": context canceled committed=1 inputUsed=4 inFlight=0
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner
+    bailian_identity_test.go:425: concurrent steps: committed=4 inFlight=0 hits=4
+--- PASS: TestBailianEmbeddingCancelAndConcurrentBudget (0.01s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestBailianEmbeddingProfileIsDefensiveCopy
+--- PASS: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch
+    bailian_identity_test.go:301: provider_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: provider name: role="bailian" expected="openai"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch
+    bailian_identity_test.go:301: model_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: model: role="probe-embed" expected="probe-embed-alt"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch
+    bailian_identity_test.go:301: dimensions_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: profile dims=8 config dims=16
+--- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed (0.01s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch (0.00s)
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively
+    bailian_identity_test.go:375: cancel settled: err=Post "http://127.0.0.1:64638/embeddings": context canceled committed=1 inputUsed=4 inFlight=0
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner
+    bailian_identity_test.go:425: concurrent steps: committed=4 inFlight=0 hits=4
+--- PASS: TestBailianEmbeddingCancelAndConcurrentBudget (0.01s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	3.044s
+EXIT=0

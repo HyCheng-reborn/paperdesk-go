@@ -1,0 +1,9 @@
+﻿command: go test ./core/probe/ -race -count=1 -timeout 300s
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.163s
+FAIL
+exit=1
+
+== control: build race binary then run it directly ==
+go test -race -c exit=0
+direct run exit=-1073741511

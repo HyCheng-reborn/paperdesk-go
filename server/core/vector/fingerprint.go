@@ -33,6 +33,10 @@ var (
 // FingerprintVersion is the current fingerprint format version.
 const FingerprintVersion = "v1"
 
+// SimilarityCosine 是 Rag 索引唯一期望的相似度度量。
+// 所有入口（Rag 指纹门禁与直接 embedding 构造）必须使用同一值。
+const SimilarityCosine = "cosine"
+
 // Fingerprint records the vector space identity of an index.
 // All fields must be non-empty for a valid fingerprint.
 type Fingerprint struct {
@@ -86,6 +90,15 @@ func NewFingerprint(version, modelID string, dims int, provider, similarity stri
 		ProviderName:     provider,
 		Similarity:       similarity,
 	}, nil
+}
+
+// NewExpectedEmbeddingFingerprint 构造给定 embedding 身份的唯一期望指纹：
+// 当前格式版本 + cosine 相似度。
+//
+// Rag 指纹门禁（core.ComputeFingerprintMeta）与直接入口（common.NewEmbedding）
+// 必须共用此构造，避免各入口只比较字段子集而遗漏 similarity 等字段。
+func NewExpectedEmbeddingFingerprint(modelID string, dims int, provider string) (*Fingerprint, error) {
+	return NewFingerprint(FingerprintVersion, modelID, dims, provider, SimilarityCosine)
 }
 
 // Equal returns true if all fields match exactly.

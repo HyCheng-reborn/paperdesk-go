@@ -7,6 +7,7 @@ import (
 
 	"github.com/wangle201210/go-rag/server/core/common"
 	"github.com/wangle201210/go-rag/server/core/config"
+	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/core/vector"
 )
 
@@ -49,12 +50,9 @@ func TestFingerprintChatOnlyProviderPreservesStoredIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	guard, err := vector.BindPhysicalTarget(context.Background(), vs, "idx", expected)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := guard(context.Background()); err != nil {
-		t.Fatal(err)
+	// P1-3: 非具体 ES 实现无法证明物理绑定，必须拒绝而不是返回可伪装的 guard。
+	if _, err := vector.BindPhysicalTarget(context.Background(), vs, "idx", expected); !errors.Is(err, vector.ErrResourceBindingNotReady) {
+		t.Fatalf("non-ES store must not be bindable: %v", err)
 	}
 	if vs.writeCalls != 0 || vs.fingerprint.ProviderName != "legacy" {
 		t.Fatal("must not rewrite stored identity")
@@ -88,5 +86,54 @@ func TestFingerprintChatOnlyProviderDoesNotReclaimMislabeledRecord(t *testing.T)
 	}
 	if vs.writeCalls != 0 || vs.fingerprint.ProviderName != "openai" {
 		t.Fatal("must not repair stored identity implicitly")
+	}
+}
+
+// TestComputeFingerprintMetaSharesDirectEntryExpectation proves the Rag gate and
+// the direct embedding entry build their expected fingerprint from one shared
+// constructor (all fields, including similarity).
+func TestComputeFingerprintMetaSharesDirectEntryExpectation(t *testing.T) {
+	conf := &config.Config{
+		IndexName:           "idx",
+		EmbeddingDimensions: 768,
+		Provider: &config.ProviderConfig{
+			Name:                " OpenAI ",
+			BaseURL:             "http://offline.invalid/v1",
+			EmbeddingModel:      "text-embedding-3-large",
+			EmbeddingDimensions: 768,
+		},
+	}
+	gate, err := ComputeFingerprintMeta(conf)
+	if err != nil {
+		t.Fatalf("ComputeFingerprintMeta: %v", err)
+	}
+	direct, err := common.ExpectedEmbeddingFingerprint(conf)
+	if err != nil {
+		t.Fatalf("ExpectedEmbeddingFingerprint: %v", err)
+	}
+	if !gate.Equal(direct) || gate.Digest() != direct.Digest() {
+		t.Fatalf("gate fingerprint %+v != direct expectation %+v", gate, direct)
+	}
+	if gate.Similarity != vector.SimilarityCosine {
+		t.Fatalf("similarity = %q, want %q", gate.Similarity, vector.SimilarityCosine)
+	}
+}
+
+// TestComputeFingerprintMetaRejectsVersionedProviderConfig proves a versioned
+// embedding model never yields a fingerprint that could gate an index: it fails
+// closed before any target is created or claimed.
+func TestComputeFingerprintMetaRejectsVersionedProviderConfig(t *testing.T) {
+	conf := &config.Config{
+		IndexName:           "idx",
+		EmbeddingDimensions: 768,
+		Provider: &config.ProviderConfig{
+			Name:                "openai",
+			BaseURL:             "http://offline.invalid/v1",
+			EmbeddingModel:      "text-embedding-3-large@v1",
+			EmbeddingDimensions: 768,
+		},
+	}
+	if _, err := ComputeFingerprintMeta(conf); !errors.Is(err, providers.ErrModelVersionNotExpressible) {
+		t.Fatalf("expected ErrModelVersionNotExpressible, got: %v", err)
 	}
 }

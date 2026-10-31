@@ -1,0 +1,22 @@
+﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\stage2d-fix3-bdd3a6d-20261028\overlay-mutation-probe.json -p 1 ./core/probe -run ^TestPlan_TargetRulesMatchProduction$ -count=1 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestPlan_TargetRulesMatchProduction
+=== RUN   TestPlan_TargetRulesMatchProduction/wildcard_physical_name
+=== RUN   TestPlan_TargetRulesMatchProduction/multiple_physical_targets
+=== RUN   TestPlan_TargetRulesMatchProduction/similarity_dot
+    preflight_target_test.go:158: Plan.Validate() = <nil>, want both FINGERPRINT_MISMATCH and ErrNotConfigured
+=== RUN   TestPlan_TargetRulesMatchProduction/similarity_not_in_allowed_set
+    preflight_target_test.go:158: Plan.Validate() = <nil>, want both probe: fixed target or parameters are not configured and ErrNotConfigured
+=== RUN   TestPlan_TargetRulesMatchProduction/cosine_target_ready_and_executable
+=== RUN   TestPlan_TargetRulesMatchProduction/local_fake_target_rejects_wildcard_name
+--- FAIL: TestPlan_TargetRulesMatchProduction (0.02s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/wildcard_physical_name (0.01s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/multiple_physical_targets (0.00s)
+    --- FAIL: TestPlan_TargetRulesMatchProduction/similarity_dot (0.00s)
+    --- FAIL: TestPlan_TargetRulesMatchProduction/similarity_not_in_allowed_set (0.00s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/cosine_target_ready_and_executable (0.01s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/local_fake_target_rejects_wildcard_name (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.263s
+FAIL
+EXIT=1

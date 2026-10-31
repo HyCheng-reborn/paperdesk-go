@@ -49,10 +49,15 @@ func BuildChat(ctx context.Context, cfg providers.BuildConfig) (providers.ChatRo
 		return nil, ErrNilTransport
 	}
 	p := cfg.Profile
+	// P1: 百炼同样走共享的请求模型解析；带版本身份无法在 wire 上表达时 fail closed。
+	wireModel, err := p.RequestModel()
+	if err != nil {
+		return nil, fmt.Errorf("bailian chat: %w", err)
+	}
 	cm, err := chatopenai.NewChatModel(ctx, &chatopenai.ChatModelConfig{
 		APIKey:     cfg.APIKey,
 		BaseURL:    p.Endpoint,
-		Model:      p.Model,
+		Model:      wireModel,
 		HTTPClient: cfg.Transport.Client(),
 	})
 	if err != nil {

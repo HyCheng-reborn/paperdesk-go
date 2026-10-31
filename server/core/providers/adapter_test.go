@@ -103,7 +103,6 @@ func TestAdapter_ChatRole(t *testing.T) {
 		Protocol:     ProtocolOpenAICompat,
 		Endpoint:     srv.URL,
 		Model:        "qwen-plus",
-		Version:      "1",
 		Capabilities: Capabilities{Stream: true, Usage: true},
 	})
 	if err != nil {
@@ -225,7 +224,6 @@ func TestAdapter_EmbedRole(t *testing.T) {
 		Protocol:     ProtocolOpenAICompat,
 		Endpoint:     srv.URL,
 		Model:        "text-embedding-v4",
-		Version:      "1",
 		Dimensions:   3,
 	})
 	if err != nil {
@@ -263,8 +261,8 @@ func TestAdapter_EmbedRole(t *testing.T) {
 	if role.Dimensions() != 3 {
 		t.Fatalf("Dimensions() = %d, want 3", role.Dimensions())
 	}
-	if role.ModelID() != "text-embedding-v4@1" {
-		t.Fatalf("ModelID() = %q, want %q", role.ModelID(), "text-embedding-v4@1")
+	if role.ModelID() != "text-embedding-v4" {
+		t.Fatalf("ModelID() = %q, want %q", role.ModelID(), "text-embedding-v4")
 	}
 	if n := atomic.LoadInt32(&rtCount); n < 1 {
 		t.Fatalf("injected transport must be used, count = %d", n)
@@ -284,7 +282,7 @@ func TestAdapter_EmbedRole(t *testing.T) {
 	if len(wv) != 1 || len(wv[0]) != 8 || fake.Calls() != 1 {
 		t.Fatalf("WrapEmbedder must delegate EmbedStrings: %v calls=%d", wv, fake.Calls())
 	}
-	if wrapped.Dimensions() != 3 || wrapped.ModelID() != "text-embedding-v4@1" {
+	if wrapped.Dimensions() != 3 || wrapped.ModelID() != "text-embedding-v4" {
 		t.Fatalf("wrapped Dimensions/ModelID must come from profile: %d %q", wrapped.Dimensions(), wrapped.ModelID())
 	}
 

@@ -1,0 +1,17 @@
+﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\stage2d-fix3-bdd3a6d-20261028\overlay-mutation-sendgate.json -p 1 ./core/probe -run ^TestSendGate_TransportBoundaryRefusesAfterStopMarker$ -count=1 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/chat
+    sendgate_test.go:354: RoundTrip() = <nil>, want ErrAlreadyStopped (the gate must refuse after the marker)
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/embedding
+    sendgate_test.go:354: RoundTrip() = <nil>, want ErrAlreadyStopped (the gate must refuse after the marker)
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/rerank
+    sendgate_test.go:354: RoundTrip() = <nil>, want ErrAlreadyStopped (the gate must refuse after the marker)
+--- FAIL: TestSendGate_TransportBoundaryRefusesAfterStopMarker (0.01s)
+    --- FAIL: TestSendGate_TransportBoundaryRefusesAfterStopMarker/chat (0.00s)
+    --- FAIL: TestSendGate_TransportBoundaryRefusesAfterStopMarker/embedding (0.00s)
+    --- FAIL: TestSendGate_TransportBoundaryRefusesAfterStopMarker/rerank (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.250s
+FAIL
+EXIT=1

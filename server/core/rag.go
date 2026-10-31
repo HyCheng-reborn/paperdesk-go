@@ -129,14 +129,13 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	qaEnabled := conf.QAEnabled == nil || *conf.QAEnabled
 	var qaFactory func(context.Context) (model.BaseChatModel, error)
 	if qaEnabled {
-		// Fix 4: 使用显式传入的 Registry
-		qaModel, err := common.GetQAModelWithRegistry(ctx, nil, conf.Registry)
-		if err != nil {
-			return nil, fmt.Errorf("GetQAModel failed: %w", err)
+		// P1-1: 存在 Registry 时总是经 Registry.GetQA（含 QA→Chat 回退与预算归属）；
+		// Registry 未配置 Chat 家族时回退 legacy qa 并强制纳入同一进程预算。
+		if _, qaErr := common.GetQAModelForRag(ctx, conf); qaErr != nil {
+			return nil, fmt.Errorf("GetQAModel failed: %w", qaErr)
 		}
-		_ = qaModel // 预热完成
-		qaFactory = func(ctx context.Context) (model.BaseChatModel, error) {
-			return common.GetQAModelWithRegistry(ctx, nil, conf.Registry)
+		qaFactory = func(factoryCtx context.Context) (model.BaseChatModel, error) {
+			return common.GetQAModelForRag(factoryCtx, conf)
 		}
 	}
 
@@ -153,11 +152,12 @@ func New(ctx context.Context, conf *config.Config) (rag *Rag, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// Fix 4: 使用显式传入的 Registry
-	cm, err := common.GetChatModelWithRegistry(ctx, nil, conf.Registry)
-	if err != nil {
-		g.Log().Error(ctx, "GetChatModel failed, err=%v", err)
-		return nil, err
+	// C3-R4/P2-1: Chat 模型解析 — Provider ChatModel 走 Registry；
+	// legacy 使用独立 chat 配置；Registry 存在时 legacy 也纳入同一预算。
+	cm, cmErr := common.GetChatModelForRag(ctx, conf)
+	if cmErr != nil {
+		g.Log().Error(ctx, "GetChatModel failed, err=%v", cmErr)
+		return nil, cmErr
 	}
 
 	// 后台任务生命周期配置钳位
@@ -284,23 +284,10 @@ func (x *Rag) computeExpectedFingerprint() (*vector.Fingerprint, error) {
 // Standalone function usable before Rag creation (called from factory).
 // 2C-3: Uses ResolveEmbeddingIdentity for single-source identity.
 func ComputeFingerprintMeta(conf *config.Config) (*vector.Fingerprint, error) {
-	providerName, modelID, dims, err := common.ResolveEmbeddingIdentity(conf)
-	if err != nil {
-		return nil, err
-	}
-	if modelID == "" {
-		return nil, fmt.Errorf("embedding model not configured")
-	}
-	if dims <= 0 {
-		return nil, fmt.Errorf("invalid embedding dimensions: %d", dims)
-	}
-	return vector.NewFingerprint(
-		vector.FingerprintVersion,
-		modelID,
-		dims,
-		providerName,
-		"cosine",
-	)
+	// P2: 与直接 embedding 入口共用同一期望指纹构造
+	// （解析身份 + version/model/dims/provider/similarity 全部字段），
+	// 不在此处单独维护字段集合。
+	return common.ExpectedEmbeddingFingerprint(conf)
 }
 
 // GetFingerprint returns the cached fingerprint for the current index.

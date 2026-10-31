@@ -1,0 +1,45 @@
+﻿CMD: go test -race -overlay C:\Zhy\code\go-rag\verification\stage2d-fix4-1e81aa4-20261028\overlay-review-gate.json -p 1 ./core/probe -run ^TestReviewGateAdmissionIsNotPhysicalSend$ -count=5 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestReviewGateAdmissionIsNotPhysicalSend
+    independent_review_gate_test.go:16: trial=0 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=1 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=2 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=3 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=4 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:19: OBSERVED 5/5 requests reached fake model after stop despite being past gate
+--- PASS: TestReviewGateAdmissionIsNotPhysicalSend (2.27s)
+=== RUN   TestReviewGateAdmissionIsNotPhysicalSend
+    independent_review_gate_test.go:16: trial=0 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=1 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=2 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=3 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=4 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:19: OBSERVED 5/5 requests reached fake model after stop despite being past gate
+--- PASS: TestReviewGateAdmissionIsNotPhysicalSend (2.34s)
+=== RUN   TestReviewGateAdmissionIsNotPhysicalSend
+    independent_review_gate_test.go:16: trial=0 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=1 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=2 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=3 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=4 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:19: OBSERVED 5/5 requests reached fake model after stop despite being past gate
+--- PASS: TestReviewGateAdmissionIsNotPhysicalSend (2.57s)
+=== RUN   TestReviewGateAdmissionIsNotPhysicalSend
+    independent_review_gate_test.go:16: trial=0 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=1 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=2 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=3 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=4 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:19: OBSERVED 5/5 requests reached fake model after stop despite being past gate
+--- PASS: TestReviewGateAdmissionIsNotPhysicalSend (2.50s)
+=== RUN   TestReviewGateAdmissionIsNotPhysicalSend
+    independent_review_gate_test.go:16: trial=0 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=1 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=2 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=3 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:16: trial=4 hits at stop=0 hits after release=1
+    independent_review_gate_test.go:19: OBSERVED 5/5 requests reached fake model after stop despite being past gate
+--- PASS: TestReviewGateAdmissionIsNotPhysicalSend (2.59s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	13.687s
+EXIT=0

@@ -70,6 +70,20 @@ func (b *budgetChatRole) Stream(ctx context.Context, messages []*schema.Message,
 	return session.Reader(), nil
 }
 
+// NewBudgetedChatRole 用进程预算包装任意 ChatRole（含 legacy 模型）。
+// P1-1: 当 Registry 存在但 Chat 家族角色未在 Registry 配置时，legacy 回退模型
+// 必须经过同一个预算 owner/lease，否则预算上限会被绕过。
+// profile 可为 nil（legacy 角色没有 Provider 身份）；nil 时 Profile() 返回零值。
+func NewBudgetedChatRole(inner ChatRole, budget *ProcessBudget, profile *ProviderProfile) ChatRole {
+	if inner == nil {
+		return nil
+	}
+	if budget == nil {
+		return inner
+	}
+	return &budgetChatRole{inner: inner, budget: budget, profile: profile}
+}
+
 // StreamSession 返回受控流会话，管理预算 lease 生命周期。
 // 内层 ChatRole 若实现 StreamSessioner，则使用其会话；否则回退到普通 Stream。
 func (b *budgetChatRole) StreamSession(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*StreamSession, error) {

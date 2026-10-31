@@ -1,0 +1,20 @@
+fix(probe): 区分发送四状态与可观测计数，统一拒绝非规范目标身份
+
+- 停止语义：把“入口已准入 / 已通过发送闸门 / 已交给 transport / 对端已收到”分开；
+  闸门在 commitSend 后分别记录 GateAdmissions/TransportCalls；新增确定性窗口测试
+  （beforeCancel 钩子）复现“已过闸门、未 handoff”在停止标记后仍被发出；
+  明确该残余窗口未闭合，保留待批准方案（design/stage2d-plan.md §9.1），
+  不把较弱语义写成原契约通过，也不引入无限持锁/死锁/无界等待
+- 发送证据计数：StepReport.Attempts 改为“预算已承诺次数”，新增 GateAdmissions/
+  TransportCalls；闸门拒绝仍保守结算预算、lease 收敛并保留 errors.Is 链，
+  不为对齐计数回滚已承诺预算
+- 目标规范化：Plan.Validate 与 NewLocalFakeESTarget 一致拒绝模型名首尾空白、
+  大写 similarity/provider（requireCanonical/requireCanonicalLower）；标准 cosine
+  仍就绪可执行，fingerprint 摘要与实际绑定、Marshal→Parse 一致，不改存量格式
+- 证据表述：fake ES 是 httptest 本机 HTTP（不经 sendGate、不证明真实 ES）；
+  旧 SKIP/变异/自测不写作独立通过；在 fix3 报告追加更正节，保留原文
+- 验证：默认与 online 的普通/race 全量、关键场景重复 race、串行全量、build、
+  vet、online vet 全部通过；复核 overlay 5/5 复现停止窗口、两个规范化反例按预期
+  失败、三个变异均使对应用例失败
+- 证据：verification/stage2d-fix4-1e81aa4-20261028/（不包含独立复核目录、
+  既有 .git-commit-msg.txt 与既有 CLAIMS.md 改动）

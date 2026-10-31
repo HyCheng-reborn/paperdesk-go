@@ -1728,3 +1728,115 @@ func TestInitWith_ProviderEmbeddingNoChat(t *testing.T) {
 		t.Fatalf("expected chat.model error, got: %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// C3-R4: Mixed role assembly tests
+// ---------------------------------------------------------------------------
+
+// TestR4_ProviderEmbedding_LegacyChat verifies that Provider Embedding + Legacy Chat
+// passes InitWith validation (mixed role assembly).
+func TestR4_ProviderEmbedding_LegacyChat(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.Provider = &config.ProviderConfig{
+		Name:                "openai",
+		EmbeddingModel:      "text-embedding-3-large",
+		EmbeddingDimensions: 768,
+		// No ChatModel in Provider → uses legacy ChatModel
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("Provider Embedding + Legacy Chat should succeed, got: %v", err)
+	}
+}
+
+// TestR4_LegacyEmbedding_ProviderChat verifies that Legacy Embedding + Provider Chat
+// passes InitWith validation (mixed role assembly).
+func TestR4_LegacyEmbedding_ProviderChat(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.Provider = &config.ProviderConfig{
+		Name:      "openai",
+		ChatModel: "gpt-4",
+		// No EmbeddingModel in Provider → uses legacy EmbeddingModel
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("Legacy Embedding + Provider Chat should succeed, got: %v", err)
+	}
+}
+
+// TestR4_BothProvider verifies that both Provider Embedding + Provider Chat succeeds.
+func TestR4_BothProvider(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.EmbeddingModel = "" // legacy empty
+	cfg.ChatModel = ""      // legacy empty
+	cfg.Provider = &config.ProviderConfig{
+		Name:                "openai",
+		EmbeddingModel:      "text-embedding-3-large",
+		EmbeddingDimensions: 768,
+		ChatModel:           "gpt-4",
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("Both Provider should succeed, got: %v", err)
+	}
+}
+
+// TestR4_BothLegacy verifies that both legacy Embedding + legacy Chat succeeds.
+func TestR4_BothLegacy(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	// No Provider → both legacy
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err != nil {
+		t.Fatalf("Both Legacy should succeed, got: %v", err)
+	}
+}
+
+// TestR4_ProviderEmbeddingOnly_NoChat verifies that Provider Embedding without
+// any Chat (neither Provider nor legacy) fails with appropriate error.
+func TestR4_ProviderEmbeddingOnly_NoChat(t *testing.T) {
+	resetState()
+	defer resetState()
+
+	cfg := validRagConfig()
+	cfg.ChatModel = "" // legacy empty
+	cfg.Provider = &config.ProviderConfig{
+		Name:                "openai",
+		EmbeddingModel:      "text-embedding-3-large",
+		EmbeddingDimensions: 768,
+		// No ChatModel
+	}
+
+	vsFactory := &fakeVectorStoreFactory{vs: &fakeVectorStore{}}
+	ragFctory := &fakeRagFactory{}
+	err := InitWith(cfg, vsFactory, ragFctory)
+	if err == nil {
+		t.Fatal("expected error when no chat model is available")
+	}
+	if !strings.Contains(err.Error(), "chat.model") {
+		t.Fatalf("expected chat.model error, got: %v", err)
+	}
+}

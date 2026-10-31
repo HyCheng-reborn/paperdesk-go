@@ -1,0 +1,11 @@
+$ go build ./...
+exit 0
+
+$ go vet ./...
+exit 0
+
+$ go vet -tags online ./...
+exit 0
+
+$ gofmt -l core/probe
+exit 0

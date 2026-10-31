@@ -1,0 +1,2 @@
+﻿command: gofmt -l core\probe
+exit=0 (empty output above means all files formatted)

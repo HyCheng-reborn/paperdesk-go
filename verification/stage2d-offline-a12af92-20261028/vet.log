@@ -1,0 +1,4 @@
+﻿command: go vet ./...
+exit=0
+== additional: go vet -tags online ./core/probe/ ==
+exit=0

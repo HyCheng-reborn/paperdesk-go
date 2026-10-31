@@ -77,10 +77,15 @@ func BuildChatRole(ctx context.Context, cfg BuildConfig) (ChatRole, error) {
 		return nil, err
 	}
 	p := cfg.Profile
+	// P1: 请求模型必须与已校验身份一致；带版本身份无法在 wire 上表达时 fail closed。
+	wireModel, err := p.RequestModel()
+	if err != nil {
+		return nil, fmt.Errorf("providers: build chat model: %w", err)
+	}
 	cm, err := chatopenai.NewChatModel(ctx, &chatopenai.ChatModelConfig{
 		APIKey:     cfg.APIKey,
 		BaseURL:    p.Endpoint,
-		Model:      p.Model,
+		Model:      wireModel,
 		HTTPClient: cfg.Transport.Client(), // 复用统一 transport
 	})
 	if err != nil {
@@ -144,9 +149,14 @@ func BuildEmbedRole(ctx context.Context, cfg BuildConfig) (EmbedRole, error) {
 		return nil, err
 	}
 	p := cfg.Profile
+	// P1: 请求模型必须与已校验身份一致；带版本身份无法在 wire 上表达时 fail closed。
+	wireModel, err := p.RequestModel()
+	if err != nil {
+		return nil, fmt.Errorf("providers: build embedder: %w", err)
+	}
 	ecfg := &embopenai.EmbeddingConfig{
 		APIKey:     cfg.APIKey,
-		Model:      p.Model,
+		Model:      wireModel,
 		BaseURL:    p.Endpoint,
 		HTTPClient: cfg.Transport.Client(), // 复用统一 transport
 	}
@@ -210,10 +220,15 @@ func BuildRerankRole(ctx context.Context, cfg BuildConfig) (RerankRole, error) {
 	}
 	_ = ctx // rerank.NewRerank 不需要 ctx；构造不发起网络请求
 	p := cfg.Profile
+	// P1: 请求模型必须与已校验身份一致；带版本身份无法在 wire 上表达时 fail closed。
+	wireModel, err := p.RequestModel()
+	if err != nil {
+		return nil, fmt.Errorf("providers: build rerank: %w", err)
+	}
 	rr := rerank.NewRerank(&rerank.RerankConfig{
 		URL:    p.Endpoint,
 		APIKey: cfg.APIKey,
-		Model:  p.Model,
+		Model:  wireModel,
 	}, cfg.Transport.Client()) // HTTPDoer 由 *http.Client 满足，复用统一 transport
 	if rr == nil {
 		return nil, fmt.Errorf("providers: build rerank: %w", ErrNilInner)

@@ -3,6 +3,7 @@ package rerank
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -147,20 +148,36 @@ func GetConf(ctx context.Context) (*Conf, error) {
 	return loadConf(ctx, &goFrameConfigReader{})
 }
 
-// Rerank performs reranking on the given documents.
-// It validates inputs before making any HTTP call.
-func (r *Rerank) Rerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
-	// Input validation
+// ErrInvalidInput 表示请求在本地即可判定的无效输入。
+//
+// 生产入口 (*Rerank).Rerank 与需要提前校验的调用方（如离线探针预检）共用
+// ValidateInput，因此"生产会在发送前拒绝"与"预检会拒绝"来自同一份规则，
+// 不会出现预检放过、真实入口再拒绝而前一步已经发送的分裂。
+var ErrInvalidInput = errors.New("rerank: invalid request input")
+
+// ValidateInput 是 (*Rerank).Rerank 的纯输入校验：不读配置、不发请求、
+// 不做任何 I/O，只判定请求本身是否自相矛盾。
+func ValidateInput(query string, docs []*schema.Document, topK int) error {
 	if len(docs) == 0 {
-		return nil, fmt.Errorf("empty docs")
+		return fmt.Errorf("%w: empty docs", ErrInvalidInput)
 	}
 	for i, doc := range docs {
 		if doc == nil {
-			return nil, fmt.Errorf("nil document at index %d", i)
+			return fmt.Errorf("%w: nil document at index %d", ErrInvalidInput, i)
 		}
 	}
 	if topK <= 0 {
-		return nil, fmt.Errorf("invalid topK: %d", topK)
+		return fmt.Errorf("%w: invalid topK: %d", ErrInvalidInput, topK)
+	}
+	return nil
+}
+
+// Rerank performs reranking on the given documents.
+// It validates inputs before making any HTTP call.
+func (r *Rerank) Rerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
+	// Input validation（与预检共用同一实现）
+	if err := ValidateInput(query, docs, topK); err != nil {
+		return nil, err
 	}
 
 	// Check ctx before making HTTP call

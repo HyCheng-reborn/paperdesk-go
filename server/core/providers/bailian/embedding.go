@@ -87,7 +87,12 @@ func usageCollectorFromContext(ctx context.Context) *usageCollector {
 }
 
 // 编译期断言。
-var _ providers.EmbedRole = (*validatedEmbedRole)(nil)
+// 除 EmbedRole 外还必须满足 ProfiledEmbedRole：common.NewEmbedding 在构造期
+// 强制要求可核实身份（缺失即 fail closed），真实注册后返回的正是本类型。
+var (
+	_ providers.EmbedRole         = (*validatedEmbedRole)(nil)
+	_ providers.ProfiledEmbedRole = (*validatedEmbedRole)(nil)
+)
 
 // BuildEmbed 构造百炼 Embedding 角色适配器。
 //
@@ -179,6 +184,20 @@ func (v *validatedEmbedRole) Dimensions() int { return v.expectedDim }
 
 // ModelID 返回 Profile 声明的模型身份。
 func (v *validatedEmbedRole) ModelID() string { return v.profile.ModelID() }
+
+// Profile 返回构造本角色所用 Profile 的**防御性副本**（值类型，KeyOptions 深拷贝）。
+//
+// 身份来源与 BuildEmbed 收到的 cfg.Profile 完全一致（同一份 Clone），因此报告的
+// provider/model/version/dimensions 就是实际用于请求与维度校验的值，不存在
+// “声明一套、调用另一套”的空间；调用方修改返回值不会影响本角色内部状态。
+// 该接口是 common.NewEmbedding 的 fail-closed 身份门禁所必需（复核第 4 轮 P1：
+// 本类型此前未实现 Profile()，导致真实注册的百炼 embedding 角色在构造期被拒）。
+func (v *validatedEmbedRole) Profile() providers.ProviderProfile {
+	if v == nil || v.profile == nil {
+		return providers.ProviderProfile{}
+	}
+	return *v.profile.Clone()
+}
 
 // reserveBudget 从 ctx 复用已有 RequestBudget，或创建新的。Fix 2a: owner 复用。
 func (v *validatedEmbedRole) reserveBudget(ctx context.Context, est *providers.TokenEstimate) (*providers.AttemptLease, error) {

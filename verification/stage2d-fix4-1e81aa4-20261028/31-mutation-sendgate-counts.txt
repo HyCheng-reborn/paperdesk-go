@@ -1,0 +1,15 @@
+﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\stage2d-fix4-1e81aa4-20261028\overlay-mutation-sendgate.json -p 1 ./core/probe -run ^TestStepReport_CountsSeparateCommitFromSend$ -count=1 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestStepReport_CountsSeparateCommitFromSend
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/gate_rejected_keeps_committed_budget
+    sendgate_test.go:637: send counters = gate 1 / transport 1, want 0 / 0
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/sent_once
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/retry_counts_each_attempt
+--- FAIL: TestStepReport_CountsSeparateCommitFromSend (0.02s)
+    --- FAIL: TestStepReport_CountsSeparateCommitFromSend/gate_rejected_keeps_committed_budget (0.01s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/sent_once (0.01s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/retry_counts_each_attempt (0.01s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.264s
+FAIL
+EXIT=1

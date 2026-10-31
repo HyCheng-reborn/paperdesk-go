@@ -35,7 +35,87 @@ var (
 	ErrProfileEmptyModel    = errors.New("providers: Model must not be empty")
 	ErrProfileEmptyEndpoint = errors.New("providers: Endpoint must not be empty")
 	ErrProfileBadDimensions = errors.New("providers: Dimensions must be >= 0")
+	// ErrProfileAmbiguousModel Model/Version 叠加了两种版本表示（如 Model 已含 @ 且 Version 非空）。
+	ErrProfileAmbiguousModel = errors.New("providers: Model/Version representation is ambiguous")
+	// ErrModelIDInvalid 模型身份 "model" / "model@version" 表示非法（空模型、空版本、多个 @）。
+	ErrModelIDInvalid = errors.New("providers: invalid model identity")
 )
+
+// NormalizeProviderName 是 Provider 名称的唯一规范化语义：去首尾空白并转小写。
+// fingerprint（NewFingerprint）与 Registry Profile（NewProviderProfile）都使用该语义，
+// 身份比较必须复用同一函数，不能直接比较配置原文。
+func NormalizeProviderName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+// SplitModelID 将 "model" / "model@version" 解析为无歧义的两段。
+// 拒绝空模型、空版本（"m@"）、多个 @ 以及带空白的空段，避免 "m@" 与 "m" 互为别名。
+func SplitModelID(modelID string) (model, version string, err error) {
+	trimmed := strings.TrimSpace(modelID)
+	if trimmed == "" {
+		return "", "", fmt.Errorf("%w: empty", ErrModelIDInvalid)
+	}
+	i := strings.Index(trimmed, "@")
+	if i < 0 {
+		return trimmed, "", nil
+	}
+	if strings.Index(trimmed[i+1:], "@") >= 0 {
+		return "", "", fmt.Errorf("%w: multiple '@' in %q", ErrModelIDInvalid, modelID)
+	}
+	model = strings.TrimSpace(trimmed[:i])
+	version = strings.TrimSpace(trimmed[i+1:])
+	if model == "" {
+		return "", "", fmt.Errorf("%w: empty model in %q", ErrModelIDInvalid, modelID)
+	}
+	if version == "" {
+		return "", "", fmt.Errorf("%w: empty version in %q", ErrModelIDInvalid, modelID)
+	}
+	return model, version, nil
+}
+
+// CanonicalModelID 返回无歧义规范化后的模型身份（Model 或 Model@Version）。
+// fingerprint、身份比较与 Registry Profile 使用同一表示，空版本等非法输入直接报错。
+func CanonicalModelID(modelID string) (string, error) {
+	model, version, err := SplitModelID(modelID)
+	if err != nil {
+		return "", err
+	}
+	if version == "" {
+		return model, nil
+	}
+	return model + "@" + version, nil
+}
+
+// ErrModelVersionNotExpressible 表示协议无法在请求中表达模型版本。
+//
+// 当前两种协议（openai-compatible / dashscope-native）的 wire model 字段只有
+// 模型名，没有独立的版本身份参数。若身份含 "@version" 而请求只发送模型名，
+// fingerprint / 角色标签会声明一个实际未生效的版本，因此必须 fail closed，
+// 不能只把版本写进身份标签。
+var ErrModelVersionNotExpressible = errors.New("providers: protocol cannot express model version in request")
+
+// RequestModelID 返回实际随请求发送的 model 值，是“身份 == 请求模型”不变式的
+// 唯一实现：无版本身份返回模型名；带版本身份返回 ErrModelVersionNotExpressible。
+// 非法身份（空模型、空版本、多个 @）保持 ErrModelIDInvalid。
+func RequestModelID(modelID string) (string, error) {
+	model, version, err := SplitModelID(modelID)
+	if err != nil {
+		return "", err
+	}
+	if version != "" {
+		return "", fmt.Errorf("%w: model=%q version=%q", ErrModelVersionNotExpressible, model, version)
+	}
+	return model, nil
+}
+
+// RequestModel 返回该 Profile 实际随请求发送的 model 值。
+// 与 RequestModelID 共享同一实现，因此所有角色构造器对版本身份的处理一致。
+func (p *ProviderProfile) RequestModel() (string, error) {
+	if p == nil {
+		return "", ErrNilProfile
+	}
+	return RequestModelID(p.ModelID())
+}
 
 // ProviderProfile 是 Registry 构造时接收的不可变 Provider 身份描述。
 // 一旦通过 NewProviderProfile 构造完成即视为只读；需要修改时应 Clone 后重新构造。
@@ -64,7 +144,7 @@ type ProviderProfile struct {
 // 任一必填项缺失或 Dimensions < 0 返回明确错误，不静默回退。
 func NewProviderProfile(in ProviderProfile) (*ProviderProfile, error) {
 	p := ProviderProfile{
-		ProviderName:       strings.ToLower(strings.TrimSpace(in.ProviderName)),
+		ProviderName:       NormalizeProviderName(in.ProviderName),
 		Protocol:           strings.ToLower(strings.TrimSpace(in.Protocol)),
 		Endpoint:           strings.TrimSpace(in.Endpoint),
 		Region:             strings.TrimSpace(in.Region),
@@ -73,6 +153,22 @@ func NewProviderProfile(in ProviderProfile) (*ProviderProfile, error) {
 		Dimensions:         in.Dimensions,
 		CredentialIdentity: strings.TrimSpace(in.CredentialIdentity),
 		Capabilities:       in.Capabilities, // 纯值类型，直接复制
+	}
+	// 无歧义模型身份："model@version" 只允许出现在 Model 字段或 Model+Version 二者之一，
+	// 不允许两种表示叠加。空版本（"m@"）在 validate 中经 SplitModelID 拒绝。
+	if strings.Contains(p.Model, "@") {
+		if p.Version != "" {
+			return nil, fmt.Errorf("%w: Model=%q Version=%q", ErrProfileAmbiguousModel, p.Model, p.Version)
+		}
+		model, version, splitErr := SplitModelID(p.Model)
+		if splitErr != nil {
+			return nil, splitErr
+		}
+		p.Model, p.Version = model, version
+	} else if p.Version != "" {
+		if _, _, splitErr := SplitModelID(p.Model + "@" + p.Version); splitErr != nil {
+			return nil, splitErr
+		}
 	}
 	// 防御性复制 KeyOptions（同时归一化键：TrimSpace）
 	if in.KeyOptions != nil {
@@ -97,6 +193,9 @@ func (p *ProviderProfile) validate() error {
 	}
 	if p.Model == "" {
 		return ErrProfileEmptyModel
+	}
+	if _, _, err := SplitModelID(p.ModelID()); err != nil {
+		return err
 	}
 	if p.Endpoint == "" {
 		return ErrProfileEmptyEndpoint

@@ -57,18 +57,32 @@ func TestPhysicalTargetBindingCapturesIdentityAndPropagatesCancellation(t *testi
 		t.Fatal(err)
 	}
 	fp.EmbeddingModelID = "caller-mutated-config"
-	if err := guard(context.Background()); err != nil {
+	if err := guard.Verify(context.Background()); err != nil {
 		t.Fatalf("guard captured mutable fingerprint: %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := guard(ctx); !errors.Is(err, context.Canceled) {
+	if err := guard.Verify(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	fake.mu.Lock()
 	fake.indices["idx"].uuid = "replacement"
 	fake.mu.Unlock()
-	if err := guard(context.Background()); !errors.Is(err, ErrResourceReplaced) {
+	if err := guard.Guard()(context.Background()); !errors.Is(err, ErrResourceReplaced) {
+		t.Fatal(err)
+	}
+}
+
+// P1-3: 手工构造的零值绑定不能自证已绑定。
+func TestTargetBindingZeroValueFailsClosed(t *testing.T) {
+	var zero TargetBinding
+	if err := zero.Check("idx", nil); !errors.Is(err, ErrResourceBindingNotReady) {
+		t.Fatal(err)
+	}
+	if err := zero.Verify(context.Background()); !errors.Is(err, ErrResourceBindingNotReady) {
+		t.Fatal(err)
+	}
+	if err := zero.Guard()(context.Background()); !errors.Is(err, ErrResourceBindingNotReady) {
 		t.Fatal(err)
 	}
 }

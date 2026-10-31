@@ -46,8 +46,11 @@ type RagConfig struct {
 	EmbeddingDimensions int
 	EmbeddingModel      string
 	ChatModel           string
-	QAEnabled           *bool // nil = 默认启用
-	QAMaxConcurrent     int   // 0 或负数 = 默认 4
+	// P2-1: legacy Chat 独立配置（来自 chat.apiKey / chat.baseURL）
+	ChatAPIKey      string
+	ChatBaseURL     string
+	QAEnabled       *bool // nil = 默认启用
+	QAMaxConcurrent int   // 0 或负数 = 默认 4
 
 	// 后台任务生命周期配置
 	MaxBackgroundTasks    int           // 默认 8，<=0 默认，>256 钳位到 256
@@ -111,6 +114,8 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 		EmbeddingModel:           cfg.EmbeddingModel,
 		EmbeddingDimensions:      cfg.EmbeddingDimensions,
 		ChatModel:                cfg.ChatModel,
+		ChatAPIKey:               cfg.ChatAPIKey,
+		ChatBaseURL:              cfg.ChatBaseURL,
 		QAEnabled:                cfg.QAEnabled,
 		QAMaxConcurrent:          cfg.QAMaxConcurrent,
 		MaxBackgroundTasks:       cfg.MaxBackgroundTasks,
@@ -145,11 +150,13 @@ func (f *defaultRagFactory) Create(cfg RagConfig, vs vector.VectorStore) (*core.
 	}
 
 	// Bind the concrete target before constructing any Store/retrieval graph.
-	guard, bindErr := vector.BindPhysicalTarget(ctx, vs, confForNew.IndexName, fp)
+	binding, bindErr := vector.BindPhysicalTarget(ctx, vs, confForNew.IndexName, fp)
 	if bindErr != nil {
 		return nil, fmt.Errorf("bind physical target: %w", bindErr)
 	}
-	confForNew.VectorIOGuard = guard
+	confForNew.VectorIOGuard = binding.Guard()
+	// P1-3: 可信绑定对象随配置传入，直接入口（common.NewEmbedding）据此校验名称/资源/fingerprint。
+	confForNew.PhysicalBinding = binding
 	// SDK collection creation has been removed; only the controlled path above creates.
 	rag, err := core.New(ctx, confForNew)
 	if err != nil {
@@ -188,7 +195,6 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 	if apiKey == "" {
 		apiKey = resolveAPIKeyFromEnv(pc.Name)
 	}
-
 	// 凭据解析器：返回固定 apiKey
 	credFn := func(ctx context.Context, p *providers.ProviderProfile) (string, error) {
 		if apiKey == "" {
@@ -215,7 +221,8 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 
 	// 构建各角色的 ProviderProfile
 	protocol := "openai-compatible"
-	providerName := pc.Name
+	// 名称规范化与 fingerprint、身份比较共用同一语义。
+	providerName := providers.NormalizeProviderName(pc.Name)
 	baseURL := pc.BaseURL
 
 	var err error
@@ -322,7 +329,7 @@ func buildRegistry(ctx context.Context, pc *config.ProviderConfig) (providers.Pr
 
 // resolveAPIKeyFromEnv 根据 Provider 名称从环境变量解析 API Key。
 func resolveAPIKeyFromEnv(providerName string) string {
-	switch providerName {
+	switch providers.NormalizeProviderName(providerName) {
 	case "bailian":
 		for _, k := range []string{"DASHSCOPE_API_KEY", "OPENAI_API_KEY"} {
 			if v := os.Getenv(k); v != "" {
@@ -484,6 +491,15 @@ func readRagConfig() (RagConfig, error) {
 	if err != nil {
 		return RagConfig{}, err
 	}
+	// P2-1: legacy Chat 使用自己的 endpoint/凭据，不得与 embedding 混用。
+	chatAPIKey, err := cfgGet(ctx, "chat.apiKey")
+	if err != nil {
+		return RagConfig{}, err
+	}
+	chatBaseURL, err := cfgGet(ctx, "chat.baseURL")
+	if err != nil {
+		return RagConfig{}, err
+	}
 
 	// QA 配置
 	qaEnabled, qaMaxConcurrent, err := readQAConfig(ctx, &defaultConfigGetter{})
@@ -508,6 +524,11 @@ func readRagConfig() (RagConfig, error) {
 		if scanErr := v.Scan(providerCfg); scanErr != nil {
 			return RagConfig{}, fmt.Errorf("scan provider config: %w", scanErr)
 		}
+		// C3-R3: Strict bool validation for supports_dimensions_request.
+		// Must happen before Scan result is used to construct profiles.
+		if boolErr := config.ValidateStrictBoolField(ctx, &defaultConfigGetter{}, "provider.supports_dimensions_request"); boolErr != nil {
+			return RagConfig{}, boolErr
+		}
 	}
 
 	legacyDims, providerDims, err := readEmbeddingDimensions(ctx, &defaultConfigGetter{})
@@ -525,6 +546,8 @@ func readRagConfig() (RagConfig, error) {
 		EmbeddingModel:        embeddingModel,
 		EmbeddingDimensions:   legacyDims,
 		ChatModel:             chatModel,
+		ChatAPIKey:            chatAPIKey,
+		ChatBaseURL:           chatBaseURL,
 		QAEnabled:             qaEnabled,
 		QAMaxConcurrent:       qaMaxConcurrent,
 		MaxBackgroundTasks:    maxBG,

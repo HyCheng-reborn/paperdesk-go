@@ -35,6 +35,14 @@ type EmbedRole interface {
 	ModelID() string
 }
 
+// ProfiledEmbedRole 可选接口，由能报告自身 Profile 的 EmbedRole 实现。
+// C3-R2: 用于身份核实（provider name 精确匹配）。
+// 生产实现（embedAdapter、validatedEmbedRole、budgetEmbedRole）均满足此接口。
+type ProfiledEmbedRole interface {
+	EmbedRole
+	Profile() ProviderProfile
+}
+
 // RerankRole 是 Rerank 角色接口，签名与 core/rerank.Rerank.Rerank 一致，
 // 以便直接复用 Stage 1B-1 已验收的校验链（输入隔离、结果校验、响应体限制、错误链）。
 type RerankRole interface {

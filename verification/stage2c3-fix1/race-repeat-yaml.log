@@ -1,0 +1,76 @@
+CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
+CWD: C:\Zhy\code\go-rag\server
+CMD: go test -race ./internal/logic/rag -run ^(TestP21_|TestP23_|TestP13_FactoryPath) -count=3 -timeout=300s -v
+DATE: 2026-10-28T11:58:37.8031082+08:00
+=== RUN   TestP21_LegacyChatUsesDedicatedEndpointAndCredential
+--- PASS: TestP21_LegacyChatUsesDedicatedEndpointAndCredential (0.06s)
+=== RUN   TestP21_MixedProviderChatUsesRegistryNotLegacyChat
+--- PASS: TestP21_MixedProviderChatUsesRegistryNotLegacyChat (0.02s)
+=== RUN   TestP23_ExplicitNullIsNotMissing
+=== RUN   TestP23_ExplicitNullIsNotMissing/missing
+=== RUN   TestP23_ExplicitNullIsNotMissing/null
+=== RUN   TestP23_ExplicitNullIsNotMissing/tilde
+=== RUN   TestP23_ExplicitNullIsNotMissing/true
+=== RUN   TestP23_ExplicitNullIsNotMissing/false
+=== RUN   TestP23_ExplicitNullIsNotMissing/string
+=== RUN   TestP23_ExplicitNullIsNotMissing/number
+--- PASS: TestP23_ExplicitNullIsNotMissing (0.08s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/missing (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/null (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/tilde (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/true (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/false (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/string (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/number (0.01s)
+=== RUN   TestP13_FactoryPathBindsTargetForDirectEntry
+2026-10-28T11:58:50.410+08:00 [INFO] Fingerprint verified for index "test" (resourceID=uuid-test)
+--- PASS: TestP13_FactoryPathBindsTargetForDirectEntry (0.06s)
+=== RUN   TestP21_LegacyChatUsesDedicatedEndpointAndCredential
+--- PASS: TestP21_LegacyChatUsesDedicatedEndpointAndCredential (0.02s)
+=== RUN   TestP21_MixedProviderChatUsesRegistryNotLegacyChat
+--- PASS: TestP21_MixedProviderChatUsesRegistryNotLegacyChat (0.02s)
+=== RUN   TestP23_ExplicitNullIsNotMissing
+=== RUN   TestP23_ExplicitNullIsNotMissing/missing
+=== RUN   TestP23_ExplicitNullIsNotMissing/null
+=== RUN   TestP23_ExplicitNullIsNotMissing/tilde
+=== RUN   TestP23_ExplicitNullIsNotMissing/true
+=== RUN   TestP23_ExplicitNullIsNotMissing/false
+=== RUN   TestP23_ExplicitNullIsNotMissing/string
+=== RUN   TestP23_ExplicitNullIsNotMissing/number
+--- PASS: TestP23_ExplicitNullIsNotMissing (0.08s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/missing (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/null (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/tilde (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/true (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/false (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/string (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/number (0.01s)
+=== RUN   TestP13_FactoryPathBindsTargetForDirectEntry
+2026-10-28T11:58:50.537+08:00 [INFO] Fingerprint verified for index "test" (resourceID=uuid-test)
+--- PASS: TestP13_FactoryPathBindsTargetForDirectEntry (0.01s)
+=== RUN   TestP21_LegacyChatUsesDedicatedEndpointAndCredential
+--- PASS: TestP21_LegacyChatUsesDedicatedEndpointAndCredential (0.02s)
+=== RUN   TestP21_MixedProviderChatUsesRegistryNotLegacyChat
+--- PASS: TestP21_MixedProviderChatUsesRegistryNotLegacyChat (0.02s)
+=== RUN   TestP23_ExplicitNullIsNotMissing
+=== RUN   TestP23_ExplicitNullIsNotMissing/missing
+=== RUN   TestP23_ExplicitNullIsNotMissing/null
+=== RUN   TestP23_ExplicitNullIsNotMissing/tilde
+=== RUN   TestP23_ExplicitNullIsNotMissing/true
+=== RUN   TestP23_ExplicitNullIsNotMissing/false
+=== RUN   TestP23_ExplicitNullIsNotMissing/string
+=== RUN   TestP23_ExplicitNullIsNotMissing/number
+--- PASS: TestP23_ExplicitNullIsNotMissing (0.08s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/missing (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/null (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/tilde (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/true (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/false (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/string (0.01s)
+    --- PASS: TestP23_ExplicitNullIsNotMissing/number (0.01s)
+=== RUN   TestP13_FactoryPathBindsTargetForDirectEntry
+2026-10-28T11:58:50.661+08:00 [INFO] Fingerprint verified for index "test" (resourceID=uuid-test)
+--- PASS: TestP13_FactoryPathBindsTargetForDirectEntry (0.01s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	4.805s
+EXIT: 0

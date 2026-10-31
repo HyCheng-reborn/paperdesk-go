@@ -1,0 +1,45 @@
+﻿CMD: go test -race -overlay C:\Zhy\code\go-rag\verification\stage2d-fix3-bdd3a6d-20261028\overlay-repro-stop20k.json -p 1 ./core/probe -run ^TestReviewStopMarkedBeforeCancellationAllowsSend$ -count=5 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestReviewStopMarkedBeforeCancellationAllowsSend
+    independent_review_stop_test.go:20: iteration 0: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 1: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 2: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 3: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 4: embedding sends after stop marker: 0
+    independent_review_stop_test.go:23: timing-dependent window not observed
+--- SKIP: TestReviewStopMarkedBeforeCancellationAllowsSend (0.44s)
+=== RUN   TestReviewStopMarkedBeforeCancellationAllowsSend
+    independent_review_stop_test.go:20: iteration 0: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 1: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 2: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 3: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 4: embedding sends after stop marker: 0
+    independent_review_stop_test.go:23: timing-dependent window not observed
+--- SKIP: TestReviewStopMarkedBeforeCancellationAllowsSend (0.40s)
+=== RUN   TestReviewStopMarkedBeforeCancellationAllowsSend
+    independent_review_stop_test.go:20: iteration 0: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 1: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 2: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 3: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 4: embedding sends after stop marker: 0
+    independent_review_stop_test.go:23: timing-dependent window not observed
+--- SKIP: TestReviewStopMarkedBeforeCancellationAllowsSend (0.42s)
+=== RUN   TestReviewStopMarkedBeforeCancellationAllowsSend
+    independent_review_stop_test.go:20: iteration 0: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 1: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 2: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 3: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 4: embedding sends after stop marker: 0
+    independent_review_stop_test.go:23: timing-dependent window not observed
+--- SKIP: TestReviewStopMarkedBeforeCancellationAllowsSend (0.40s)
+=== RUN   TestReviewStopMarkedBeforeCancellationAllowsSend
+    independent_review_stop_test.go:20: iteration 0: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 1: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 2: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 3: embedding sends after stop marker: 0
+    independent_review_stop_test.go:20: iteration 4: embedding sends after stop marker: 0
+    independent_review_stop_test.go:23: timing-dependent window not observed
+--- SKIP: TestReviewStopMarkedBeforeCancellationAllowsSend (0.42s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	3.444s
+EXIT=0

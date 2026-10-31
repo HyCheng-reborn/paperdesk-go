@@ -1,0 +1,5 @@
+CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
+CWD: C:\Zhy\code\go-rag\server
+CMD: go build ./...
+DATE: 2026-10-28T12:01:24.9799728+08:00
+EXIT: 0

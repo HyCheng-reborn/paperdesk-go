@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/qwen"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/providers"
 )
 
@@ -267,4 +269,77 @@ func GetQAModelWithRegistry(ctx context.Context, cfg *qwen.ChatModelConfig, reg 
 		return chatRole, nil
 	}
 	return qaDefaultCache.get(ctx, nil)
+}
+
+// ErrLegacyRoleBudgetUnavailable Registry 存在但无法提供进程预算，
+// legacy 回退角色因此无法纳入预算 → 失败关闭，不允许绕过预算 owner/lease。
+var ErrLegacyRoleBudgetUnavailable = errors.New("chat model: registry does not expose process budget for legacy fallback")
+
+// processBudgetOwner 由持有进程预算的 Registry 实现（默认 *registry 已提供 Budget()）。
+type processBudgetOwner interface {
+	Budget() *providers.ProcessBudget
+}
+
+// wrapLegacyWithRegistryBudget 将 legacy 模型包装进 Registry 的进程预算。
+// P1-1: legacy 回退不得产生未经预算约束的真实模型请求。
+func wrapLegacyWithRegistryBudget(cm model.BaseChatModel, reg providers.ProviderRegistry, role string) (model.BaseChatModel, error) {
+	if reg == nil {
+		return cm, nil
+	}
+	if cm == nil {
+		return nil, fmt.Errorf("chat model: nil %s model", role)
+	}
+	owner, ok := reg.(processBudgetOwner)
+	if !ok {
+		return nil, fmt.Errorf("%w: role=%s", ErrLegacyRoleBudgetUnavailable, role)
+	}
+	budget := owner.Budget()
+	if budget == nil {
+		return nil, fmt.Errorf("%w: role=%s nil budget", ErrLegacyRoleBudgetUnavailable, role)
+	}
+	return providers.NewBudgetedChatRole(cm, budget, nil), nil
+}
+
+// GetQAModelForRag 是 core.New 使用的 QA 模型解析入口：
+//  1. 存在 Registry 时总是经 Registry.GetQA，保留 QA→Chat 回退与预算归属；
+//  2. Registry 存在但 Chat 家族未配置（ErrRoleNotConfigured）时回退 legacy qa 配置，
+//     并强制包装进同一个进程预算；预算不可用时失败关闭；
+//  3. 无 Registry（纯 legacy 配置）时保持原有 legacy 行为。
+// 取消/构建错误全部保留错误链，不静默丢弃。
+func GetQAModelForRag(ctx context.Context, conf *config.Config) (model.BaseChatModel, error) {
+	if conf != nil && conf.Registry != nil {
+		cm, err := GetQAModelWithRegistry(ctx, nil, conf.Registry)
+		if err == nil {
+			return cm, nil
+		}
+		if !errors.Is(err, providers.ErrRoleNotConfigured) {
+			return nil, err
+		}
+		legacy, legacyErr := qaDefaultCache.get(ctx, nil)
+		if legacyErr != nil {
+			return nil, legacyErr
+		}
+		return wrapLegacyWithRegistryBudget(legacy, conf.Registry, "qa")
+	}
+	return qaDefaultCache.get(ctx, nil)
+}
+
+// GetChatModelForRag 是 core.New 使用的 Chat 模型解析入口。
+// P2-1: legacy Chat 只使用独立 chat 配置（chat.apiKey/baseURL），不再复用 embedding 配置。
+// P1-1: Registry 存在时 legacy Chat 也包装进同一进程预算。
+func GetChatModelForRag(ctx context.Context, conf *config.Config) (model.BaseChatModel, error) {
+	if HasProviderChatModel(conf) {
+		return GetChatModelWithRegistry(ctx, nil, conf.Registry)
+	}
+	if conf != nil && conf.ChatModel != "" {
+		cm, err := GetChatModelWithRegistry(ctx, conf.GetChatModelConfig(), nil)
+		if err != nil {
+			return nil, err
+		}
+		return wrapLegacyWithRegistryBudget(cm, conf.Registry, "chat")
+	}
+	if conf == nil {
+		return nil, errors.New("chat model: nil config")
+	}
+	return GetChatModelWithRegistry(ctx, nil, conf.Registry)
 }

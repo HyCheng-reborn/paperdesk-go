@@ -92,7 +92,6 @@ func testChatProfile(t *testing.T, modelName string) *ProviderProfile {
 		Protocol:     ProtocolOpenAICompat,
 		Endpoint:     "https://example.invalid/v1",
 		Model:        modelName,
-		Version:      "1",
 	})
 	if err != nil {
 		t.Fatalf("NewProviderProfile(%s): %v", modelName, err)
@@ -490,7 +489,7 @@ func TestRegistry_ResolverCannotMutateProfile(t *testing.T) {
 	if got.Model != "original-model" {
 		t.Fatalf("resolver mutated internal Profile.Model: %q", got.Model)
 	}
-	if got.Version != "1" {
+	if got.Version != "" {
 		t.Fatalf("resolver mutated internal Profile.Version: %q", got.Version)
 	}
 	if got.Endpoint != "https://example.invalid/v1" {
@@ -507,7 +506,6 @@ func TestRegistry_ResolverCannotMutateKeyOptions(t *testing.T) {
 		Protocol:     ProtocolOpenAICompat,
 		Endpoint:     "https://example.invalid/v1",
 		Model:        "qwen-plus",
-		Version:      "1",
 		KeyOptions:   map[string]string{KeyOptionStream: "true"},
 	})
 	if err != nil {

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "C:/Zhy/code/go-rag/server/core/probe/zz_review_isolation_test.go": "C:/Zhy/code/go-rag/verification/stage2d-fix2-3aea024-20261028/review-isolation-repro_test.go"
+  }
+}

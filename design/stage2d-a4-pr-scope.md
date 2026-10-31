@@ -9,11 +9,14 @@
 | 内容 | 说明 |
 | --- | --- |
 | 4 个 A-4 测试文件 | `server/core/retriever/a4_component_entry_test.go`、`a4_component_real_branch_test.go`、`a4_query_shape_test.go`、`server/core/a4_component_rag_test.go` |
+| 增量复核测试 | `server/core/retriever/a4_review_regression_test.go`；按复核描述重建，不是复核方原始文件 |
 | 1 个共享测试 helper 改动 | `server/internal/testutil/dimensions.go`：fake embedding 由全零改为非零 one-hot，新增 `OneHotVector`/`EmbeddingHotIndex`；A-4 测试依赖这两个符号（缺失则无法编译）。这是**共享 helper 行为变化**，已回归 `core/indexer`、`core/retriever` 的既有维度测试 |
 | 2 份设计文档 | `design/stage2d-a4-es-plan.md`（L0 方案与证据口径）、`design/stage2d-a4-l2-component.md`（L2 组件入口与子用例） |
 | 3 份观察/台账报告 | `verification/stage2d-a4-local-es-…`（L0）、`verification/stage2d-a4-l2-…`（L2）、`verification/stage2d-a4-ledger-…`（台账） |
-| 1 份 PR 清单 | `verification/stage2d-a4-pr-…-v2/`（清单、哈希、PR 正文草稿） |
+| PR 清单 | `verification/stage2d-a4-pr-…-v2/` 是树外过程工件，不随本 PR 交付 |
 | 本说明 | 本文 |
+
+本次增量复核修复将每次查询的 HTTP 状态和响应元信息绑定到该查询；读取上限 1 MiB，超限或读取失败时关闭响应并失败，不向 SDK 返回截断响应。成功读取时 SDK 接收完整原始字节。部分分片失败、超时及无法判读均不能算完整观察。历史 L0/L2 报告未修改，也不作为本次提交的真实 ES 运行记录。
 
 ## 2. 验收条款引用（本 PR 树内可直接核对）
 
@@ -94,4 +97,4 @@ Stage 2D 计划文件 `design/stage2d-plan.md` 在本 PR 树内是**基线提交
 | `design/stage2d-plan.md`（基线内，未修改） | `e56c688a5adcee28bfe2128a1ef2b386b37454bb` | 63930 |
 | `design/stage2d-a4-es-plan.md`（新增） | `21f415c876fcdc1f2472697510f936b6136459a1` | 56422 |
 | `design/stage2d-a4-l2-component.md`（新增） | `768ab2a4fee3015a1e07b11bdf6a548a50fc247b` | 24872 |
-| `design/stage2d-a4-pr-scope.md`（本文，新增） | 见 PR 清单 `hashes.tsv` | — |
+| `design/stage2d-a4-pr-scope.md`（本文，新增） | 以当前 Git 提交中的 blob 为准 | — |

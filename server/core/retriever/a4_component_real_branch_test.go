@@ -33,6 +33,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -91,23 +92,23 @@ func a4cResolveRealTarget(getenv func(string) string) (a4RealTarget, bool, error
 	}
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return a4RealTarget{}, false, fmt.Errorf("refused: parse %s: %w", a4cURLEnv, err)
+		return a4RealTarget{}, false, fmt.Errorf("refused: invalid %s", a4cURLEnv)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return a4RealTarget{}, false, fmt.Errorf("refused: unsupported scheme %q", u.Scheme)
+		return a4RealTarget{}, false, errors.New("refused: unsupported URL scheme")
 	}
 	if u.User != nil {
 		return a4RealTarget{}, false, fmt.Errorf("refused: credentials must not be embedded in %s; use %s/%s", a4cURLEnv, a4cUserEnv, a4cPassEnv)
 	}
 	if !a4cIsLoopback(u.Hostname()) && strings.TrimSpace(getenv(a4cRemoteEnv)) != "1" {
-		return a4RealTarget{}, false, fmt.Errorf("refused: non-loopback host %q requires %s=1", u.Hostname(), a4cRemoteEnv)
+		return a4RealTarget{}, false, fmt.Errorf("refused: non-loopback host requires %s=1", a4cRemoteEnv)
 	}
 	index := strings.TrimSpace(getenv(a4cIndexEnv))
 	if index == "" {
 		return a4RealTarget{}, false, fmt.Errorf("refused: %s is empty", a4cIndexEnv)
 	}
 	if err := vector.ValidatePhysicalName(index); err != nil {
-		return a4RealTarget{}, false, fmt.Errorf("refused: %s %q: %w", a4cIndexEnv, index, err)
+		return a4RealTarget{}, false, fmt.Errorf("refused: invalid %s", a4cIndexEnv)
 	}
 	// UUID 逐字节比对，因此输入链任何位置都不做归一：首尾空白直接拒绝，
 	// 不做 TrimSpace 后再比（否则会把带空白的两个不同字节串当成同一目标）。
@@ -125,9 +126,11 @@ func a4cResolveRealTarget(getenv func(string) string) (a4RealTarget, bool, error
 	}
 	dims := a4cDims
 	if raw := strings.TrimSpace(getenv(a4cDimsEnv)); raw != "" {
-		if _, scanErr := fmt.Sscanf(raw, "%d", &dims); scanErr != nil || dims <= 0 {
-			return a4RealTarget{}, false, fmt.Errorf("refused: invalid %s=%q", a4cDimsEnv, raw)
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || parsed <= 0 || parsed > 4096 {
+			return a4RealTarget{}, false, fmt.Errorf("refused: invalid %s", a4cDimsEnv)
 		}
+		dims = parsed
 	}
 	return a4RealTarget{
 		URL: u.String(), Index: index, UUID: uuid, KB: kb, Dims: dims,
@@ -220,10 +223,10 @@ func (p a4cProbe) Complete() bool {
 func (p a4cProbe) Summary() string {
 	out := fmt.Sprintf("kind=%s status=%d hits=%d", p.Kind, p.Status, p.Hits)
 	if p.ErrType != "" {
-		out += " error.type=" + p.ErrType
+		out += " error.type=" + a4cSafeErrorType(p.ErrType)
 	}
 	if p.RootCause != "" {
-		out += " root_cause.type=" + p.RootCause
+		out += " root_cause.type=" + a4cSafeErrorType(p.RootCause)
 	}
 	if p.Note != "" {
 		out += " note=" + p.Note
@@ -231,8 +234,20 @@ func (p a4cProbe) Summary() string {
 	return out
 }
 
+func a4cSafeErrorType(s string) string {
+	switch s {
+	case "":
+		return ""
+	case a4cErrTypeIndexMissing, a4cErrTypeSearchPhase, a4cErrTypeScript:
+		return s
+	default:
+		return "unknown"
+	}
+}
+
 // a4cVerdict 是一次真实分支运行的完整判定；Summary 只写白名单字段。
 type a4cVerdict struct {
+	QueryDims    int
 	Requests     int
 	Refused      int
 	IndexOK      bool
@@ -252,11 +267,44 @@ type a4cVerdict struct {
 	Observation string
 }
 
+// Capture is scoped to one Retrieve context, never a process-wide last response.
+const a4cMaxResponseBody = 1 << 20
+
+type a4cCaptureKey struct{}
+type a4cCapture struct {
+	status                      int
+	invalid, conflict, complete bool
+}
+
+func (c *a4cCapture) observe(raw []byte) {
+	var m struct {
+		Status   *int  `json:"status"`
+		TimedOut *bool `json:"timed_out"`
+		Shards   *struct {
+			Failed *int `json:"failed"`
+		} `json:"_shards"`
+	}
+	if json.Unmarshal(raw, &m) != nil {
+		c.invalid = true
+		return
+	}
+	if m.Status != nil && *m.Status != c.status {
+		c.conflict = true
+	}
+	if c.status >= 200 && c.status < 300 {
+		c.complete = m.TimedOut != nil && !*m.TimedOut && m.Shards != nil && m.Shards.Failed != nil && *m.Shards.Failed == 0
+	}
+}
+
 // Summary 是唯一允许写进证据的形态：计数、状态、类型、存在性。
 func (v a4cVerdict) Summary() string {
+	queryVec := "not_generated"
+	if v.EmbCalls > 0 && v.QueryDims > 0 {
+		queryVec = fmt.Sprintf("e0/%d", v.QueryDims)
+	}
 	return fmt.Sprintf(
-		"requests=%d refused=%d index_ok=%t aliases_empty=%t uuid_match=%t content_exist=%t content_dims=%d qa_exist=%t emb_calls=%d query_vec=e0/1024 observed=%t incomplete=%t reason=%q control=[%s] qa=[%s] observation=%q",
-		v.Requests, v.Refused, v.IndexOK, v.AliasesEmpty, v.UUIDMatch, v.ContentOK, v.ContentDims, v.QAExists, v.EmbCalls, v.Observed, v.Incomplete, v.Reason, v.Control.Summary(), v.QA.Summary(), v.Observation,
+		"requests=%d refused=%d index_ok=%t aliases_empty=%t uuid_match=%t content_exist=%t content_dims=%d qa_exist=%t emb_calls=%d query_vec=%s observed=%t incomplete=%t reason=%q control=[%s] qa=[%s] observation=%q",
+		v.Requests, v.Refused, v.IndexOK, v.AliasesEmpty, v.UUIDMatch, v.ContentOK, v.ContentDims, v.QAExists, v.EmbCalls, queryVec, v.Observed, v.Incomplete, v.Reason, v.Control.Summary(), v.QA.Summary(), v.Observation,
 	)
 }
 
@@ -268,7 +316,11 @@ func a4cRunRealProbe(t *testing.T, ctx context.Context, tgt a4RealTarget, obs *a
 	defer func() {
 		v.Requests = obs.count()
 		v.Refused = obs.refusedCount()
-		v.EmbCalls, _ = c.emb.stats()
+		var dims []int
+		v.EmbCalls, dims = c.emb.stats()
+		if len(dims) > 0 {
+			v.QueryDims = dims[len(dims)-1]
+		}
 	}()
 
 	if err := a4cPrecheckIndex(ctx, c, tgt, &v); err != nil {
@@ -305,18 +357,41 @@ func a4cRunRealProbe(t *testing.T, ctx context.Context, tgt a4RealTarget, obs *a
 
 // a4cRunSearch 用生产检索器发一条只读查询（TopK=1，减少 _source 暴露面）。
 func a4cRunSearch(ctx context.Context, c *a4Component, r er.Retriever, kb string) a4cProbe {
+	cap := &a4cCapture{}
+	ctx = context.WithValue(ctx, a4cCaptureKey{}, cap)
 	docs, err := r.Retrieve(ctx, "a4-component-query", er.WithTopK(1), es8.WithFilters(a4cFilter(kb)))
+	if cap.status == 0 && err != nil {
+		return a4cProbe{Kind: a4cProbeTransport, Note: a4cErrorKind(err)}
+	}
+	if cap.invalid || cap.status == 0 {
+		return a4cProbe{Kind: a4cProbeUnparsable, Status: cap.status}
+	}
+	if cap.conflict {
+		return a4cProbe{Kind: a4cProbeUnparsable, Status: cap.status, Note: "status_mismatch"}
+	}
+	if cap.status >= 500 {
+		return a4cProbe{Kind: a4cProbeServer, Status: cap.status}
+	}
+	if cap.status == 401 || cap.status == 403 || cap.status == 408 || cap.status == 429 {
+		return a4cProbe{Kind: a4cProbeAuth, Status: cap.status}
+	}
+	if cap.status >= 200 && cap.status < 300 && !cap.complete {
+		return a4cProbe{Kind: a4cProbeUnparsable, Status: cap.status, Note: "incomplete_response"}
+	}
 	if err == nil {
-		return a4cProbe{Kind: a4cProbeOK, Status: http.StatusOK, Hits: len(docs)}
+		if cap.status < 200 || cap.status >= 300 {
+			return a4cProbe{Kind: a4cProbeUnparsable, Status: cap.status}
+		}
+		return a4cProbe{Kind: a4cProbeOK, Status: cap.status, Hits: len(docs)}
 	}
 	var esErr *types.ElasticsearchError
 	if !errors.As(err, &esErr) {
 		// 网络/取消/响应不可解析：不构成可判定观察。
 		return a4cProbe{Kind: a4cProbeTransport, Note: a4cErrorKind(err)}
 	}
-	p := a4cProbe{Status: esErr.Status, ErrType: esErr.ErrorCause.Type}
+	p := a4cProbe{Status: cap.status, ErrType: a4cSafeErrorType(esErr.ErrorCause.Type)}
 	if len(esErr.ErrorCause.RootCause) > 0 {
-		p.RootCause = esErr.ErrorCause.RootCause[0].Type
+		p.RootCause = a4cSafeErrorType(esErr.ErrorCause.RootCause[0].Type)
 	}
 	p.Kind = a4cClassifyError(p.Status, p.ErrType, p.RootCause)
 	if p.Kind == a4cProbeScriptRejected {

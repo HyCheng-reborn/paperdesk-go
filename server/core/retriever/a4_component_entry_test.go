@@ -298,8 +298,30 @@ func (s *a4cSender) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, redirectErr
 	}
 	s.obs.finish(idx, res.StatusCode, nil)
+	if kind == "search" {
+		if capture, ok := req.Context().Value(a4cCaptureKey{}).(*a4cCapture); ok {
+			capture.status = res.StatusCode
+			// Read at most limit+1 bytes. Oversize/read failure closes the body and
+			// fails the request; the SDK never receives a truncated success response.
+			raw, readErr := io.ReadAll(io.LimitReader(res.Body, a4cMaxResponseBody+1))
+			if readErr != nil || len(raw) > a4cMaxResponseBody {
+				_ = res.Body.Close()
+				capture.invalid = true
+				return nil, errors.New("a4c: response observation unavailable")
+			}
+			capture.observe(raw)
+			res.Body = &a4cReplayBody{Reader: bytes.NewReader(raw), original: res.Body}
+		}
+	}
 	return res, nil
 }
+
+type a4cReplayBody struct {
+	*bytes.Reader
+	original io.Closer
+}
+
+func (b *a4cReplayBody) Close() error { return b.original.Close() }
 
 // a4cEmbedding 是本机 fake embedding：记录调用次数/维度，返回 1024 维 one-hot。
 type a4cEmbedding struct {
@@ -408,7 +430,7 @@ func a4cBuild(t *testing.T, target, index string, dims int, user, pass string, r
 	}
 	client, err := elasticsearch.NewClient(cfg)
 	if err != nil {
-		t.Fatalf("new es client: %v", err)
+		t.Fatal("new es client: invalid configuration")
 	}
 	emb := a4cNewEmbedding(t, dims)
 	conf := &config.Config{
@@ -423,7 +445,7 @@ func a4cBuild(t *testing.T, target, index string, dims int, user, pass string, r
 		ctx := context.WithValue(context.Background(), coretypes.RetrieverFieldKey, field)
 		ret, buildErr := newRetriever(ctx, conf)
 		if buildErr != nil {
-			t.Fatalf("newRetriever(%s): %v", field, buildErr)
+			t.Fatalf("newRetriever(%s): construction failed", field)
 		}
 		return ret
 	}

@@ -7,12 +7,12 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/wangle201210/go-rag/server/core/common"
+	"github.com/wangle201210/go-rag/server/core/config"
 	"github.com/wangle201210/go-rag/server/core/providers"
 	"github.com/wangle201210/go-rag/server/internal/dao"
 )
@@ -43,21 +43,16 @@ type ChatModelFactory interface {
 }
 
 // defaultChatModelFactory 生产环境的 ChatModelFactory 实现
-type defaultChatModelFactory struct{}
+type defaultChatModelFactory struct{ provider *config.ProviderConfig }
 
 func (f *defaultChatModelFactory) Create(apiKey, baseURL, modelName string) (model.BaseChatModel, error) {
-	// B4: Registry 优先；失败时传播错误，不回退到旧路径
-	if r := common.GetRegistry(); r != nil {
-		chatRole, err := r.GetChat(context.Background())
-		if err != nil {
-			return nil, fmt.Errorf("registry GetChat: %w", err)
-		}
-		return chatRole, nil
+	reg := common.GetRegistry()
+	if f.provider != nil && f.provider.ChatModel != "" && reg == nil {
+		return nil, fmt.Errorf("provider chat: registry not configured")
 	}
-	return openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
-		APIKey:  apiKey,
-		BaseURL: baseURL,
-		Model:   modelName,
+	return common.GetChatModelForRag(context.Background(), &config.Config{
+		ChatAPIKey: apiKey, ChatBaseURL: baseURL, ChatModel: modelName,
+		Provider: f.provider, Registry: reg,
 	})
 }
 
@@ -105,6 +100,19 @@ func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 	ctx := gctx.New()
 
 	var apiKey, baseURL, chatModel string
+	var provider *config.ProviderConfig
+	if chatCfg == nil && cmFactory == nil {
+		v, err := g.Cfg().Get(ctx, "provider")
+		if err != nil {
+			return fmt.Errorf("chat: read provider config: %w", err)
+		}
+		if !v.IsNil() {
+			provider = &config.ProviderConfig{}
+			if err := v.Scan(provider); err != nil {
+				return fmt.Errorf("chat: scan provider config: %w", err)
+			}
+		}
+	}
 
 	if chatCfg != nil {
 		apiKey = chatCfg.APIKey
@@ -126,13 +134,14 @@ func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 		}
 	}
 
-	if apiKey == "" {
+	providerChat := common.HasProviderChatModel(&config.Config{Provider: provider})
+	if !providerChat && apiKey == "" {
 		return fmt.Errorf("chat: chat.apiKey not configured")
 	}
-	if baseURL == "" {
+	if !providerChat && baseURL == "" {
 		return fmt.Errorf("chat: chat.baseURL not configured")
 	}
-	if chatModel == "" {
+	if !providerChat && chatModel == "" {
 		return fmt.Errorf("chat: chat.model not configured")
 	}
 
@@ -144,7 +153,7 @@ func InitWith(chatCfg *ChatConfig, cmFactory ChatModelFactory) error {
 
 	// 如果未注入工厂，使用默认工厂
 	if cmFactory == nil {
-		cmFactory = &defaultChatModelFactory{}
+		cmFactory = &defaultChatModelFactory{provider: provider}
 	}
 
 	// 使用注入的工厂创建 chat model

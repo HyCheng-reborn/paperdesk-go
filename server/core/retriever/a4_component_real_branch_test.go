@@ -283,6 +283,9 @@ func (c *a4cCapture) observe(raw []byte) {
 		Shards   *struct {
 			Failed *int `json:"failed"`
 		} `json:"_shards"`
+		Hits *struct {
+			Hits json.RawMessage `json:"hits"`
+		} `json:"hits"`
 	}
 	if json.Unmarshal(raw, &m) != nil {
 		c.invalid = true
@@ -292,7 +295,7 @@ func (c *a4cCapture) observe(raw []byte) {
 		c.conflict = true
 	}
 	if c.status >= 200 && c.status < 300 {
-		c.complete = m.TimedOut != nil && !*m.TimedOut && m.Shards != nil && m.Shards.Failed != nil && *m.Shards.Failed == 0
+		c.complete = m.TimedOut != nil && !*m.TimedOut && m.Shards != nil && m.Shards.Failed != nil && *m.Shards.Failed == 0 && m.Hits != nil && strings.HasPrefix(strings.TrimSpace(string(m.Hits.Hits)), "[")
 	}
 }
 
@@ -412,7 +415,10 @@ func a4cGet(ctx context.Context, c *a4Component, path string) (int, []byte, erro
 		return 0, nil, err
 	}
 	defer func() { _ = res.Body.Close() }()
-	raw, readErr := io.ReadAll(io.LimitReader(res.Body, a4cMaxRequestBody))
+	raw, readErr := io.ReadAll(io.LimitReader(res.Body, a4cMaxRequestBody+1))
+	if readErr == nil && len(raw) > a4cMaxRequestBody {
+		return res.StatusCode, nil, errors.New("precheck response too large")
+	}
 	return res.StatusCode, raw, readErr
 }
 

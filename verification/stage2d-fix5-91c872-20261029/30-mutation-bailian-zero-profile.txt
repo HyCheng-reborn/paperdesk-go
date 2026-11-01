@@ -1,0 +1,10 @@
+﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\stage2d-fix5-91c872-20261029\overlay-mutation-zero-profile-with-review.json -p 1 ./core/probe -run ^TestReviewBailianTraceCountsRealAdapters$ -count=1 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+ATTEMPT 1: transient windows binary lock, retrying
+=== RUN   TestReviewBailianTraceCountsRealAdapters
+    independent_counts_test.go:3: probe: build production embedding chain: embedding: identity or dimensions mismatch between Registry and config resolution: embedding role reports empty provider name
+--- FAIL: TestReviewBailianTraceCountsRealAdapters (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	2.117s
+FAIL
+EXIT=1

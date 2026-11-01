@@ -1,0 +1,411 @@
+# CMD: go test -race ./core/providers/... -count=10 -v -run "TestBudget_Real|TestBudget_Stream|TestBudget_Retry|TestEmbedding_|TestRegistry_|TestBuilder_|TestChatFactory_|TestRerank_"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-19 19:31:07
+
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.277s
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.01s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_UsageMissing
+--- PASS: TestEmbedding_UsageMissing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.296s
+

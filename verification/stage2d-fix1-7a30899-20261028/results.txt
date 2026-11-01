@@ -1,0 +1,61 @@
+Stage 2D S-1 fix batch 1 —— 命令与退出码汇总
+固定起点（父提交）= 7a30899b0e205ad714b5a8ac4db152eb200bcb76
+祖父提交        = a12af924f0441363b46e0fec41fca29bdc30993a
+分支            = codex/stage2c2-fingerprint
+工作目录        = C:/Zhy/code/go-rag/server（除标注外）
+环境            = go1.27.1 windows/amd64；gcc 16.2.0 (UCRT64, C:/msys64/ucrt64/bin)
+
+[1] go test -p 1 ./core/probe/... -count=1 -v
+    exit 0  log: test-probe-default.log
+    命中（全部 PASS）：TestProbeChain_ProductionBindingAndScope / TestProbeChain_IdentityMismatchRejected /
+    TestProbeChain_GuardRejectsReplacedTarget / TestW1_RetryReservesAndCommitsEveryAttempt /
+    TestW2_ExhaustedBudgetSendsNothingFurther / TestW3_ExpiredCallerContextStopsBeforeSend /
+    TestW3_DeadlineDuringSendIsNotRetried / TestW3_ConcurrencyLimitAppliesAtProbeEntry /
+    TestW4_UsageSettlement(2 子项) / TestW5_UnexpectedErrorStopsSubsequentSteps /
+    TestProbeChain_ResponseDimensionMismatchRejected / TestRedirect_ProhibitedIsNotRetried /
+    TestPreflight_InvalidLaterStepSendsNothing / TestStopReasonIsSanitized /
+    TestDefaultBuild_ChainOptionsHasNoRemoteSwitch / TestDefaultBuild_RemoteEndpointsRejectedWithZeroSends(3 子项) /
+    TestProxyControl_EnvironmentIsHonored / TestDefaultBuild_CheckEndpointsRejectsRemote /
+    TestPlan_Validate(14 子项) / TestBudgetPlan_ZeroIsNotFinite(8 子项) /
+    TestCredentials_ReportsPresenceOnly / TestReadiness_ListsUnconfiguredItems / TestReadiness_ReadyWhenAllDeclared
+
+[2] go test -tags online -p 1 ./core/probe/... -count=1 -v
+    exit 0  log: test-probe-online.log
+    额外命中（全部 PASS）：TestOnlineBuild_HasRemoteCapability /
+    TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend / TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho /
+    TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend /
+    TestOnlineBuild_QuerySecretNotEchoedInEvidence / TestOnlineBuild_CredentialValueNeverAppearsInEvidence /
+    TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+
+[3] PATH += C:/msys64/ucrt64/bin; CC=C:/msys64/ucrt64/bin/gcc.exe; CGO_ENABLED=1
+    go test -race -p 1 ./core/probe/... -count=1 -v
+    exit 0  log: race-probe-default.log
+
+[4] go test -race -tags online -p 1 ./core/probe/... -count=1 -v
+    exit 0  log: race-probe-online.log
+
+[5] go test -race -p 1 ./core/probe/... -count=5 \
+      -run "TestW[1-5]|TestProbeChain_Guard|TestRedirect|TestPreflight|TestStopReason|TestDefaultBuild|TestProxyControl"
+    exit 0  log: race-targeted-repeat-default.log
+
+[6] go test -race -tags online -p 1 ./core/probe/... -count=5 \
+      -run "TestW[1-5]|TestProbeChain_Guard|TestRedirect|TestPreflight|TestStopReason|TestOnlineBuild|TestProxyControl"
+    exit 0  log: race-targeted-repeat-online.log
+
+[7] go test -p 1 ./... -count=1        （仓库内全部包，串行）
+    exit 0  log: test-full-serial.log
+    结果：core 4.224s / common 0.346s / config 0.264s / indexer 0.694s / probe 0.465s /
+    providers 0.694s / bailian 8.287s / openai 3.215s / rerank 0.951s / retriever 0.267s /
+    vector 0.487s / websearch 0.341s / internal/cmd 2.335s / controller 0.341s / dao 0.196s /
+    logic/chat 0.316s / logic/knowledge 0.271s / logic/rag 15.851s；无 FAIL
+
+[8] go build ./...                      exit 0  log: build-vet-online-vet.log
+[9] go vet ./...                        exit 0  同上
+[10] go vet -tags online ./core/probe/... exit 0 同上（online 标签静态检查）
+[11] gofmt -l core/probe                exit 0（无输出＝已格式化）
+
+环境失败：无。上一批次曾出现 Windows race 链接错误 0xC0000139（系统 gcc 8.1.0）；
+本批统一改用 UCRT64 gcc 16.2.0，race 运行正常，未出现任何 0xC0000139。
+
+未执行的命令（有意）：任何真实模型/真实 ES/Qdrant/MySQL 调用；任何在线探针执行；
+任何推送、合并、PR 操作；任何验收状态更新。

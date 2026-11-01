@@ -1,0 +1,4 @@
+﻿CMD: go test -tags online -race ./core/probe -count=1
+WORKDIR: C:\Zhy\code\go-rag\server
+ok  	github.com/wangle201210/go-rag/server/core/probe	2.806s
+EXIT=0

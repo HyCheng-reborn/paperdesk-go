@@ -1,0 +1,13 @@
+CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
+CWD: C:\Zhy\code\go-rag\server
+CMD: go test -p 1 ./core/providers ./core/providers/bailian ./core/vector ./core/common ./core ./internal/logic/rag -count=1 -timeout=900s
+DATE: 2026-10-28T16:05:01.5676605+08:00
+ATTEMPT: 1
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.330s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	9.019s
+ok  	github.com/wangle201210/go-rag/server/core/vector	1.700s
+ok  	github.com/wangle201210/go-rag/server/core/common	1.496s
+ok  	github.com/wangle201210/go-rag/server/core	4.931s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	16.713s
+ATTEMPT 1 EXIT: 0
+EXIT: 0

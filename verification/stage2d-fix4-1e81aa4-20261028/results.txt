@@ -1,0 +1,40 @@
+Stage 2D S-1 第四轮修复（1e81aa4 的第三轮独立复核）——命令与退出码汇总
+环境：Windows/amd64、Go 1.27.1、UCRT64 gcc 16.2.0、GOPROXY=off、GOSUMDB=off、CGO_ENABLED=1
+WORKDIR: server/
+详见各日志首行的实际命令与 run-tests.ps1 / run-overlays.ps1。
+
+[干净目标：默认构建]
+01-default-targeted.txt                 exit 0   （停止/计数/规范化/既有回归，全部 PASS）
+02-default-full.txt                     exit 0   （probe + rerank 全量）
+03-default-race-full.txt                exit 0   （-race，无 DATA RACE）
+04-default-race-repeat.txt              exit 0   （关键停止/计数/规范化 -race -count=5）
+
+[干净目标：online 标签（对端仍为本机 fake）]
+05-online-full.txt                      exit 0
+06-online-race-full.txt                 exit 0   （无 DATA RACE）
+07-online-race-repeat.txt               exit 0   （目标规则/授权边界 -count=3）
+
+[全量/静态]
+08-serial-all.txt                       exit 0   （go test -p 1 ./...）
+09-build.txt                            exit 0   （go build ./...）
+10-vet.txt                              exit 0   （go vet ./...）
+11-vet-online.txt                       exit 0   （go vet -tags online ./...）
+
+[补充复现：复核原始源码 overlay，未修改]
+20-review-gate-admission.txt            exit 0   5 次运行 × 5 试验：每轮 marker 后命中 1（5/5）
+21-review-gate-ctx.txt                  exit 0   5 次运行 × 5 试验：每轮命中 1；context at release=<nil>
+22-review-attempt-count.txt             exit 0   hits=0 / Attempts=1 / committed=1（复核断言仍成立）
+23-review-space-model.txt               exit 1   预期：Ready()=false，embed.model 规范形式拒绝
+24-review-normalized-similarity.txt     exit 1   预期：Ready()=false，target.similarity 规范形式拒绝
+
+[变异：剥离修复，用例必须失败]
+30-mutation-sendgate-boundary.txt       exit 1   三角色 RoundTrip()=<nil>（闸门检查被剥离）
+31-mutation-sendgate-counts.txt         exit 1   gate_rejected 观测到 gate 1 / transport 1（对端实际收到）
+32-mutation-canonical.txt               exit 1   5 个非规范子例 Validate=<nil>；绑定入口重现 FINGERPRINT_CORRUPTED
+
+结论：
+- 计数与规范化两项已修复并离线验证（含 online 构建、race 与变异非空转证据）。
+- 停止语义：只保证“停止后零新闸门准入、零新重试”；“已过闸门、未 handoff”的请求
+  仍可能在标记之后发送（复核 overlay 5/5，确定性用例 hits=1）。该窗口未闭合，
+  等待用户在 design/stage2d-plan.md §9.1 的 A/B/C 选项中决定；不得写作契约通过。
+- 本批未执行在线探针；未访问真实模型、ES、Qdrant、MySQL 或互联网。

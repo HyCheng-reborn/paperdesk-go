@@ -1,0 +1,7 @@
+PROVIDERS_RACE_EXIT=0
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.719s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	9.332s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	4.252s
+
+CHAT_RACE_EXIT=0
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.258s

@@ -1,0 +1,23 @@
+Stage 1C-2 fix2: resolve save/cancel race, strict save conditions
+
+- Fix save/cancel race: wait for coordination task before cancel
+- cleanup truly completes lifecycle: wait for background done
+- cleanup idempotent: first call decides, sync.Once protection
+- Strict save conditions: cleanEOF + foreground success + no cancel + no error
+- Background records cleanEOF, distinguishes EOF/error/nil chunk
+- Remove unused StreamResult.Answer field
+- SSE cancel: check ctx before/after read and before write
+- Blocking Recv exit by lifecycle mechanism, not just loop check
+- Real lifecycle tests covering actual production paths
+- Cover: write failure model observes cancel no save
+- Cover: background EOF then foreground fail no save
+- Cover: normal complete save once by role/convID
+- Cover: cancel/timeout/early close no save after wait
+- Cover: concurrent different convID isolation
+- Cover: model receives context value and deadline
+- Cover: cleanup idempotent
+- Remove empty assertions and fixed sleep
+- Document History context limitation (no bounded timeout)
+
+Baseline: bfaa289 (Stage 1C-2 lifecycle fix)
+See verification/stage1c2/ for test logs.

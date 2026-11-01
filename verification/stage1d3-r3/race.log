@@ -1,0 +1,7 @@
+﻿# CMD: go test -race ./core ./internal/logic/rag/... -count=1
+# GOFLAGS: (none)
+# EXIT: 0
+# DATE: 2026-10-18 17:39:40
+
+ok  	github.com/wangle201210/go-rag/server/core	5.899s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	16.535s

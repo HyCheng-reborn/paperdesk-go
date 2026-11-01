@@ -1,0 +1,224 @@
+﻿# CMD: go test ./core -count=1 -v -run "TestIndex_"
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 16:43:52
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T16:43:56.123+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.01s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T16:43:56.123+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_AsyncFailure_SyncReturnUnchanged
+2026-10-18T16:43:56.223+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.223+08:00 [ERRO] indexAsyncByDocsID failed, err=async error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_AsyncFailure_SyncReturnUnchanged (0.00s)
+=== RUN   TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot
+2026-10-18T16:43:56.223+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ModifyReqAfterReturn_AsyncGetsSnapshot (0.00s)
+=== RUN   TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged
+2026-10-18T16:43:56.223+08:00 [INFO] Index success, generated 2 chunks with IDs: [id1 id2]
+--- PASS: TestIndex_ModifyReturnedIDs_AsyncDocsIDsUnchanged (0.00s)
+=== RUN   TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged
+2026-10-18T16:43:56.223+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_AsyncModifiesOwnDocsIDs_CallerIDsUnchanged (0.00s)
+=== RUN   TestIndex_AsyncWaitInvoked_BeforeBackground
+2026-10-18T16:43:56.223+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_AsyncWaitInvoked_BeforeBackground (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+=== RUN   TestIndex_ConcurrentCalls_Isolation
+2026-10-18T16:43:56.324+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:180
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:193
+
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 2 chunks with IDs: [chunk-kb1 chunk-doc1.pdf]
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 2 chunks with IDs: [chunk-kb2 chunk-doc2.pdf]
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 2 chunks with IDs: [chunk-kb0 chunk-doc0.pdf]
+--- PASS: TestIndex_ConcurrentCalls_Isolation (0.00s)
+=== RUN   TestIndex_AdmissionClosed_Rejects
+--- PASS: TestIndex_AdmissionClosed_Rejects (0.00s)
+=== RUN   TestIndex_AdmissionFull_Rejects
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_AdmissionFull_Rejects (0.00s)
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T16:43:56.324+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T16:43:56.324+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.05s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T16:43:56.374+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.10s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T16:43:56.474+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_AsyncWaitReceivesCtx
+2026-10-18T16:43:56.575+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_AsyncWaitReceivesCtx (0.00s)
+=== RUN   TestIndex_RequestCtxPreservedAfterHTTPReturn
+2026-10-18T16:43:56.575+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_RequestCtxPreservedAfterHTTPReturn (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.00s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T16:43:56.576+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T16:43:56.777+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T16:43:56.877+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncOnlyShutdown
+--- PASS: TestIndex_SyncOnlyShutdown (0.00s)
+=== RUN   TestIndex_BackgroundOnlyShutdown
+2026-10-18T16:43:56.978+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundOnlyShutdown (0.00s)
+=== RUN   TestIndex_BackgroundFailure_MarksFailed
+2026-10-18T16:43:56.978+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.978+08:00 [ERRO] indexAsyncByDocsID failed, err=async error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundFailure_MarksFailed (0.00s)
+=== RUN   TestIndex_BackgroundPanic_MarksFailed
+2026-10-18T16:43:56.978+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:56.978+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:180
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_MarksFailed.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:1844
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:193
+
+--- PASS: TestIndex_BackgroundPanic_MarksFailed (0.00s)
+=== RUN   TestIndex_BackgroundTimeout_MarksFailed
+2026-10-18T16:43:56.978+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:57.078+08:00 [ERRO] indexAsyncByDocsID failed, err=context deadline exceeded 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundTimeout_MarksFailed (0.10s)
+=== RUN   TestIndex_BackgroundSuccess_NoMarkFailed
+2026-10-18T16:43:57.078+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundSuccess_NoMarkFailed (0.20s)
+=== RUN   TestIndex_CleanupCtxIndependent
+2026-10-18T16:43:57.279+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:57.279+08:00 [ERRO] indexAsyncByDocsID failed, err=context canceled 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_CleanupCtxIndependent (0.00s)
+=== RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
+--- PASS: TestIndex_SyncPanic_StopsAfterFuncBridge (0.00s)
+=== RUN   TestIndex_SyncError_StopsAfterFuncBridge
+2026-10-18T16:43:57.279+08:00 [ERRO] Index idxer.Invoke failed, err=sync error for afterfunc test 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:146
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncError_StopsAfterFuncBridge
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2161
+
+--- PASS: TestIndex_SyncError_StopsAfterFuncBridge (0.00s)
+=== RUN   TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed
+2026-10-18T16:43:57.279+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:57.279+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
+=== RUN   TestIndex_BackgroundChunksFailure_RealChain
+2026-10-18T16:43:57.479+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T16:43:57.479+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T16:43:57.480+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=insert chunk failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func1
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2256
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:60
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T16:43:57.480+08:00 [ERRO] indexAsyncByDocsID failed, err=insert chunk failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundChunksFailure_RealChain (0.00s)
+=== RUN   TestIndex_BackgroundChunksSuccess_WritesIndexing
+2026-10-18T16:43:57.480+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T16:43:57.480+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+--- PASS: TestIndex_BackgroundChunksSuccess_WritesIndexing (0.20s)
+=== RUN   TestIndex_BackgroundChunksStatusWriteFailure_Propagated
+2026-10-18T16:43:57.680+08:00 [INFO] Index success, generated 1 chunks with IDs: [d1]
+2026-10-18T16:43:57.680+08:00 [INFO] indexAsyncByDocsID searching for 1 docs in knowledge base: kb1, IDs: [d1]
+2026-10-18T16:43:57.680+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=status write failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer.go:340
+2.  github.com/wangle201210/go-rag/server/core.newFullChainTestRag.func1
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:2256
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:60
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:210
+
+2026-10-18T16:43:57.680+08:00 [ERRO] indexAsyncByDocsID failed, err=status write failed 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
+    C:/Zhy/code/go-rag/server/core/indexer.go:212
+
+--- PASS: TestIndex_BackgroundChunksStatusWriteFailure_Propagated (0.20s)
+=== RUN   TestIndex_BackgroundCleanupBeforeDone
+2026-10-18T16:43:57.880+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T16:43:57.981+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundCleanupBeforeDone (0.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	2.065s
+

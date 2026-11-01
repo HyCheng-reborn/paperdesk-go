@@ -1,0 +1,6 @@
+﻿# CMD: go build ./... 2>&1; exit $LASTEXITCODE
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-19 03:45:11
+# DURATION: 6.9s
+

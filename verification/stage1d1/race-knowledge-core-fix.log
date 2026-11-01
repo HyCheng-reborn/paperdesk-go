@@ -1,0 +1,7 @@
+﻿CMD: go test -race ./internal/logic/knowledge/... ./core -count=1
+GOFLAGS=[]  (untagged default)
+---- output ----
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	1.190s
+ok  	github.com/wangle201210/go-rag/server/core	2.809s
+
+---- EXIT: 0 ----

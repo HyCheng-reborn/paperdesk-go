@@ -1,0 +1,167 @@
+﻿# CMD: go test -race ./internal/logic/knowledge/... -count=10 -v -run TestSaveChunks_
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-16 12:34:50
+
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+=== RUN   TestSaveChunks_AllSuccess
+--- PASS: TestSaveChunks_AllSuccess (0.00s)
+=== RUN   TestSaveChunks_PartialFailure
+--- PASS: TestSaveChunks_PartialFailure (0.00s)
+=== RUN   TestSaveChunks_ScanDBError_NotTreatedAsInsert
+--- PASS: TestSaveChunks_ScanDBError_NotTreatedAsInsert (0.00s)
+=== RUN   TestSaveChunks_UpdatePath_NoStatusOverwrite
+--- PASS: TestSaveChunks_UpdatePath_NoStatusOverwrite (0.00s)
+=== RUN   TestSaveChunks_EmptyChunks
+--- PASS: TestSaveChunks_EmptyChunks (0.00s)
+=== RUN   TestSaveChunks_PreCancelled
+--- PASS: TestSaveChunks_PreCancelled (0.00s)
+=== RUN   TestSaveChunks_MidLoopCancel
+--- PASS: TestSaveChunks_MidLoopCancel (0.00s)
+=== RUN   TestSaveChunks_StatusWriteError_Joined
+--- PASS: TestSaveChunks_StatusWriteError_Joined (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	1.184s

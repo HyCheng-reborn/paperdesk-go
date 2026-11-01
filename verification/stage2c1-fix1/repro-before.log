@@ -1,0 +1,86 @@
+BASELINE: 1850da1fcff2e66c1ed61594139e7e2e068fd775
+CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CMD: go test ./core/config ./internal/logic/rag -run ^TestDimensions_(JSONNumber|YAMLFile) -count=1 -timeout=120s -v
+=== RUN   TestDimensions_JSONNumber
+    dimensions_json_test.go:16: json.Number("768"): got 0, invalid embedding dimensions: must be a positive integer, got json.Number
+    dimensions_json_test.go:16: json.Number("9223372036854775807"): got 0, invalid embedding dimensions: must be a positive integer, got json.Number
+=== RUN   TestDimensions_JSONNumber/#00
+=== RUN   TestDimensions_JSONNumber/0
+=== RUN   TestDimensions_JSONNumber/-1
+=== RUN   TestDimensions_JSONNumber/+768
+=== RUN   TestDimensions_JSONNumber/0768
+=== RUN   TestDimensions_JSONNumber/_768
+=== RUN   TestDimensions_JSONNumber/768_
+=== RUN   TestDimensions_JSONNumber/768.0
+=== RUN   TestDimensions_JSONNumber/1.5
+=== RUN   TestDimensions_JSONNumber/1e3
+=== RUN   TestDimensions_JSONNumber/NaN
+=== RUN   TestDimensions_JSONNumber/Inf
+=== RUN   TestDimensions_JSONNumber/9223372036854775808
+=== RUN   TestDimensions_JSONNumber/999999999999999999999999999
+--- FAIL: TestDimensions_JSONNumber (0.00s)
+    --- PASS: TestDimensions_JSONNumber/#00 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/0 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/-1 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/+768 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/0768 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/_768 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/768_ (0.00s)
+    --- PASS: TestDimensions_JSONNumber/768.0 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/1.5 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/1e3 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/NaN (0.00s)
+    --- PASS: TestDimensions_JSONNumber/Inf (0.00s)
+    --- PASS: TestDimensions_JSONNumber/9223372036854775808 (0.00s)
+    --- PASS: TestDimensions_JSONNumber/999999999999999999999999999 (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/config	0.177s
+=== RUN   TestDimensions_YAMLFileProductionChain
+=== RUN   TestDimensions_YAMLFileProductionChain/missing
+=== RUN   TestDimensions_YAMLFileProductionChain/legacy
+    dimensions_yaml_test.go:72: embedding.dimensions: invalid embedding dimensions: must be a positive integer, got json.Number
+=== RUN   TestDimensions_YAMLFileProductionChain/provider
+    dimensions_yaml_test.go:72: provider.embedding_dimensions: invalid embedding dimensions: must be a positive integer, got json.Number
+=== RUN   TestDimensions_YAMLFileProductionChain/agree
+    dimensions_yaml_test.go:72: embedding.dimensions: invalid embedding dimensions: must be a positive integer, got json.Number
+=== RUN   TestDimensions_YAMLFileProductionChain/explicitDefault
+    dimensions_yaml_test.go:72: embedding.dimensions: invalid embedding dimensions: must be a positive integer, got json.Number
+--- FAIL: TestDimensions_YAMLFileProductionChain (0.02s)
+    --- PASS: TestDimensions_YAMLFileProductionChain/missing (0.01s)
+    --- FAIL: TestDimensions_YAMLFileProductionChain/legacy (0.00s)
+    --- FAIL: TestDimensions_YAMLFileProductionChain/provider (0.00s)
+    --- FAIL: TestDimensions_YAMLFileProductionChain/agree (0.00s)
+    --- FAIL: TestDimensions_YAMLFileProductionChain/explicitDefault (0.00s)
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/0
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/-1
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/"768"
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/1.5
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/true
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/9223372036854775808
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/0
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/-1
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/"768"
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/1.5
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/true
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/provider/9223372036854775808
+=== RUN   TestDimensions_YAMLFileInvalidAndConflict/conflict
+    dimensions_yaml_test.go:119: embedding.dimensions: invalid embedding dimensions: must be a positive integer, got json.Number
+--- FAIL: TestDimensions_YAMLFileInvalidAndConflict (0.04s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/0 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/-1 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/"768" (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/1.5 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/true (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/legacy/9223372036854775808 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/0 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/-1 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/"768" (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/1.5 (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/true (0.00s)
+    --- PASS: TestDimensions_YAMLFileInvalidAndConflict/provider/9223372036854775808 (0.00s)
+    --- FAIL: TestDimensions_YAMLFileInvalidAndConflict/conflict (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/internal/logic/rag	0.244s
+FAIL
+EXIT: 1

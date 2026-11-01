@@ -1,0 +1,81 @@
+﻿CMD: go test ./core/probe ./core/rerank -count=1 -v -run TestSendGate|TestStepReport_CountsSeparateCommitFromSend|TestPlan_CanonicalIdentityRejectedEverywhere|TestPlan_TargetRulesMatchProduction|TestPreflight_RejectsNilRerankDocumentBeforeAnySend
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt
+--- PASS: TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt (0.01s)
+=== RUN   TestSendGate_InFlightRequestIsNotRevokedAndNotRetried
+--- PASS: TestSendGate_InFlightRequestIsNotRevokedAndNotRetried (0.00s)
+=== RUN   TestSendGate_OriginalReviewStopWindowShapeHasNoSend
+--- PASS: TestSendGate_OriginalReviewStopWindowShapeHasNoSend (0.07s)
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/chat
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/embedding
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/rerank
+--- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker (0.00s)
+    --- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker/chat (0.00s)
+    --- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker/embedding (0.00s)
+    --- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker/rerank (0.00s)
+=== RUN   TestSendGate_ConcurrentStopConverges
+--- PASS: TestSendGate_ConcurrentStopConverges (0.01s)
+=== RUN   TestSendGate_PostGatePreTransportWindowIsNotClosed
+=== RUN   TestSendGate_PostGatePreTransportWindowIsNotClosed/cancel_applied_before_handoff
+    sendgate_test.go:478: cancel-before-handoff: hits=0; not a guarantee, cancellation races the handoff
+=== RUN   TestSendGate_PostGatePreTransportWindowIsNotClosed/stop_marker_does_not_block_handoff
+    sendgate_test.go:566: step error after an in-flight send: probe: run already stopped, refusing to start another step: attempt cancelled by the global stop: Post "http://127.0.0.1:60366/embeddings": context canceled
+    sendgate_test.go:573: OBSERVED: a request that had passed the send gate was handed to the transport after the stop marker and reached the local fake model (hits=1); window NOT closed
+--- PASS: TestSendGate_PostGatePreTransportWindowIsNotClosed (0.01s)
+    --- PASS: TestSendGate_PostGatePreTransportWindowIsNotClosed/cancel_applied_before_handoff (0.00s)
+    --- PASS: TestSendGate_PostGatePreTransportWindowIsNotClosed/stop_marker_does_not_block_handoff (0.00s)
+=== RUN   TestStepReport_CountsSeparateCommitFromSend
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/gate_rejected_keeps_committed_budget
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/sent_once
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/retry_counts_each_attempt
+--- PASS: TestStepReport_CountsSeparateCommitFromSend (0.01s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/gate_rejected_keeps_committed_budget (0.00s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/sent_once (0.00s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/retry_counts_each_attempt (0.01s)
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/preflight_rejects_with_shared_production_rule
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/readiness_matches_execution
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_refuses_before_any_send
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_step_refuses_before_any_send
+--- PASS: TestPreflight_RejectsNilRerankDocumentBeforeAnySend (0.01s)
+    --- PASS: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/preflight_rejects_with_shared_production_rule (0.00s)
+    --- PASS: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/readiness_matches_execution (0.00s)
+    --- PASS: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_refuses_before_any_send (0.00s)
+    --- PASS: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_step_refuses_before_any_send (0.00s)
+=== RUN   TestPlan_TargetRulesMatchProduction
+=== RUN   TestPlan_TargetRulesMatchProduction/wildcard_physical_name
+=== RUN   TestPlan_TargetRulesMatchProduction/multiple_physical_targets
+=== RUN   TestPlan_TargetRulesMatchProduction/similarity_dot
+=== RUN   TestPlan_TargetRulesMatchProduction/similarity_not_in_allowed_set
+=== RUN   TestPlan_TargetRulesMatchProduction/cosine_target_ready_and_executable
+=== RUN   TestPlan_TargetRulesMatchProduction/local_fake_target_rejects_wildcard_name
+--- PASS: TestPlan_TargetRulesMatchProduction (0.02s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/wildcard_physical_name (0.00s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/multiple_physical_targets (0.00s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/similarity_dot (0.00s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/similarity_not_in_allowed_set (0.00s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/cosine_target_ready_and_executable (0.01s)
+    --- PASS: TestPlan_TargetRulesMatchProduction/local_fake_target_rejects_wildcard_name (0.00s)
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/embedding_model_with_spaces
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/chat_model_with_trailing_space
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/similarity_spaces_and_uppercase
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/similarity_uppercase
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/provider_uppercase
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/canonical_cosine_digest_matches_binding_and_round_trip
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/local_fake_target_rejects_non_canonical_identity
+--- PASS: TestPlan_CanonicalIdentityRejectedEverywhere (0.01s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/embedding_model_with_spaces (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/chat_model_with_trailing_space (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/similarity_spaces_and_uppercase (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/similarity_uppercase (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/provider_uppercase (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/canonical_cosine_digest_matches_binding_and_round_trip (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/local_fake_target_rejects_non_canonical_identity (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	0.457s
+testing: warning: no tests to run
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/rerank	0.232s [no tests to run]
+EXIT=0

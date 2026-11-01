@@ -1,0 +1,7 @@
+﻿evidence dir for Stage 2D S-1 fix batch 1
+base commit (parent): 7a30899b0e205ad714b5a8ac4db152eb200bcb76
+grandparent     : a12af924f0441363b46e0fec41fca29bdc30993a
+branch          : codex/stage2c2-fingerprint
+go              : go version go1.27.1 windows/amd64
+gcc (UCRT64)    : 16.2.0
+os              : Microsoft Windows NT 10.0.26300.0

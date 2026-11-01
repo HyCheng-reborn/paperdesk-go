@@ -1,0 +1,66 @@
+﻿# CMD: go test ./core/providers/... -count=1 -v
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-19 02:47:14
+----
+=== RUN   TestAdapter_ChatRole
+--- PASS: TestAdapter_ChatRole (0.01s)
+=== RUN   TestAdapter_EmbedRole
+--- PASS: TestAdapter_EmbedRole (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_DualScope_PartialFailure
+--- PASS: TestBudget_DualScope_PartialFailure (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_CommittedNoRefund
+--- PASS: TestBudget_CommittedNoRefund (0.00s)
+=== RUN   TestBudget_LeaseLifecycle
+--- PASS: TestBudget_LeaseLifecycle (0.00s)
+=== RUN   TestBudget_IdempotentFinalize
+--- PASS: TestBudget_IdempotentFinalize (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_UnknownUsage
+--- PASS: TestBudget_UnknownUsage (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestRegistry_ProfileIsolation
+--- PASS: TestRegistry_ProfileIsolation (0.00s)
+=== RUN   TestRegistry_FailedInit
+--- PASS: TestRegistry_FailedInit (0.00s)
+=== RUN   TestFake_AllRoles
+--- PASS: TestFake_AllRoles (0.00s)
+=== RUN   TestProfile_KeyOptionsCopy
+--- PASS: TestProfile_KeyOptionsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestProfile_Validation
+=== RUN   TestProfile_Validation/empty-provider
+=== RUN   TestProfile_Validation/empty-protocol
+=== RUN   TestProfile_Validation/empty-model
+=== RUN   TestProfile_Validation/empty-endpoint
+=== RUN   TestProfile_Validation/bad-dimensions
+--- PASS: TestProfile_Validation (0.00s)
+    --- PASS: TestProfile_Validation/empty-provider (0.00s)
+    --- PASS: TestProfile_Validation/empty-protocol (0.00s)
+    --- PASS: TestProfile_Validation/empty-model (0.00s)
+    --- PASS: TestProfile_Validation/empty-endpoint (0.00s)
+    --- PASS: TestProfile_Validation/bad-dimensions (0.00s)
+=== RUN   TestProfile_ModelID
+--- PASS: TestProfile_ModelID (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.132s
+

@@ -1,0 +1,6 @@
+# CMD: go vet ./...
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-19 19:30:36
+
+(vet passed)

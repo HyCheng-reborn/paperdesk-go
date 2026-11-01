@@ -1,0 +1,5 @@
+﻿# CMD: gofmt -l core/providers/ core/common/ core/config/ internal/logic/rag/ internal/logic/chat/ core/
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-20 00:33:51
+

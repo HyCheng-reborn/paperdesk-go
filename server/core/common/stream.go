@@ -2,91 +2,208 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/eino/schema"
-	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/google/uuid"
 )
 
+// errWriteFailed is returned when a previous SSE write has failed.
+var errWriteFailed = errors.New("sse: previous write failed")
+
+// StreamData represents the SSE event payload.
 type StreamData struct {
-	Id       string             `json:"id"`      // 同一个消息里面的id是相同的
-	Created  int64              `json:"created"` // 消息初始生成时间
-	Content  string             `json:"content"` // 消息具体内容
+	Id       string             `json:"id"`
+	Created  int64              `json:"created"`
+	Content  string             `json:"content"`
 	Document []*schema.Document `json:"document"`
 }
 
-func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schema.Message], docs []*schema.Document) (err error) {
-	// 获取HTTP响应对象
-	httpReq := ghttp.RequestFromCtx(ctx)
-	httpResp := httpReq.Response
-	// 设置响应头
-	httpResp.Header().Set("Content-Type", "text/event-stream")
-	httpResp.Header().Set("Cache-Control", "no-cache")
-	httpResp.Header().Set("Connection", "keep-alive")
-	httpResp.Header().Set("X-Accel-Buffering", "no") // 禁用Nginx缓冲
-	httpResp.Header().Set("Access-Control-Allow-Origin", "*")
+// sseWriter is the interface for SSE writing (allows test injection).
+type sseWriter interface {
+	writeDocuments(data string) error
+	writeData(jsonData string) error
+	writeDone() error
+	writeError(err error) error
+}
+
+// jsonEncoder is the interface for JSON encoding (allows test injection).
+type jsonEncoder interface {
+	Marshal(v any) ([]byte, error)
+}
+
+// realSSEWriter wraps http.ResponseWriter for production SSE writing.
+type realSSEWriter struct {
+	w      http.ResponseWriter
+	ctx    context.Context // for cancel check before write; nil = non-cancellable
+	failed bool
+}
+
+// writeFrame writes one raw SSE frame and flushes. Frame layout is chosen by
+// each caller to stay compatible with the existing frontend parser.
+func (s *realSSEWriter) writeFrame(frame string) error {
+	if s.failed {
+		return errWriteFailed
+	}
+	// 写入前检查 context（不声称能中断阻塞 Write）
+	// 注意：context 检查不能中断已经阻塞的底层 Write
+	if s.ctx != nil && s.ctx.Err() != nil {
+		s.failed = true
+		return s.ctx.Err()
+	}
+	n, err := s.w.Write([]byte(frame))
+	if err != nil {
+		s.failed = true
+		return fmt.Errorf("sse write failed: %w", err)
+	}
+	// Check for short write
+	if n != len(frame) {
+		s.failed = true
+		return io.ErrShortWrite
+	}
+	// NOTE: 刷新错误检测边界——标准 http.Flusher.Flush() 无返回值，
+	// 部分刷新（flush）错误无法在此检测。GoFrame RawWriter / ResponseController
+	// 的刷新错误支持取决于底层实现，当前仅记录此已知边界，不宣称已全面验证。
+	if f, ok := s.w.(http.Flusher); ok {
+		f.Flush()
+	}
+	return nil
+}
+
+// writeDocuments emits the frontend-recognized documents frame:
+// "documents:<JSON>\n\n". The Vue chat page extracts references from a line
+// beginning with the literal "documents:" prefix, so this prefix must be kept.
+func (s *realSSEWriter) writeDocuments(data string) error {
+	return s.writeFrame("documents:" + data + "\n\n")
+}
+
+// writeData emits a content frame: "data:<JSON>\n\n".
+func (s *realSSEWriter) writeData(jsonData string) error {
+	return s.writeFrame("data:" + jsonData + "\n\n")
+}
+
+// writeDone emits the stream terminator: "data:[DONE]\n\n".
+func (s *realSSEWriter) writeDone() error {
+	return s.writeFrame("data:[DONE]\n\n")
+}
+
+// writeError keeps the original error frame format: "event: error\ndata: ...".
+func (s *realSSEWriter) writeError(err error) error {
+	// Safely encode error text (no line breaks)
+	safeErr := strings.ReplaceAll(err.Error(), "\n", " ")
+	safeErr = strings.ReplaceAll(safeErr, "\r", " ")
+	return s.writeFrame("event: error\ndata: " + safeErr + "\n\n")
+}
+
+// streamResponse is the shared orchestration function called by both production and tests.
+// It handles the complete SSE streaming flow: documents → data chunks → DONE/error.
+// ctx is used to detect cancellation: if the request context is cancelled when the
+// reader returns EOF, no [DONE] is sent and ctx.Err() is returned instead.
+// A nil ctx is treated as non-cancellable (for backward-compatible tests).
+func streamResponse(ctx context.Context, w sseWriter, reader *schema.StreamReader[*schema.Message], docs []*schema.Document, enc jsonEncoder) error {
 	sd := &StreamData{
 		Id:      uuid.NewString(),
 		Created: time.Now().Unix(),
 	}
+
+	// Send documents event if present
 	if len(docs) > 0 {
 		sd.Document = docs
-		marshal, _ := sonic.Marshal(sd)
-		writeSSEDocuments(httpResp, string(marshal))
-	}
-	sd.Document = nil // 置空，发一次就够了
-	// 处理流式响应
-	for {
-		chunk, err := streamReader.Recv()
-		if err == io.EOF {
-			break
-		}
+		marshal, err := enc.Marshal(sd)
 		if err != nil {
-			writeSSEError(httpResp, err)
-			break
+			return fmt.Errorf("encode documents failed: %w", err)
+		}
+		if writeErr := w.writeDocuments(string(marshal)); writeErr != nil {
+			return writeErr
+		}
+	}
+	sd.Document = nil // Clear after sending once
+
+	// Stream chunks
+	for {
+		// 读取前检查取消
+		if ctx != nil && ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		chunk, recvErr := reader.Recv()
+
+		// 读取后检查取消
+		if ctx != nil && ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		if recvErr == io.EOF {
+			// Normal EOF: only send DONE if the request context is not cancelled.
+			if ctx != nil && ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if writeErr := w.writeDone(); writeErr != nil {
+				return writeErr
+			}
+			return nil
+		}
+		if recvErr != nil {
+			// Non-EOF error: send error event, preserve both error chains
+			if writeErr := w.writeError(recvErr); writeErr != nil {
+				return errors.Join(recvErr, writeErr)
+			}
+			return recvErr
+		}
+		if chunk == nil {
+			return fmt.Errorf("nil chunk received")
 		}
 		if len(chunk.Content) == 0 {
-			continue
+			continue // Skip empty content
+		}
+
+		// 写入前检查取消
+		if ctx != nil && ctx.Err() != nil {
+			return ctx.Err()
 		}
 
 		sd.Content = chunk.Content
-		marshal, _ := sonic.Marshal(sd)
-		// 发送数据事件
-		writeSSEData(httpResp, string(marshal))
+		marshal, err := enc.Marshal(sd)
+		if err != nil {
+			return fmt.Errorf("encode content failed: %w", err)
+		}
+		if writeErr := w.writeData(string(marshal)); writeErr != nil {
+			return writeErr
+		}
 	}
-	// 发送结束事件
-	writeSSEDone(httpResp)
-	return nil
 }
 
-// writeSSEData 写入SSE事件
-func writeSSEData(resp *ghttp.Response, data string) {
-	if len(data) == 0 {
-		return
-	}
-	// g.Log().Infof(context.Background(), "data: %s", data)
-	resp.Writeln(fmt.Sprintf("data:%s\n", data))
-	resp.Flush()
+// StreamToResponseWriter is the thin production SSE entry against a raw
+// http.ResponseWriter. It reuses realSSEWriter + streamResponse +
+// sonic.ConfigDefault and does NOT copy the streaming loop. SteamResponse calls
+// it after setting GoFrame headers; tests call it directly with a test
+// ResponseWriter to exercise the same production write path. ctx is used for
+// cancellation checks (nil = non-cancellable).
+func StreamToResponseWriter(ctx context.Context, w http.ResponseWriter, reader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+	sw := &realSSEWriter{w: w, ctx: ctx}
+	return streamResponse(ctx, sw, reader, docs, sonic.ConfigDefault)
 }
 
-func writeSSEDone(resp *ghttp.Response) {
-	resp.Writeln(fmt.Sprintf("data:%s\n", "[DONE]"))
-	resp.Flush()
-}
+// SteamResponse streams SSE responses from a StreamReader (production entry point).
+// Only normal EOF sends [DONE]; non-EOF errors send an error event without DONE.
+func SteamResponse(ctx context.Context, streamReader *schema.StreamReader[*schema.Message], docs []*schema.Document) error {
+	httpReq := ghttp.RequestFromCtx(ctx)
+	httpResp := httpReq.Response
+	// Set SSE headers
+	httpResp.Header().Set("Content-Type", "text/event-stream")
+	httpResp.Header().Set("Cache-Control", "no-cache")
+	httpResp.Header().Set("Connection", "keep-alive")
+	httpResp.Header().Set("X-Accel-Buffering", "no") // Disable Nginx buffering
+	httpResp.Header().Set("Access-Control-Allow-Origin", "*")
 
-func writeSSEDocuments(resp *ghttp.Response, data string) {
-	resp.Writeln(fmt.Sprintf("documents:%s\n", data))
-	resp.Flush()
-}
-
-// writeSSEError 写入SSE错误
-func writeSSEError(resp *ghttp.Response, err error) {
-	g.Log().Error(context.Background(), err)
-	resp.Writeln(fmt.Sprintf("event: error\ndata: %s\n\n", err.Error()))
-	resp.Flush()
+	// Delegate to the shared thin entry so production and tests use the exact
+	// same writer + orchestration path. RawWriter returns an io.Writer wrapper.
+	return StreamToResponseWriter(ctx, httpResp.RawWriter(), streamReader, docs)
 }

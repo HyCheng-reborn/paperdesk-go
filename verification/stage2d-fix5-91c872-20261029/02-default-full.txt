@@ -1,0 +1,11 @@
+﻿CMD: go test ./core/probe ./core/providers/... ./core/common -count=1
+WORKDIR: C:\Zhy\code\go-rag\server
+ATTEMPT 1: transient windows binary lock, retrying
+ATTEMPT 2: transient windows binary lock, retrying
+ATTEMPT 3: transient windows binary lock, retrying
+ok  	github.com/wangle201210/go-rag/server/core/probe	4.816s
+ok  	github.com/wangle201210/go-rag/server/core/providers	2.717s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	8.813s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	4.361s
+ok  	github.com/wangle201210/go-rag/server/core/common	3.421s
+EXIT=0

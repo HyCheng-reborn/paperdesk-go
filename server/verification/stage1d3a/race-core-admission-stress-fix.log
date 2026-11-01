@@ -1,0 +1,708 @@
+﻿# CMD: go test -race ./core -count=10 -v -run "TestIndex_Sync|TestIndex_Shutdown|TestIndex_Background|TestIndex_IndexAndShutdown"
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 14:26:39
+
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:32.051+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.01s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:32.051+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:32.152+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:32.153+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:32.153+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:32.154+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:32.154+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:32.305+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:32.506+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:32.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:32.710+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:32.710+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:32.811+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:32.811+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:32.812+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:32.813+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:32.964+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:33.165+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:33.265+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:33.368+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:33.368+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:33.469+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:33.469+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:33.470+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:33.622+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:33.823+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:33.923+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:34.025+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:34.026+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:34.126+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:34.126+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:34.127+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:34.127+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:34.128+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:34.280+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:34.480+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:34.580+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:34.682+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:34.682+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:34.783+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:34.783+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:34.783+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:34.935+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:35.136+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:35.237+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:35.341+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:35.341+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:35.442+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:35.442+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:35.443+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:35.443+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:35.594+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:35.795+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:35.895+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:35.998+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:35.998+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:36.099+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:36.100+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:36.100+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:36.101+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:36.252+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:36.453+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:36.554+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:36.656+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:36.656+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:36.757+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:36.757+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:36.758+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:36.909+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:37.109+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:37.210+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:37.313+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:37.313+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:37.414+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:37.414+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:37.414+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:37.414+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:37.415+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:37.566+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:37.767+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:37.867+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+=== RUN   TestIndex_SyncFailure_NoAsync
+2026-10-18T14:26:37.969+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+
+--- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
+=== RUN   TestIndex_SyncSuccess_AsyncStillBlocked
+2026-10-18T14:26:37.969+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_AsyncStillBlocked (0.10s)
+=== RUN   TestIndex_BackgroundPanic_Recovered
+2026-10-18T14:26:38.071+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundPanic_Recovered (0.00s)
+2026-10-18T14:26:38.071+08:00 [ERRO] Index background panic: boom in wait 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    C:/Zhy/code/go-rag/server/core/indexer.go:165
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    C:/Zhy/code/go-rag/server/core/indexer.go:172
+
+=== RUN   TestIndex_SyncFail_ReleasesOnce
+2026-10-18T14:26:38.071+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
+    C:/Zhy/code/go-rag/server/core/indexer.go:133
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
+    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+
+2026-10-18T14:26:38.071+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
+=== RUN   TestIndex_SyncSuccess_TransfersOwnershipOnce
+2026-10-18T14:26:38.071+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
+=== RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
+=== RUN   TestIndex_Shutdown_Timeout_KeepsWaiting
+2026-10-18T14:26:38.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_Shutdown_Timeout_KeepsWaiting (0.10s)
+=== RUN   TestIndex_Shutdown_Idempotent
+--- PASS: TestIndex_Shutdown_Idempotent (0.00s)
+=== RUN   TestIndex_IndexAndShutdownRace
+--- PASS: TestIndex_IndexAndShutdownRace (0.05s)
+=== RUN   TestIndex_SyncBlocksOnShutdown
+--- PASS: TestIndex_SyncBlocksOnShutdown (0.00s)
+=== RUN   TestIndex_SyncReceivesRequestValueDeadline
+2026-10-18T14:26:38.223+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_SyncReceivesRequestValueDeadline (0.00s)
+=== RUN   TestIndex_SyncPanic_ReleasesCapacityAndRegistration
+--- PASS: TestIndex_SyncPanic_ReleasesCapacityAndRegistration (0.00s)
+=== RUN   TestIndex_SyncIgnoresCancel_ReturnsSuccess
+--- PASS: TestIndex_SyncIgnoresCancel_ReturnsSuccess (0.20s)
+=== RUN   TestIndex_BackgroundContinuesAfterRequestCancel
+2026-10-18T14:26:38.423+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_BackgroundContinuesAfterRequestCancel (0.10s)
+=== RUN   TestIndex_ShutdownTimeout_ThenWaitSuccess
+2026-10-18T14:26:38.523+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestIndex_ShutdownTimeout_ThenWaitSuccess (0.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	7.829s
+

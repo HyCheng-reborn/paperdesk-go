@@ -1,0 +1,12 @@
+CODE_SHA: 5bb15e8eb7c17070eaa29203efcf58fb008c0b53
+CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CMD: go test ./core/config ./core/common ./core/vector ./core/indexer ./core/retriever ./core ./internal/logic/rag -count=1 -timeout=180s
+DATE: 2026-10-21T01:59:29.3071946+08:00
+ok  	github.com/wangle201210/go-rag/server/core/config	0.278s
+ok  	github.com/wangle201210/go-rag/server/core/common	0.338s
+ok  	github.com/wangle201210/go-rag/server/core/vector	0.325s
+ok  	github.com/wangle201210/go-rag/server/core/indexer	0.729s
+ok  	github.com/wangle201210/go-rag/server/core/retriever	0.318s
+ok  	github.com/wangle201210/go-rag/server/core	4.083s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	15.395s
+EXIT: 0

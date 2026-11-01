@@ -1,0 +1,514 @@
+﻿# CMD: go test -race ./core/providers/... -count=10 -v -run "TestBudget_Real|...|TestEmbedding_"  (2nd confirmation run)
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 1
+# DATE: 2026-10-20 00:37:36
+# NOTE: Reproduces TestStream_EarlyCloseFinalizes flake (1/10), 0 DATA RACE. Root cause: test asserts lease.Finalized() synchronously after wrapped.Close(), but finalization is async in background goroutine.
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBuilder_ConcurrentRegistration
+--- PASS: TestBuilder_ConcurrentRegistration (0.00s)
+=== RUN   TestBuilder_OpenAIRegistered
+--- PASS: TestBuilder_OpenAIRegistered (0.00s)
+=== RUN   TestBuilder_UnknownProviderRejected
+--- PASS: TestBuilder_UnknownProviderRejected (0.00s)
+=== RUN   TestBuilder_NilBuilderRejected
+--- PASS: TestBuilder_NilBuilderRejected (0.00s)
+=== RUN   TestBuilder_DuplicateRegistrationRejected
+--- PASS: TestBuilder_DuplicateRegistrationRejected (0.00s)
+=== RUN   TestBuilder_FrozenAfterRegistryBuild
+--- PASS: TestBuilder_FrozenAfterRegistryBuild (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.338s
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.02s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+    integration_test.go:329: expected lease to be finalized after Close
+--- FAIL: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestBudget_RealHTTPSend
+--- PASS: TestBudget_RealHTTPSend (0.00s)
+=== RUN   TestBudget_StreamFinish
+--- PASS: TestBudget_StreamFinish (0.00s)
+=== RUN   TestBudget_RetryNoRefresh
+--- PASS: TestBudget_RetryNoRefresh (0.00s)
+=== RUN   TestBudget_RedirectCountsAttempts
+--- PASS: TestBudget_RedirectCountsAttempts (0.00s)
+=== RUN   TestBudget_OutputCapMatches
+--- PASS: TestBudget_OutputCapMatches (0.00s)
+=== RUN   TestBudget_EmbeddingSettlesUsage
+--- PASS: TestBudget_EmbeddingSettlesUsage (0.00s)
+=== RUN   TestBudget_LocalErrorNoCommit
+--- PASS: TestBudget_LocalErrorNoCommit (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestEmbedding_RawIndices_OutOfOrder
+--- PASS: TestEmbedding_RawIndices_OutOfOrder (0.00s)
+=== RUN   TestEmbedding_RawIndices_Duplicate
+--- PASS: TestEmbedding_RawIndices_Duplicate (0.00s)
+=== RUN   TestEmbedding_RawIndices_Missing
+--- PASS: TestEmbedding_RawIndices_Missing (0.00s)
+=== RUN   TestEmbedding_RawIndices_Valid
+--- PASS: TestEmbedding_RawIndices_Valid (0.00s)
+=== RUN   TestEmbedding_NilTransport
+--- PASS: TestEmbedding_NilTransport (0.00s)
+=== RUN   TestRerank_NilDocPreservesError
+--- PASS: TestRerank_NilDocPreservesError (0.00s)
+=== RUN   TestRerank_LocalValidationBeforeReserve
+--- PASS: TestRerank_LocalValidationBeforeReserve (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian	0.452s
+?   	github.com/wangle201210/go-rag/server/core/providers/openai	[no test files]
+FAIL
+

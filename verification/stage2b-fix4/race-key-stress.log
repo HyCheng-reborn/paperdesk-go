@@ -1,0 +1,213 @@
+﻿# CMD: go test -race ./core/providers/... -count=10 -v -run "TestStream_|TestOwner_|TestInit_|TestRetrieve_|TestIndex_"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 11:43:16
+
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+=== RUN   TestOwner_IndexBackgroundTransfer
+--- PASS: TestOwner_IndexBackgroundTransfer (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	1.271s
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.02s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+=== RUN   TestStream_EarlyCloseFinalizes
+--- PASS: TestStream_EarlyCloseFinalizes (0.00s)
+=== RUN   TestStream_CancelFinalizes
+--- PASS: TestStream_CancelFinalizes (0.00s)
+=== RUN   TestStream_ErrorFinalizes
+--- PASS: TestStream_ErrorFinalizes (0.00s)
+=== RUN   TestStream_ConcurrentCloseFinalizes
+--- PASS: TestStream_ConcurrentCloseFinalizes (0.00s)
+=== RUN   TestOwner_ChatStreamShared
+--- PASS: TestOwner_ChatStreamShared (0.00s)
+=== RUN   TestStream_MultiChunkComplete
+--- PASS: TestStream_MultiChunkComplete (0.00s)
+=== RUN   TestStream_BlockedSourceClose
+--- PASS: TestStream_BlockedSourceClose (0.00s)
+=== RUN   TestStream_ConcurrentClose
+--- PASS: TestStream_ConcurrentClose (0.00s)
+=== RUN   TestStream_CancelNotEOF
+--- PASS: TestStream_CancelNotEOF (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.366s
+testing: warning: no tests to run
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.207s [no tests to run]

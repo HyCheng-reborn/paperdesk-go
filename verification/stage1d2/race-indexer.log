@@ -1,0 +1,8 @@
+﻿# CMD: go test -race ./core/indexer/... -count=1
+# GOFLAGS: 
+# EXIT: 1
+# DATE: 2026-10-17 00:57:15
+
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/indexer	0.096s
+FAIL

@@ -1,0 +1,30 @@
+﻿# CMD: go test -race ./core/providers/bailian/... -count=10 -v -run "TestSupplementStreamEarlyCloseFinalizes|TestIndependentStreamEarlyClose"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 17:24:18
+
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.01s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+=== RUN   TestIndependentStreamEarlyClose
+--- PASS: TestIndependentStreamEarlyClose (3.00s)
+PASS
+ok      github.com/wangle201210/go-rag/server/core/providers/bailian    31.238s
+
+# Summary: TestIndependentStreamEarlyClose 10/10 PASS, TestSupplementStreamEarlyCloseFinalizes 0 RUN (not found in bailian package)

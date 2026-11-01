@@ -1,0 +1,9 @@
+=== REPRO P1-2b: parentCtx watcher removed ===
+EXIT=1
+
+=== RUN   TestStreamSession_ParentCancelOnly
+    stream_session_done_test.go:425: session.Done() not closed after parent ctx cancel only 鈥?parentCtx watcher missing
+--- FAIL: TestStreamSession_ParentCancelOnly (5.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/providers	5.107s
+FAIL

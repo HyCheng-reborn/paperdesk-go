@@ -1,0 +1,13 @@
+﻿== control A: core/vector (no probe/eino-ext chat deps) ==
+ok  	github.com/wangle201210/go-rag/server/core/vector	1.364s [no tests to run]
+exit=0
+== control B: core/providers (pre-existing package, untouched by this batch) ==
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.107s
+FAIL
+exit=1
+== control C: core/common (pre-existing package, untouched by this batch) ==
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/common	0.156s
+FAIL
+exit=1

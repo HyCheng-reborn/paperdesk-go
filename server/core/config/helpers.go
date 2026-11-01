@@ -28,44 +28,25 @@ func (c *Config) IndexExists(ctx context.Context) (bool, error) {
 
 // CreateIndex 创建索引/集合
 func (c *Config) CreateIndex(ctx context.Context) error {
+	dimensions, err := c.ResolveDimensions()
+	if err != nil {
+		return err
+	}
 	if c.Client != nil {
 		// ES
-		_, err := create.NewCreateFunc(c.Client)(c.IndexName).Request(&create.Request{
-			Mappings: &types.TypeMapping{
-				Properties: map[string]types.Property{
-					coretypes.FieldContent:  types.NewTextProperty(),
-					coretypes.FieldExtra:    types.NewTextProperty(),
-					coretypes.KnowledgeName: types.NewKeywordProperty(),
-					coretypes.FieldContentVector: &types.DenseVectorProperty{
-						Dims:       Of(1024),
-						Index:      Of(true),
-						Similarity: Of("cosine"),
-					},
-					coretypes.FieldQAContentVector: &types.DenseVectorProperty{
-						Dims:       Of(1024),
-						Index:      Of(true),
-						Similarity: Of("cosine"),
-					},
-				},
-			},
-		}).Do(ctx)
+		mapping, err := ESMapping(dimensions)
+		if err != nil {
+			return err
+		}
+		_, err = create.NewCreateFunc(c.Client)(c.IndexName).Request(&create.Request{Mappings: mapping}).Do(ctx)
 		return err
 	} else if c.QdrantClient != nil {
 		// Qdrant - 创建集合，支持命名向量
-		vectorsMap := map[string]*qdrant.VectorParams{
-			coretypes.FieldContentVector: {
-				Size:     1024,
-				Distance: qdrant.Distance_Cosine,
-			},
-			coretypes.FieldQAContentVector: {
-				Size:     1024,
-				Distance: qdrant.Distance_Cosine,
-			},
+		req, err := QdrantCollection(c.IndexName, dimensions)
+		if err != nil {
+			return err
 		}
-		err := c.QdrantClient.CreateCollection(ctx, &qdrant.CreateCollection{
-			CollectionName: c.IndexName,
-			VectorsConfig:  qdrant.NewVectorsConfigMap(vectorsMap),
-		})
+		err = c.QdrantClient.CreateCollection(ctx, req)
 		if err != nil {
 			return fmt.Errorf("failed to create collection: %w", err)
 		}
@@ -87,6 +68,11 @@ func (c *Config) CreateIndex(ctx context.Context) error {
 
 // DeleteDocument 删除文档
 func (c *Config) DeleteDocument(ctx context.Context, documentID string) error {
+	if c.VectorIOGuard != nil {
+		if err := c.VectorIOGuard(ctx); err != nil {
+			return err
+		}
+	}
 	if c.Client != nil {
 		// ES
 		res, err := c.Client.Delete(c.IndexName, documentID)
@@ -123,6 +109,11 @@ func (c *Config) DeleteDocument(ctx context.Context, documentID string) error {
 
 // GetKnowledgeBaseList 获取知识库列表
 func (c *Config) GetKnowledgeBaseList(ctx context.Context) ([]string, error) {
+	if c.VectorIOGuard != nil {
+		if err := c.VectorIOGuard(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if c.Client != nil {
 		// ES - 使用聚合查询
 		// TODO: 实现 ES 的知识库列表获取
@@ -177,6 +168,11 @@ func (c *Config) GetKnowledgeBaseList(ctx context.Context) ([]string, error) {
 
 // SearchDocumentsByIDs 根据文档 ID 列表搜索文档
 func (c *Config) SearchDocumentsByIDs(ctx context.Context, knowledgeName string, docIDs []string, size int) ([]*schema.Document, error) {
+	if c.VectorIOGuard != nil {
+		if err := c.VectorIOGuard(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if c.Client != nil {
 		// ES
 		esQuery := &types.Query{

@@ -1,0 +1,3 @@
+﻿CMD: go build ./...
+WORKDIR: C:\Zhy\code\go-rag\server
+EXIT=0

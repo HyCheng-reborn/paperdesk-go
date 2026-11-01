@@ -1,0 +1,16 @@
+﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\independent-2d-91c872-counts\overlay.json -p 1 ./core/probe -run ^TestReviewBailianTraceCountsRealAdapters$ -count=3 -v
+WORKDIR: C:\Zhy\code\go-rag\.review-stage2c1-2dc0b82\server
+ATTEMPT 1: transient windows binary lock, retrying
+=== RUN   TestReviewBailianTraceCountsRealAdapters
+    independent_counts_test.go:3: probe: build production embedding chain: embedding: identity or dimensions mismatch between Registry and config resolution: embedding role *bailian.validatedEmbedRole does not expose verifiable provider identity
+--- FAIL: TestReviewBailianTraceCountsRealAdapters (0.00s)
+=== RUN   TestReviewBailianTraceCountsRealAdapters
+    independent_counts_test.go:3: probe: build production embedding chain: embedding: identity or dimensions mismatch between Registry and config resolution: embedding role *bailian.validatedEmbedRole does not expose verifiable provider identity
+--- FAIL: TestReviewBailianTraceCountsRealAdapters (0.00s)
+=== RUN   TestReviewBailianTraceCountsRealAdapters
+    independent_counts_test.go:3: probe: build production embedding chain: embedding: identity or dimensions mismatch between Registry and config resolution: embedding role *bailian.validatedEmbedRole does not expose verifiable provider identity
+--- FAIL: TestReviewBailianTraceCountsRealAdapters (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	1.311s
+FAIL
+EXIT=1

@@ -1,0 +1,586 @@
+﻿# CMD: go test ./core/providers/... -count=10 -v -run "TestBudget_ReservationOverflow|TestRegistry_Resolver|TestBudget_Concurrent|TestBudget_SlotRelease|TestBudget_Negative|TestBudget_Overflow|TestBudget_Owner|TestBudget_Deadline|TestBudget_Transfer|TestProfile_CacheKey|TestRegistry_Snapshot"
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-19 04:10:37
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_TransferToBackground
+--- PASS: TestBudget_TransferToBackground (0.00s)
+=== RUN   TestBudget_NegativeUsageConservative
+--- PASS: TestBudget_NegativeUsageConservative (0.00s)
+=== RUN   TestBudget_NegativeProcessLimit
+=== RUN   TestBudget_NegativeProcessLimit/negative-requests
+=== RUN   TestBudget_NegativeProcessLimit/negative-input
+=== RUN   TestBudget_NegativeProcessLimit/negative-output
+=== RUN   TestBudget_NegativeProcessLimit/negative-concurrency
+=== RUN   TestBudget_NegativeProcessLimit/all-negative
+--- PASS: TestBudget_NegativeProcessLimit (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-requests (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-input (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-output (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/negative-concurrency (0.00s)
+    --- PASS: TestBudget_NegativeProcessLimit/all-negative (0.00s)
+=== RUN   TestBudget_OverflowSlotRelease
+--- PASS: TestBudget_OverflowSlotRelease (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Input
+--- PASS: TestBudget_ReservationOverflow_Input (0.00s)
+=== RUN   TestBudget_ReservationOverflow_Output
+--- PASS: TestBudget_ReservationOverflow_Output (0.00s)
+=== RUN   TestBudget_ReservationOverflow_CrossScope
+--- PASS: TestBudget_ReservationOverflow_CrossScope (0.00s)
+=== RUN   TestBudget_OwnerCancelPropagates
+--- PASS: TestBudget_OwnerCancelPropagates (0.00s)
+=== RUN   TestBudget_DeadlineNotRefreshedByRetry
+--- PASS: TestBudget_DeadlineNotRefreshedByRetry (0.03s)
+=== RUN   TestBudget_TransferKeepsAbsoluteDeadline
+--- PASS: TestBudget_TransferKeepsAbsoluteDeadline (0.03s)
+=== RUN   TestProfile_CacheKey_NoCollision
+--- PASS: TestProfile_CacheKey_NoCollision (0.00s)
+=== RUN   TestRegistry_SnapshotIsolated
+--- PASS: TestRegistry_SnapshotIsolated (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateProfile
+--- PASS: TestRegistry_ResolverCannotMutateProfile (0.00s)
+=== RUN   TestRegistry_ResolverCannotMutateKeyOptions
+--- PASS: TestRegistry_ResolverCannotMutateKeyOptions (0.00s)
+=== RUN   TestRegistry_ResolverHoldsCopy
+--- PASS: TestRegistry_ResolverHoldsCopy (0.00s)
+=== RUN   TestProfile_CacheKeyNormalization
+--- PASS: TestProfile_CacheKeyNormalization (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.760s

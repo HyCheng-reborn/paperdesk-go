@@ -1,0 +1,7 @@
+﻿# CMD: gofmt -l core/indexer.go core/rag.go core/config/config.go core/indexer_test.go internal/logic/rag/retriever.go internal/logic/rag/retriever_test.go
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 14:25:14
+
+internal/logic/rag/retriever_test.go
+

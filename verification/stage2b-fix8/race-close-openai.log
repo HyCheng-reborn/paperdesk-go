@@ -1,0 +1,9 @@
+﻿# CMD: go test -race ./core/providers -count=10 -v -run "TestStreamSession_CloseInterruptsHTTP"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 19:22:57
+# NOTE: TestStreamSession_CloseInterruptsHTTP is in core/providers (parent package),
+#       covering both bailian and openai adapters via shared StreamSession logic.
+#       No separate openai-specific close test exists.
+#       See race-close-bailian.log for full 10/10 PASS output.

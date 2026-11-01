@@ -2,10 +2,12 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/cloudwego/eino-ext/components/retriever/es8"
+	"github.com/cloudwego/eino/components/model"
 	er "github.com/cloudwego/eino/components/retriever"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
@@ -18,6 +20,20 @@ import (
 	coretypes "github.com/wangle201210/go-rag/server/core/types"
 )
 
+// docRetriever 注入边界：检索单轮文档的抽象，便于测试替换
+type docRetriever interface {
+	retrieveDoOnce(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error)
+}
+
+// prodDocRetriever 生产实现：委托给 Rag.retrieveDoOnce
+type prodDocRetriever struct {
+	rag *Rag
+}
+
+func (p *prodDocRetriever) retrieveDoOnce(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+	return p.rag.retrieveDoOnce(ctx, req)
+}
+
 type RetrieveReq struct {
 	Query         string   // 检索关键词
 	TopK          int      // 检索结果数量
@@ -28,87 +44,202 @@ type RetrieveReq struct {
 	rankScore     float64  // 排名分数，原本的score是0-2（实际是1-2），需要在这里改成0-1
 }
 
-func (x *RetrieveReq) copy() *RetrieveReq {
-	return &RetrieveReq{
-		Query:         x.Query,
-		TopK:          x.TopK,
-		Score:         x.Score,
-		KnowledgeName: x.KnowledgeName,
-		optQuery:      x.optQuery,
-		excludeIDs:    x.excludeIDs,
-		rankScore:     x.rankScore,
-	}
-}
-
 // Retrieve 检索
-func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) (msg []*schema.Document, err error) {
-	var (
-		used        = ""          // 记录已经使用过的关键词
-		relatedDocs = &sync.Map{} // 记录相关docs
-	)
-	req.rankScore = req.Score
+// B5: 入口创建 RequestBudget 并注入 ctx，使下游所有模型调用共享同一累计 owner。
+// E3: Post-read verification detects resource replacement during search operation.
+func (x *Rag) Retrieve(ctx context.Context, req *RetrieveReq) ([]*schema.Document, error) {
+	// 输入校验
+	if req == nil {
+		return nil, fmt.Errorf("nil request")
+	}
+	if req.TopK <= 0 {
+		return nil, fmt.Errorf("invalid TopK: %d", req.TopK)
+	}
+
+	// 预取消检查
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	// Stage 2C-2: Fingerprint validation gate before embedding operations
+	if fpErr := x.checkFingerprint(ctx); fpErr != nil {
+		return nil, fmt.Errorf("fingerprint check failed: %w", fpErr)
+	}
+
+	// B5: 注入请求级预算 owner
+	ctx = common.WithRequestBudget(ctx)
+
+	// 创建本次调用的局部请求副本，不修改输入
+	localReq := *req
+	localReq.rankScore = localReq.Score
 	// 大于1的需要-1
-	if req.rankScore >= 1 {
-		req.rankScore -= 1
+	if localReq.rankScore >= 1 {
+		localReq.rankScore -= 1
 	}
-	rewriteModel, err := common.GetRewriteModel(ctx, nil)
-	if err != nil {
-		return
-	}
-	wg := &sync.WaitGroup{}
-	// 尝试N次重写关键词进行搜索,后续可以考虑做成配置
-	for i := 0; i < 3; i++ {
-		question := req.Query
-		var (
-			optMessages    []*schema.Message
-			rewriteMessage *schema.Message
-		)
-		optMessages, err = getOptimizedQueryMessages(used, question, req.KnowledgeName)
-		if err != nil {
-			return
+
+	// 获取 rewrite model：优先使用注入的（测试），否则走生产路径
+	var rewriteModel model.BaseChatModel
+	if x.rwModel != nil {
+		rewriteModel = x.rwModel
+	} else {
+		var rwErr error
+		rewriteModel, rwErr = common.GetRewriteModel(ctx, nil)
+		if rwErr != nil {
+			return nil, rwErr
 		}
-		rewriteMessage, err = rewriteModel.Generate(ctx, optMessages)
-		if err != nil {
-			return
+	}
+
+	// 获取 docRetriever：使用局部变量，不写回共享字段
+	dr := x.docRet
+	if dr == nil {
+		dr = &prodDocRetriever{rag: x}
+	}
+
+	// 派生 context：任意步骤失败后取消所有进行中的工作
+	derivedCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// 受保护的首个错误记录
+	var firstErr error
+	var firstErrMu sync.Mutex
+
+	// 统一失败处理：先记录错误，再触发取消
+	handleFailure := func(round int, err error) {
+		firstErrMu.Lock()
+		if firstErr == nil {
+			firstErr = fmt.Errorf("round %d: %w", round, err)
+		}
+		firstErrMu.Unlock()
+		cancel()
+	}
+
+	var wg sync.WaitGroup
+	resultCh := make(chan []*schema.Document, 3)
+
+	used := ""
+	for i := 0; i < 3; i++ {
+		// 取消后不继续启动新轮次
+		if derivedCtx.Err() != nil {
+			break
+		}
+
+		// 每轮构建独立的优化查询消息
+		optMessages, genErr := getOptimizedQueryMessages(used, req.Query, req.KnowledgeName)
+		if genErr != nil {
+			handleFailure(i, fmt.Errorf("build message: %w", genErr))
+			break
+		}
+
+		rewriteMessage, genErr := rewriteModel.Generate(derivedCtx, optMessages)
+		if genErr != nil {
+			handleFailure(i, fmt.Errorf("generate: %w", genErr))
+			break
 		}
 		optimizedQuery := rewriteMessage.Content
 		used += optimizedQuery + " "
-		req.optQuery = optimizedQuery
+
+		// 固定该轮的局部请求副本
+		roundReq := localReq
+		roundReq.optQuery = optimizedQuery
+
+		// copy() 对 excludeIDs 切片创建独立副本
+		if len(localReq.excludeIDs) > 0 {
+			roundReq.excludeIDs = make([]string, len(localReq.excludeIDs))
+			copy(roundReq.excludeIDs, localReq.excludeIDs)
+		}
+
+		// 启动 worker 前检查派生 context
+		if derivedCtx.Err() != nil {
+			break
+		}
+
 		wg.Add(1)
-		go func() {
+		go func(r RetrieveReq, round int) {
 			defer wg.Done()
-			rDocs := make([]*schema.Document, 0)
-			rDocs, err = x.retrieveDoOnce(ctx, req.copy())
-			if err != nil {
-				g.Log().Errorf(ctx, "retrieveDoOnce failed, err=%v", err)
+			result, localErr := dr.retrieveDoOnce(derivedCtx, &r)
+			if localErr != nil {
+				handleFailure(round, fmt.Errorf("retrieve: %w", localErr))
 				return
 			}
-			for _, doc := range rDocs {
-				if old, e := relatedDocs.LoadOrStore(doc.ID, doc); e {
-					// 同文档则保存较高分的结果（对于不同的optQuery，rerank可能会有不同的结果）
-					if doc.Score() > old.(*schema.Document).Score() {
-						relatedDocs.Store(doc.ID, doc)
-					}
-				}
-			}
+			resultCh <- result
+		}(roundReq, i)
+	}
 
-		}()
-	}
+	// 等待所有已启动 worker 完成
 	wg.Wait()
-	// 整理需要返回的数据
-	relatedDocs.Range(func(key, value any) bool {
-		msg = append(msg, value.(*schema.Document))
-		return true
-	})
-	sort.Slice(msg, func(i, j int) bool {
-		return msg[i].Score() > msg[j].Score()
-	})
-	if len(msg) > req.TopK {
-		msg = msg[:req.TopK]
+	close(resultCh)
+
+	// 先检查已记录错误
+	firstErrMu.Lock()
+	recordedErr := firstErr
+	firstErrMu.Unlock()
+	if recordedErr != nil {
+		return nil, recordedErr
 	}
-	return
+
+	// 再检查调用方 ctx.Err()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	// 收集所有结果
+	var allResults []*schema.Document
+	for result := range resultCh {
+		allResults = append(allResults, result...)
+	}
+
+	// 单一流程聚合
+	allResults, aggErr := aggregateResults(allResults, req.TopK)
+	if aggErr != nil {
+		return nil, fmt.Errorf("aggregate results: %w", aggErr)
+	}
+
+	// E3: Post-read verification — detect resource replacement during search.
+	if verifyErr := x.verifyBoundResource(ctx); verifyErr != nil {
+		return nil, fmt.Errorf("post-read resource verification failed: %w", verifyErr)
+	}
+
+	return allResults, nil
 }
 
+// aggregateResults 聚合多轮检索结果：同 ID 保留最高分，按分数降序排序，截取 TopK
+func aggregateResults(results []*schema.Document, topK int) ([]*schema.Document, error) {
+	// 同 ID 文档保留最高分
+	seen := make(map[string]*schema.Document)
+	for _, doc := range results {
+		if existing, ok := seen[doc.ID]; ok {
+			if doc.Score() > existing.Score() {
+				seen[doc.ID] = doc
+			}
+		} else {
+			seen[doc.ID] = doc
+		}
+	}
+
+	// 转换为切片
+	unique := make([]*schema.Document, 0, len(seen))
+	for _, doc := range seen {
+		unique = append(unique, doc)
+	}
+
+	// 按分数排序，相同分数设置稳定的次级排序规则
+	sort.Slice(unique, func(i, j int) bool {
+		if unique[i].Score() != unique[j].Score() {
+			return unique[i].Score() > unique[j].Score()
+		}
+		return unique[i].ID < unique[j].ID
+	})
+
+	// 截取 TopK
+	if len(unique) > topK {
+		unique = unique[:topK]
+	}
+
+	return unique, nil
+}
+
+// retrieveDoOnce 执行单轮检索+融合+重排。
+// B4: 优先使用 Registry 的 RerankRole（如果已配置），否则回退到旧 rerank.Rerank 路径。
 func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs []*schema.Document, err error) {
 	var (
 		docs   []*schema.Document
@@ -132,6 +263,11 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 
 	// 关键字路三：ES BM25（conf.Client != nil 时生效）
 	if x.conf.Client != nil {
+		if x.conf.VectorIOGuard != nil {
+			if err := x.conf.VectorIOGuard(ctx); err != nil {
+				return nil, fmt.Errorf("bm25 target verification: %w", err)
+			}
+		}
 		bm25Docs, bm25Err := retriever.Bm25Retrieve(ctx, x.conf.Client, x.conf.IndexName, req.KnowledgeName, req.optQuery, req.excludeIDs, esTopK)
 		if bm25Err != nil {
 			g.Log().Warningf(ctx, "bm25 retrieve failed, skip: %v", bm25Err)
@@ -143,8 +279,8 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 	// RRF 融合多路结果（同时完成去重）
 	docs = retriever.RRFFusion(inputs)
 
-	// 重排
-	docs, err = rerank.NewRerank(ctx, req.optQuery, docs, req.TopK)
+	// B4: Rerank 优先使用 Registry 的 RerankRole
+	docs, err = x.doRerank(ctx, req.optQuery, docs, req.TopK)
 	if err != nil {
 		g.Log().Errorf(ctx, "Rerank failed, err=%v", err)
 		return
@@ -157,6 +293,26 @@ func (x *Rag) retrieveDoOnce(ctx context.Context, req *RetrieveReq) (relatedDocs
 		relatedDocs = append(relatedDocs, doc)
 	}
 	return
+}
+
+// doRerank 执行重排：优先使用 Registry 的 RerankRole（B4），否则回退到旧路径。
+// Fix 5: Registry 已配置时 GetReranker 错误必须传播，不静默回退。
+func (x *Rag) doRerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
+	// Fix 5: Registry 已配置时，GetReranker 错误传播
+	if reg := common.GetRegistry(); reg != nil {
+		reranker, err := reg.GetReranker(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("registry GetReranker: %w", err)
+		}
+		return reranker.Rerank(ctx, query, docs, topK)
+	}
+	// 旧路径（Registry 未配置）
+	rerankConf, err := rerank.GetConf(ctx)
+	if err != nil {
+		return nil, err
+	}
+	reranker := rerank.NewRerank(rerankConf.ToRerankConfig(), nil)
+	return reranker.Rerank(ctx, query, docs, topK)
 }
 
 func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*schema.Document, err error) {
@@ -242,14 +398,26 @@ func (x *Rag) retrieve(ctx context.Context, req *RetrieveReq, qa bool) (msg []*s
 		compose.WithRetrieverOption(retrieveOpts...),
 	)
 
-	for _, s := range msg {
-		if s.Score() > 1 {
-			// 本身没意义，最终分数由rerank给，这里只是为了方便测试观察
-			s.WithScore(s.Score() - 1)
-		}
-	}
 	if err != nil {
 		return
 	}
-	return
+
+	// 复制 Document 和 MetaData 后再修改分数，避免污染原始数据
+	copied := make([]*schema.Document, len(msg))
+	for i, s := range msg {
+		docCopy := *s
+		if s.MetaData != nil {
+			docCopy.MetaData = make(map[string]any, len(s.MetaData))
+			for k, v := range s.MetaData {
+				docCopy.MetaData[k] = v
+			}
+		}
+		if docCopy.Score() > 1 {
+			// 本身没意义，最终分数由rerank给，这里只是为了方便测试观察
+			docCopy = *docCopy.WithScore(docCopy.Score() - 1)
+		}
+		copied[i] = &docCopy
+	}
+
+	return copied, nil
 }

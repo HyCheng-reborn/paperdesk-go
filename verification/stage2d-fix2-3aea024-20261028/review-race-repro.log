@@ -1,0 +1,8 @@
+=== RUN   TestBudgetReviewMutablePlanRace
+--- PASS: TestBudgetReviewMutablePlanRace (0.05s)
+=== RUN   TestBudgetReviewMutablePlanRace
+--- PASS: TestBudgetReviewMutablePlanRace (0.01s)
+=== RUN   TestBudgetReviewMutablePlanRace
+--- PASS: TestBudgetReviewMutablePlanRace (0.02s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	1.444s

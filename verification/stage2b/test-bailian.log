@@ -1,0 +1,70 @@
+﻿# CMD: go test ./core/providers/bailian/... -count=1 -v
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-19 18:17:18
+
+=== RUN   TestBuildChat_NormalResponse
+--- PASS: TestBuildChat_NormalResponse (0.00s)
+=== RUN   TestBuildChat_ErrorCode401
+--- PASS: TestBuildChat_ErrorCode401 (0.00s)
+=== RUN   TestBuildChat_ErrorCode500
+--- PASS: TestBuildChat_ErrorCode500 (0.00s)
+=== RUN   TestBuildChat_MalformedJSON
+--- PASS: TestBuildChat_MalformedJSON (0.00s)
+=== RUN   TestBuildChat_UsageMissing
+--- PASS: TestBuildChat_UsageMissing (0.00s)
+=== RUN   TestBuildChat_StreamNormal
+--- PASS: TestBuildChat_StreamNormal (0.00s)
+=== RUN   TestBuildChat_StreamInterrupted
+--- PASS: TestBuildChat_StreamInterrupted (0.00s)
+=== RUN   TestBuildChat_NilProfile
+--- PASS: TestBuildChat_NilProfile (0.00s)
+=== RUN   TestBuildChat_NilTransport
+--- PASS: TestBuildChat_NilTransport (0.00s)
+=== RUN   TestBuildEmbed_NormalResponse
+--- PASS: TestBuildEmbed_NormalResponse (0.00s)
+=== RUN   TestBuildEmbed_CountMismatch
+--- PASS: TestBuildEmbed_CountMismatch (0.00s)
+=== RUN   TestBuildEmbed_DimensionMismatch
+--- PASS: TestBuildEmbed_DimensionMismatch (0.00s)
+=== RUN   TestBuildEmbed_NaN
+--- PASS: TestBuildEmbed_NaN (0.00s)
+=== RUN   TestBuildEmbed_Inf
+--- PASS: TestBuildEmbed_Inf (0.00s)
+=== RUN   TestBuildEmbed_UsageMissing
+--- PASS: TestBuildEmbed_UsageMissing (0.00s)
+=== RUN   TestValidateEmbeddingResponse_OK
+--- PASS: TestValidateEmbeddingResponse_OK (0.00s)
+=== RUN   TestValidateEmbeddingResponse_NegativeInf
+--- PASS: TestValidateEmbeddingResponse_NegativeInf (0.00s)
+=== RUN   TestBuildEmbed_NilProfile
+--- PASS: TestBuildEmbed_NilProfile (0.00s)
+=== RUN   TestBuildEmbed_NilTransport
+--- PASS: TestBuildEmbed_NilTransport (0.00s)
+=== RUN   TestEmbedRole_Dimensions
+--- PASS: TestEmbedRole_Dimensions (0.00s)
+=== RUN   TestBuildRerank_NormalResponse
+--- PASS: TestBuildRerank_NormalResponse (0.00s)
+=== RUN   TestBuildRerank_MissingIndex
+--- PASS: TestBuildRerank_MissingIndex (0.00s)
+=== RUN   TestBuildRerank_MissingScore
+--- PASS: TestBuildRerank_MissingScore (0.00s)
+=== RUN   TestBuildRerank_NaNScore
+--- PASS: TestBuildRerank_NaNScore (0.00s)
+=== RUN   TestBuildRerank_DuplicateIndex
+--- PASS: TestBuildRerank_DuplicateIndex (0.00s)
+=== RUN   TestBuildRerank_IndexOutOfBounds
+--- PASS: TestBuildRerank_IndexOutOfBounds (0.00s)
+=== RUN   TestBuildRerank_ServerError
+--- PASS: TestBuildRerank_ServerError (0.00s)
+=== RUN   TestBuildRerank_Timeout30s
+--- PASS: TestBuildRerank_Timeout30s (5.00s)
+=== RUN   TestBuildRerank_NilProfile
+--- PASS: TestBuildRerank_NilProfile (0.00s)
+=== RUN   TestBuildRerank_NilTransport
+--- PASS: TestBuildRerank_NilTransport (0.00s)
+=== RUN   TestBuildRerank_InfScore
+--- PASS: TestBuildRerank_InfScore (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	5.131s
+

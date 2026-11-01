@@ -1,0 +1,97 @@
+CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
+CWD: C:\Zhy\code\go-rag\server
+CMD: go test -race ./core/config -run ^TestStrictBool_ -count=5 -timeout=180s -v
+DATE: 2026-10-28T11:58:53.3847338+08:00
+=== RUN   TestStrictBool_MissingField_NoError
+--- PASS: TestStrictBool_MissingField_NoError (0.00s)
+=== RUN   TestStrictBool_True_NoError
+--- PASS: TestStrictBool_True_NoError (0.00s)
+=== RUN   TestStrictBool_False_NoError
+--- PASS: TestStrictBool_False_NoError (0.00s)
+=== RUN   TestStrictBool_StringTrue_Rejected
+--- PASS: TestStrictBool_StringTrue_Rejected (0.00s)
+=== RUN   TestStrictBool_Number_Rejected
+--- PASS: TestStrictBool_Number_Rejected (0.00s)
+=== RUN   TestStrictBool_Nonsense_Rejected
+--- PASS: TestStrictBool_Nonsense_Rejected (0.00s)
+=== RUN   TestStrictBool_ExplicitNull_Rejected
+--- PASS: TestStrictBool_ExplicitNull_Rejected (0.00s)
+=== RUN   TestStrictBool_MissingKeyInPresentParent_NoError
+--- PASS: TestStrictBool_MissingKeyInPresentParent_NoError (0.00s)
+=== RUN   TestStrictBool_ReadError_Propagated
+--- PASS: TestStrictBool_ReadError_Propagated (0.00s)
+=== RUN   TestStrictBool_MissingField_NoError
+--- PASS: TestStrictBool_MissingField_NoError (0.00s)
+=== RUN   TestStrictBool_True_NoError
+--- PASS: TestStrictBool_True_NoError (0.00s)
+=== RUN   TestStrictBool_False_NoError
+--- PASS: TestStrictBool_False_NoError (0.00s)
+=== RUN   TestStrictBool_StringTrue_Rejected
+--- PASS: TestStrictBool_StringTrue_Rejected (0.00s)
+=== RUN   TestStrictBool_Number_Rejected
+--- PASS: TestStrictBool_Number_Rejected (0.00s)
+=== RUN   TestStrictBool_Nonsense_Rejected
+--- PASS: TestStrictBool_Nonsense_Rejected (0.00s)
+=== RUN   TestStrictBool_ExplicitNull_Rejected
+--- PASS: TestStrictBool_ExplicitNull_Rejected (0.00s)
+=== RUN   TestStrictBool_MissingKeyInPresentParent_NoError
+--- PASS: TestStrictBool_MissingKeyInPresentParent_NoError (0.00s)
+=== RUN   TestStrictBool_ReadError_Propagated
+--- PASS: TestStrictBool_ReadError_Propagated (0.00s)
+=== RUN   TestStrictBool_MissingField_NoError
+--- PASS: TestStrictBool_MissingField_NoError (0.00s)
+=== RUN   TestStrictBool_True_NoError
+--- PASS: TestStrictBool_True_NoError (0.00s)
+=== RUN   TestStrictBool_False_NoError
+--- PASS: TestStrictBool_False_NoError (0.00s)
+=== RUN   TestStrictBool_StringTrue_Rejected
+--- PASS: TestStrictBool_StringTrue_Rejected (0.00s)
+=== RUN   TestStrictBool_Number_Rejected
+--- PASS: TestStrictBool_Number_Rejected (0.00s)
+=== RUN   TestStrictBool_Nonsense_Rejected
+--- PASS: TestStrictBool_Nonsense_Rejected (0.00s)
+=== RUN   TestStrictBool_ExplicitNull_Rejected
+--- PASS: TestStrictBool_ExplicitNull_Rejected (0.00s)
+=== RUN   TestStrictBool_MissingKeyInPresentParent_NoError
+--- PASS: TestStrictBool_MissingKeyInPresentParent_NoError (0.00s)
+=== RUN   TestStrictBool_ReadError_Propagated
+--- PASS: TestStrictBool_ReadError_Propagated (0.00s)
+=== RUN   TestStrictBool_MissingField_NoError
+--- PASS: TestStrictBool_MissingField_NoError (0.00s)
+=== RUN   TestStrictBool_True_NoError
+--- PASS: TestStrictBool_True_NoError (0.00s)
+=== RUN   TestStrictBool_False_NoError
+--- PASS: TestStrictBool_False_NoError (0.00s)
+=== RUN   TestStrictBool_StringTrue_Rejected
+--- PASS: TestStrictBool_StringTrue_Rejected (0.00s)
+=== RUN   TestStrictBool_Number_Rejected
+--- PASS: TestStrictBool_Number_Rejected (0.00s)
+=== RUN   TestStrictBool_Nonsense_Rejected
+--- PASS: TestStrictBool_Nonsense_Rejected (0.00s)
+=== RUN   TestStrictBool_ExplicitNull_Rejected
+--- PASS: TestStrictBool_ExplicitNull_Rejected (0.00s)
+=== RUN   TestStrictBool_MissingKeyInPresentParent_NoError
+--- PASS: TestStrictBool_MissingKeyInPresentParent_NoError (0.00s)
+=== RUN   TestStrictBool_ReadError_Propagated
+--- PASS: TestStrictBool_ReadError_Propagated (0.00s)
+=== RUN   TestStrictBool_MissingField_NoError
+--- PASS: TestStrictBool_MissingField_NoError (0.00s)
+=== RUN   TestStrictBool_True_NoError
+--- PASS: TestStrictBool_True_NoError (0.00s)
+=== RUN   TestStrictBool_False_NoError
+--- PASS: TestStrictBool_False_NoError (0.00s)
+=== RUN   TestStrictBool_StringTrue_Rejected
+--- PASS: TestStrictBool_StringTrue_Rejected (0.00s)
+=== RUN   TestStrictBool_Number_Rejected
+--- PASS: TestStrictBool_Number_Rejected (0.00s)
+=== RUN   TestStrictBool_Nonsense_Rejected
+--- PASS: TestStrictBool_Nonsense_Rejected (0.00s)
+=== RUN   TestStrictBool_ExplicitNull_Rejected
+--- PASS: TestStrictBool_ExplicitNull_Rejected (0.00s)
+=== RUN   TestStrictBool_MissingKeyInPresentParent_NoError
+--- PASS: TestStrictBool_MissingKeyInPresentParent_NoError (0.00s)
+=== RUN   TestStrictBool_ReadError_Propagated
+--- PASS: TestStrictBool_ReadError_Propagated (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/config	3.400s
+EXIT: 0

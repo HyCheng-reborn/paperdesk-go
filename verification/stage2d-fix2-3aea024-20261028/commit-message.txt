@@ -1,0 +1,24 @@
+fix(probe): 修复 Stage 2D S-1 增量复核的五项问题
+
+固定起点 3aea024（父提交 7a30899）。本批只改 server/core/probe/ 与 design/stage2d-plan.md，
+证据目录 verification/stage2d-fix2-3aea024-20261028/；未执行任何在线探针，未更新验收状态。
+
+1. online 构建的直接入口授权边界：ChainOptions 按构建标签分定义；NewChain 复用
+   remoteSendAuthorizationError 与环境变量凭据解析，Run/RunStep 复述边界。
+   非回环未授权 -> ErrNotAuthorized；字面量密钥 -> ErrNotConfigured；回环 fake 不受影响。
+2. 全局停止与新发送/重试的原子协调：beginAttempt 在同一把锁下准入并登记在途句柄，
+   stop 锁内记录首个脱敏摘要并取走句柄、锁外取消；停止后不再有新发送/新重试
+   （ErrAlreadyStopped），在途工作与预算 lease 收敛。
+3. 预检复用生产 builder 的角色身份校验：ValidateRoles 使用 NewProviderProfile +
+   RequestModel，接入 Preflight / Readiness / NewChain；m@v1 在任何发送前被拒绝，
+   保留 providers.ErrModelVersionNotExpressible 错误链。
+4. Plan/Step 防御性深拷贝：Plan.Clone（Budget.Unlimited）、step.clone/cloneSteps/
+   cloneDocuments（含 MetaData）；构造后修改原配置不再与运行期竞争，也不改变
+   已固定的预算与授权。
+5. 凭据边界单一实现：Credentials.Validate/Resolve/Presence/Missing 被 Readiness、
+   RunOnline 与 online 构造期共用；未声明/空值/空白变量名/多声明一致拒绝，
+   错误与证据只回显变量名。
+
+回归：默认与 online 标签普通测试、UCRT64 race、定向 -count=5 race、原 DATA RACE 反例
+（go test -overlay，3 次无竞争）、串行全量、build、vet、online vet 均通过；原行为反例
+在修复后于其“缺陷期望”断言处失败（缺陷不再复现）。未推送、未合并、未修改 PR。

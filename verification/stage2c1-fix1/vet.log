@@ -1,0 +1,5 @@
+CODE_SHA: 562bc884bdd1a2913a0a557455de765308668719
+CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CMD: go vet ./...
+DATE: 2026-10-21T15:52:26.0877579+08:00
+EXIT: 0

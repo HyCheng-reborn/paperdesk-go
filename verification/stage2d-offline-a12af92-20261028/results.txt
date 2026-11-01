@@ -1,0 +1,160 @@
+Stage 2D S-1 方案 A 离线探针骨架与回归测试 —— 命令与逐项结果
+=====================================================================
+
+固定基线 : a12af924f0441363b46e0fec41fca29bdc30993a
+分支     : codex/stage2c2-fingerprint
+工作目录 : C:/Zhy/code/go-rag/server
+记录时间 : 2026-10-28（Asia/Shanghai）
+性质     : 离线验证（本机 fake ES + 本机 fake 模型对端）。未执行任何在线探针，
+           未连接真实模型/真实 ES/Qdrant/MySQL，未解除任何门禁，未更新验收状态。
+
+---------------------------------------------------------------------
+0. 环境（详见 environment.log）
+---------------------------------------------------------------------
+go version go1.27.1 windows/amd64
+GOPROXY=https://goproxy.cn,direct   GOSUMDB=sum.golang.org   GOFLAGS=(空)
+CGO_ENABLED=1   CC=gcc
+gcc = C:\Program Files\mingw64\bin\gcc.exe
+    gcc.exe (x86_64-posix-seh-rev0, Built by MinGW-W64 project) 8.1.0
+凭据存在性（只记存在与否，不记值）：
+    DASHSCOPE_API_KEY=<absent>  BAILIAN_API_KEY=<absent>  OPENAI_API_KEY=<absent>
+    ES_URL=<absent>  ELASTICSEARCH_URL=<absent>  QDRANT_URL=<absent>  MYSQL_DSN=<absent>
+
+---------------------------------------------------------------------
+1. 逐项命令与退出码
+---------------------------------------------------------------------
+[PASS]  gofmt -l core\probe
+        exit=0（无输出 = 全部已格式化）                     log: probe-gofmt.log
+
+[PASS]  go vet ./core/probe/
+        exit=0                                              log: probe-unit-tests.log 附段
+
+[PASS]  go test ./core/probe/ -count=1 -v
+        exit=0   17 个顶层用例 / 24 个子用例全部 PASS
+        ok  github.com/wangle201210/go-rag/server/core/probe  0.460s
+                                                            log: final-confirm.log
+
+[PASS]  go test ./core/probe/ -count=1 -timeout 120s
+        exit=0                                              log: probe-unit-tests.log
+
+[PASS]  go test ./core/probe/ -run "TestW1|TestW2|TestW3|TestW4|TestW5" -count=5 -timeout 300s
+        exit=0（预算/取消关键场景重复 5 轮稳定）
+        ok  .../server/core/probe  1.140s                  log: probe-repeat5.log
+
+[PASS]  go build ./...
+        exit=0（默认构建，不含 online 标签文件）           log: build.log
+
+[PASS]  go vet ./...
+        exit=0                                              log: vet.log
+
+[PASS]  go vet -tags online ./core/probe/
+        exit=0（online 骨架在标签下可编译、只做静态检查）   log: vet.log 附段
+
+[PASS]  go test -p 1 ./... -count=1 -timeout 1500s
+        exit=0   串行全量：18 个包 ok、14 个包 no test files
+        （其中 core/probe ok 0.442s）                       log: full-suite.log
+
+[NOT COMPLETE] go test ./core/probe/ -race -count=1 -timeout 300s
+        exit=1   运行期 exit status 0xc0000139
+        FAIL github.com/wangle201210/go-rag/server/core/probe  0.163s
+        对照：go test -race -c 构建 exit=0；直接运行该二进制 exit=-1073741511
+        （0xC0000139 STATUS_ENTRYPOINT_NOT_FOUND，运行期无法启动 stderr/共享库）
+                                                            log: probe-race.log
+
+[CONTROL] race 对照实验（区分"本批代码问题"与"本机工具链问题"）
+        core/vector    -race : exit=0（可运行）
+        core/providers -race : exit=1  exit status 0xc0000139（本批未改动的既有包）
+        core/common    -race : exit=1  exit status 0xc0000139（本批未改动的既有包）
+                                                            log: race-control.log
+
+结论性说明（不得写成通过）：
+  * race 未完成。表现是本机 CGO/race 运行期无法启动（0xC0000139），而非测试失败；
+    本批未改动的既有包 core/providers、core/common 在同一工具链下同样无法启动，
+    core/vector（依赖面较窄）可正常启动。本机 gcc 为 8.1.0，低于 -race 所需
+    的 MSYS2 UCRT64 GCC >= 11.2。
+  * 因本机无可用的 race 运行环境，probe 包的数据竞争**未被 race 检测器验证**，
+    该项保留为"待决/待独立复核"，不得记为通过。
+
+---------------------------------------------------------------------
+2. 实际命中的测试（go test -v，见 final-confirm.log）
+---------------------------------------------------------------------
+生产绑定 / 身份 / guard 链（非预算项）:
+  PASS TestProbeChain_ProductionBindingAndScope
+  PASS TestProbeChain_IdentityMismatchRejected
+  PASS TestProbeChain_GuardRejectsReplacedTarget
+  PASS TestProbeChain_ResponseDimensionMismatchRejected
+  PASS TestProbeChain_RemoteEndpointRejectedByDefault
+
+草案 §3.2.2 W-1..W-5（探针实际链，非预算组件单测）:
+  PASS TestW1_RetryReservesAndCommitsEveryAttempt
+  PASS TestW2_ExhaustedBudgetSendsNothingFurther
+  PASS TestW3_ExpiredCallerContextStopsBeforeSend
+  PASS TestW3_DeadlineDuringSendIsNotRetried
+  PASS TestW3_ConcurrencyLimitAppliesAtProbeEntry
+  PASS TestW4_UsageSettlement
+       PASS TestW4_UsageSettlement/usage_missing_is_unknown
+       PASS TestW4_UsageSettlement/usage_reported_is_known
+  PASS TestW5_UnexpectedErrorStopsSubsequentSteps
+
+计划/预算/就绪度校验（"0 不是有限预算、待定不得静默变成不限"）:
+  PASS TestPlan_Validate（14 子用例：缺 index/provider/similarity/chat model/
+       zero chat max output/embed endpoint/dims/rerank url/topk/retry attempts(0/负)/
+       approved 缺 scope/未知 scope/缺 approver）
+  PASS TestBudgetPlan_ZeroIsNotFinite（8 子用例：zero requests / zero input tokens /
+       zero concurrency 均被拒；explicit unlimited 接受；unknown unlimited 拒绝；
+       negative 拒绝；deadline 必填；ProcessBudget 复用同一校验）
+  PASS TestCredentials_ReportsPresenceOnly
+  PASS TestReadiness_ListsUnconfiguredItems
+  PASS TestReadiness_ReadyWhenAllDeclared
+
+---------------------------------------------------------------------
+3. 探针实际调用链（本批离线可验证的部分）
+---------------------------------------------------------------------
+Plan.Validate（固定目标/参数/预算/重试/授权，0 值不得静默）
+  -> checkEndpoints（默认仅回环端点；非回环必须 AllowRemoteEndpoints=true）
+  -> BudgetPlan.NewProcessBudget（进程级唯一预算 owner）
+  -> providers.NewRegistry（生产 Build*Role + budgetChat/Embed/RerankRole 包装）
+  -> LocalFakeESTarget（本机 httptest 假 ES，带 X-Elastic-Product）
+       -> vector.BindPhysicalTarget（真实 TargetBinding，构建期读 2 次）
+  -> common.NewEmbedding -> newProviderEmbedding
+       （Registry / ManagedResourceLifecycle / IndexName / verifiedTargetBinding /
+         ExpectedEmbeddingFingerprint / 身份比较 ProfiledEmbedRole）
+  -> Chain.RunStep（每步一个 RequestBudget owner）
+       -> 角色调用（预算 reserve -> commit -> finish/abort）
+       -> guardedEmbedder（发送前 guard -> 模型 HTTP -> 数量/维度/有限值校验 -> 发送后 guard）
+  -> HTTP 对端只在 httptest（本机模型对端）与本机 fake ES，且按次计数
+
+预算结算计数（样本，取自各测试断言）:
+  ProductionBindingAndScope: 三角色各 1 次命中；进程 committed=3、in-flight=0；
+                             fake ES：构建期读 2 次、一次 embed 前后各 1 次、OtherCalls=0
+  W-1（受控重试）        : embed 命中 2 次 = committed 2 = Attempts 2、in-flight 0、
+                             input used 8（两次 unknown 各按预留 4 结算）
+  W-2（进程上限 1）       : chat 命中 1、embed/rerank 命中 0；ErrBudgetExhausted
+  W-3（已过期 ctx）       : 三端点命中 0、AttemptsUsed=0（预留阶段即拒绝）
+  W-3（发送期 deadline）  : chat 命中 1（不重试）、committed=1、in-flight=0
+  W-3（并发上限 1）       : 第二步 ErrBudgetExhausted、embed 命中 0；释放后 in-flight=0
+  W-4（usage 缺失）       : Usage="unknown"、InputUsed=3、OutputUsed=16（按预留保守结算）
+  W-4（usage 上报）       : Usage="known"、结算 3/5
+  W-5（HTTP 500）         : chat 命中 1、embed/rerank 命中 0、report.Stopped、后续 RunStep 防重入
+
+---------------------------------------------------------------------
+4. 本轮未覆盖 / 待决（不得当作通过）
+---------------------------------------------------------------------
+U-1 race 检测器未运行（本机 0xC0000139，见第 1 节）。probe 数据竞争未验证。
+U-2 真实模型行为未验证：维度/数量/index 映射/usage/错误码/限流，全部只是本机对端
+    的契约替身；S-1 在线执行仍需用户授权（§2 通用前置 A/B/C）与 U-1/U-3/U-5 取值。
+U-3 真实 ES 未验证：D-1a/D-1b/D-2/D-7 全部保持"未核实"。本轮 fake ES 只证明
+    绑定/guard/身份链被真实生产代码执行，不产生任何真实 ES 侧事实。
+U-4 Qdrant/MySQL 未涉及：生产绑定仍 fail closed，未注入任何相关凭据。
+U-5 Chat 流式、Embedding 批量 > 计划值、Rerank top_k 差异组（P-7）未在本轮断言；
+    仅在代码路径上可达，未举例验证。
+U-6 金额上限、账号侧配额/限流（V-5）不在代码预算内，本轮不承诺。
+U-7 草案 §2.1/§7 仍写"两种方案未实现/探针链待准备"：本轮已准备离线骨架，但按
+    "仅修订 §4.1 与 §5.2 两处冲突"的要求未改动这两处；留作下一轮草案修订项。
+U-8 在线执行入口 RunOnline 仅做静态编译检查（go vet -tags online），未运行。
+
+---------------------------------------------------------------------
+5. 交付状态
+---------------------------------------------------------------------
+性质：待独立复核。未推送、未合并、未创建或修改 PR；未清理既有 worktree 与
+      既有 verification 证据；未更新任何验收状态或门禁。

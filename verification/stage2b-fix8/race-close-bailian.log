@@ -1,0 +1,30 @@
+﻿# CMD: go test -race ./core/providers -count=10 -v -run "TestStreamSession_CloseInterruptsHTTP"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 19:22:48
+
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+=== RUN   TestStreamSession_CloseInterruptsHTTP
+--- PASS: TestStreamSession_CloseInterruptsHTTP (0.00s)
+PASS
+ok      github.com/wangle201210/go-rag/server/core/providers    1.163s
+
+# SUMMARY: 10/10 PASS, 0 FAIL, 0 DATA RACE

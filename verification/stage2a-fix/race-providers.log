@@ -1,0 +1,11 @@
+﻿# CMD: go test -race ./core/providers/... -count=1 -timeout=180s 2>&1; exit $LASTEXITCODE
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 1
+# DATE: 2026-10-19 03:46:33
+# DURATION: 2.6s
+# NOTE: 运行异常、race 未完成、根因：MinGW-w64 8.1.0 缺少 Go race 运行时所需入口点（exit status 0xc0000139，DLL entry point not found）。
+#       与既有验证记录一致（见 common_pitfalls：Windows 下 race 检测 0xc0000139 为平台级问题，非代码竞态）。按规范仅尝试一次，不重复运行，不以普通并发测试替代 race 证据。
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.067s
+FAIL
+

@@ -1,0 +1,137 @@
+# DATE: 2026-10-20 01:41:07
+# CWD: c:\Zhy\code\go-rag\server
+--- git HEAD ---
+745c4433b4a99542c441b7a3d6fe958f88688caa
+
+ D .git-commit-msg.txt
+ M server/api/rag/rag.go
+ M server/api/rag/v1/chat.go
+ M server/api/rag/v1/chunks.go
+ M server/api/rag/v1/documents.go
+ M server/api/rag/v1/indexer.go
+ M server/api/rag/v1/knowledge_base.go
+ M server/api/rag/v1/retriever.go
+ M server/api/rag/v1/websearch.go
+ M server/core/config/config.go
+ M server/core/config/helpers.go
+ M server/core/grader/grader.go
+ M server/core/grader/message.go
+ M server/core/indexer.go
+ M server/core/indexer/indexer.go
+ M server/core/indexer/loader.go
+ M server/core/indexer/merge.go
+ M server/core/indexer/orchestration.go
+ M server/core/indexer/parser.go
+ M server/core/indexer/qdrant_indexer.go
+ M server/core/indexer/qdrant_indexer_custom.go
+ M server/core/indexer/transformer.go
+ M server/core/message.go
+ M server/core/providers/adapter.go
+ M server/core/providers/bailian/chat.go
+ M server/core/providers/bailian/embedding.go
+ M server/core/providers/bailian/integration_test.go
+ M server/core/providers/bailian/register.go
+ M server/core/providers/bailian/rerank.go
+ M server/core/providers/budget.go
+ M server/core/providers/registry_test.go
+ M server/core/providers/transport.go
+ M server/core/rag.go
+ M server/core/rag_test.go
+ M server/core/rerank/rerank_test.go
+ M server/core/retriever.go
+ M server/core/retriever/bm25_retriever.go
+ M server/core/retriever/bm25_retriever_test.go
+ M server/core/retriever/orchestration.go
+ M server/core/retriever/qdrant_retriever.go
+ M server/core/retriever/retriever.go
+ M server/core/retriever/rrf.go
+ M server/core/retriever/rrf_test.go
+ M server/core/retriever_test.go
+ M server/core/types/consts.go
+ M server/core/vector/es.go
+ M server/core/vector/factory.go
+ M server/core/vector/factory_test.go
+ M server/core/vector/interface.go
+ M server/core/vector/qdrant.go
+ M server/core/vector/qdrant_test.go
+ M server/core/websearch/youcom.go
+ M server/core/websearch/youcom_integration_test.go
+ M server/core/websearch/youcom_test.go
+ M server/internal/cmd/bootstrap.go
+ M server/internal/cmd/bootstrap_test.go
+ M server/internal/cmd/middleware.go
+ M server/internal/dao/dao.go
+ M server/internal/dao/db/base.go
+ M server/internal/dao/db/factory.go
+ M server/internal/dao/db/interface.go
+ M server/internal/dao/db/mysql.go
+ M server/internal/dao/db/sqlite.go
+ M server/internal/dao/internal/knowledge_base.go
+ M server/internal/dao/internal/knowledge_chunks.go
+ M server/internal/dao/internal/knowledge_documents.go
+ M server/internal/dao/knowledge_base.go
+ M server/internal/dao/knowledge_chunks.go
+ M server/internal/dao/knowledge_documents.go
+ M server/internal/logic/chat/chat.go
+ M server/internal/logic/knowledge/documents.go
+ M server/internal/logic/rag/retriever.go
+ M server/internal/logic/rag/retriever_test.go
+ M server/internal/logic/websearch/websearch.go
+ M server/internal/mcp/indexer.go
+ M server/internal/mcp/knowledgebase.go
+ M server/internal/mcp/mcp.go
+ M server/internal/mcp/retriever.go
+ M server/internal/mcp/websearch.go
+ M server/internal/model/do/knowledge_base.go
+ M server/internal/model/do/knowledge_chunks.go
+ M server/internal/model/do/knowledge_documents.go
+ M server/internal/model/entity/knowledge_base.go
+ M server/internal/model/entity/knowledge_chunks.go
+ M server/internal/model/entity/knowledge_documents.go
+ M server/internal/model/gorm/knowledge_base.go
+ M server/internal/model/gorm/knowledge_chunks.go
+ M server/internal/model/gorm/knowledge_documents.go
+ M server/internal/model/gorm/migrate.go
+ M server/main.go
+ M server/server/server.go
+ M verification/stage1c2/test-last.log
+?? server/.tmpbuild.log
+?? server/core/common/budget_ctx.go
+?? server/core/providers/bailian/stage2b_budget_test.go
+?? server/core/providers/bailian/stage2b_stream_test.go
+?? server/core/providers/bailian/stage2b_usage_test.go
+?? server/core/providers/budget_adapter.go
+?? server/core/providers/openai/register_test.go
+?? server/core/providers/stage2b_owner_test.go
+?? server/core/providers/transport_redirect_test.go
+?? server/internal/logic/rag/stage2b_owner_test.go
+?? verification/independent-1d3-3e24a53/
+?? verification/independent-1d3-71c4c81/
+?? verification/independent-1d3-7357869/
+?? verification/independent-1d3-89cc769/
+?? verification/independent-1d3-9e59029/
+?? verification/independent-2b-745c443/
+?? verification/independent-2b-a24cb8d/
+?? verification/independent-2b-be28e91/
+?? verification/independent-stage2-0d0bab9/
+?? verification/independent-stage2-212ccd8/
+?? verification/independent-stage2-3bde7cd/
+?? verification/independent-stage2a-2780e39/
+?? verification/independent-stage2a-5bf62f0/
+?? verification/independent-stage2a-df260dd-race-pass/
+?? verification/independent-stage2a-df260dd/
+?? verification/stage1d3-r4/
+?? verification/stage2a-race-evidence-r2/
+?? verification/stage2b-fix3/
+
+--- go version ---
+go version go1.27.1 windows/amd64
+
+windows
+amd64
+1
+gcc
+
+--- msys2 gcc ---
+gcc.exe (Rev6, Built by MSYS2 project) 16.2.0
+

@@ -1,0 +1,168 @@
+﻿# CMD: go test ./core/providers/... -count=10 -v -run "TestBudget_Concurrent|TestBudget_SlotRelease"
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 0
+# DATE: 2026-10-19 02:47:25
+----
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+=== RUN   TestBudget_ConcurrentReserve_MaxRequests
+--- PASS: TestBudget_ConcurrentReserve_MaxRequests (0.00s)
+=== RUN   TestBudget_SlotRelease_NonStream
+--- PASS: TestBudget_SlotRelease_NonStream (0.00s)
+=== RUN   TestBudget_SlotRelease_StreamPaths
+=== RUN   TestBudget_SlotRelease_StreamPaths/nonstream-read-failure
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-early-close
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-cancel
+=== RUN   TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage
+--- PASS: TestBudget_SlotRelease_StreamPaths (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/nonstream-read-failure (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-early-close (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-cancel (0.00s)
+    --- PASS: TestBudget_SlotRelease_StreamPaths/stream-error-unknown-usage (0.00s)
+=== RUN   TestBudget_ConcurrentFinalize
+--- PASS: TestBudget_ConcurrentFinalize (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.152s
+

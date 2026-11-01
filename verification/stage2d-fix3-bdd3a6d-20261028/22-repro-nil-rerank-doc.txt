@@ -1,0 +1,9 @@
+﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\stage2d-fix3-bdd3a6d-20261028\overlay-repro-nildoc.json -p 1 ./core/probe -run ^TestReviewNilRerankDocumentPassesPreflight$ -count=1 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestReviewNilRerankDocumentPassesPreflight
+    independent_nil_doc_test.go:6: preflight unexpected reject: steps[1]: probe: empty probe step: rerank: invalid request input: nil document at index 0
+--- FAIL: TestReviewNilRerankDocumentPassesPreflight (0.01s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.246s
+FAIL
+EXIT=1

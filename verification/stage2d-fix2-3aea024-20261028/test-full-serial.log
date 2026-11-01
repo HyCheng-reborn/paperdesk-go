@@ -1,0 +1,32 @@
+?   	github.com/wangle201210/go-rag/server	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag	[no test files]
+?   	github.com/wangle201210/go-rag/server/api/rag/v1	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core	4.244s
+ok  	github.com/wangle201210/go-rag/server/core/common	0.336s
+ok  	github.com/wangle201210/go-rag/server/core/config	0.271s
+?   	github.com/wangle201210/go-rag/server/core/grader	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/indexer	0.832s
+ok  	github.com/wangle201210/go-rag/server/core/probe	0.538s
+ok  	github.com/wangle201210/go-rag/server/core/providers	0.694s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	8.291s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	3.210s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	0.955s
+ok  	github.com/wangle201210/go-rag/server/core/retriever	0.261s
+?   	github.com/wangle201210/go-rag/server/core/types	[no test files]
+ok  	github.com/wangle201210/go-rag/server/core/vector	0.499s
+ok  	github.com/wangle201210/go-rag/server/core/websearch	0.348s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	2.337s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	0.362s
+ok  	github.com/wangle201210/go-rag/server/internal/dao	0.213s
+?   	github.com/wangle201210/go-rag/server/internal/dao/db	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/dao/internal	[no test files]
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	0.324s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/knowledge	0.252s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	15.815s
+?   	github.com/wangle201210/go-rag/server/internal/logic/websearch	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/mcp	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/do	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/entity	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/model/gorm	[no test files]
+?   	github.com/wangle201210/go-rag/server/internal/testutil	[no test files]
+?   	github.com/wangle201210/go-rag/server/server	[no test files]

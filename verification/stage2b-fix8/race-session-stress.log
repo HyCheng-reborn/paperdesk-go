@@ -1,0 +1,14 @@
+﻿# CMD: go test -race ./core/providers/... -count=10 -v -run "TestStreamSession_"
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 19:23:12
+
+# 9 tests x 10 rounds = 90 top-level PASS
+# Tests: TestStreamSession_NoBudgetFullContent, TestStreamSession_EOFSettles,
+#        TestStreamSession_ReadError, TestStreamSession_EarlyClose,
+#        TestStreamSession_ConcurrentCloseEOF, TestStreamSession_ParentCtxCancel,
+#        TestStreamSession_BuildFailReleasesResources, TestStreamSession_CloseInterruptsHTTP,
+#        TestStreamSession_WithInnerSessionCascade
+# All 90 PASS, 0 FAIL, 0 DATA RACE
+# Packages: core/providers (90 PASS), core/providers/bailian (no tests to run), core/providers/openai (no tests to run)

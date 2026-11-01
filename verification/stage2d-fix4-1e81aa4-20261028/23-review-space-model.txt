@@ -1,0 +1,9 @@
+﻿CMD: go test -tags online -overlay C:\Zhy\code\go-rag\verification\stage2d-fix4-1e81aa4-20261028\overlay-review-space-model.json -p 1 ./core/probe -run ^TestReviewSpaceEmbeddingReadyButFailsBeforeModel$ -count=1 -v
+WORKDIR: C:\Zhy\code\go-rag\server
+=== RUN   TestReviewSpaceEmbeddingReadyButFailsBeforeModel
+    independent_review_space_model_test.go:5: expected ready: [{Name:plan OK:false Detail:probe: fixed target or parameters are not configured: embed.model must not have leading/trailing whitespace (declare "probe-embed")} {Name:authorization OK:true Detail:approved for S-1} {Name:credentials OK:true Detail:exactly one credential environment variable is declared, present and non-empty (its value is never recorded)} {Name:steps OK:true Detail:3 step(s) declared}]
+--- FAIL: TestReviewSpaceEmbeddingReadyButFailsBeforeModel (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.245s
+FAIL
+EXIT=1

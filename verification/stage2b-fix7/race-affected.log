@@ -1,0 +1,16 @@
+﻿# CMD: go test -race ./core/providers/... ./core/common/... ./core/rerank/... ./internal/logic/rag/... ./internal/logic/chat/... ./internal/controller/rag/... -count=1 -timeout=300s
+# CWD: c:\Zhy\code\go-rag\server
+# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# EXIT: 0
+# DATE: 2026-10-20 17:26:07
+
+ok      github.com/wangle201210/go-rag/server/core/providers    1.510s
+ok      github.com/wangle201210/go-rag/server/core/providers/bailian    9.478s
+ok      github.com/wangle201210/go-rag/server/core/providers/openai     4.352s
+ok      github.com/wangle201210/go-rag/server/core/common       1.459s
+ok      github.com/wangle201210/go-rag/server/core/rerank       2.409s
+ok      github.com/wangle201210/go-rag/server/internal/logic/rag        21.677s
+ok      github.com/wangle201210/go-rag/server/internal/logic/chat       1.413s
+ok      github.com/wangle201210/go-rag/server/internal/controller/rag   1.429s
+
+# Summary: 8 packages PASS, no DATA RACE

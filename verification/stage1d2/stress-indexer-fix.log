@@ -1,0 +1,427 @@
+﻿# CMD: go test ./core/indexer/... -count=10 -v -run "TestQA_|TestDocumentToFields_|TestGetQAModel_"
+# GOFLAGS: (empty)
+# EXIT: 0
+# DATE: 2026-10-17 10:51:12
+
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+=== RUN   TestQA_AllSuccess
+--- PASS: TestQA_AllSuccess (0.00s)
+=== RUN   TestQA_PartialFailure_ReturnsError
+--- PASS: TestQA_PartialFailure_ReturnsError (0.00s)
+=== RUN   TestQA_ConcurrencyLimit
+--- PASS: TestQA_ConcurrencyLimit (0.20s)
+=== RUN   TestQA_Disabled_ReturnsDocsUnchanged
+--- PASS: TestQA_Disabled_ReturnsDocsUnchanged (0.00s)
+=== RUN   TestQA_Disabled_ExistingContent_Preserved
+--- PASS: TestQA_Disabled_ExistingContent_Preserved (0.00s)
+=== RUN   TestQA_ContextCancel_Stops
+--- PASS: TestQA_ContextCancel_Stops (0.00s)
+=== RUN   TestQA_EmptyDocs
+--- PASS: TestQA_EmptyDocs (0.00s)
+=== RUN   TestQA_NilDoc_ReturnsError
+--- PASS: TestQA_NilDoc_ReturnsError (0.00s)
+=== RUN   TestQA_DuplicatePointer_ReturnsError
+--- PASS: TestQA_DuplicatePointer_ReturnsError (0.00s)
+=== RUN   TestQA_ExistingContent_Skips
+--- PASS: TestQA_ExistingContent_Skips (0.00s)
+=== RUN   TestQA_ModelFactoryError
+--- PASS: TestQA_ModelFactoryError (0.00s)
+=== RUN   TestQA_KnowledgeNameMissing
+--- PASS: TestQA_KnowledgeNameMissing (0.00s)
+=== RUN   TestQA_PreCancelled
+--- PASS: TestQA_PreCancelled (0.00s)
+=== RUN   TestQA_MidCancel
+--- PASS: TestQA_MidCancel (0.00s)
+=== RUN   TestQA_Timeout
+--- PASS: TestQA_Timeout (0.05s)
+=== RUN   TestQA_SharedMetaData_InputUnchanged_OutputIsolated
+--- PASS: TestQA_SharedMetaData_InputUnchanged_OutputIsolated (0.00s)
+=== RUN   TestQA_ConcurrentCalls_Isolated
+--- PASS: TestQA_ConcurrentCalls_Isolated (0.00s)
+=== RUN   TestQA_WaitDrains_Success
+--- PASS: TestQA_WaitDrains_Success (0.10s)
+=== RUN   TestQA_WaitDrains_Failure
+--- PASS: TestQA_WaitDrains_Failure (0.00s)
+=== RUN   TestQA_NilModelFromFactory
+--- PASS: TestQA_NilModelFromFactory (0.00s)
+=== RUN   TestQA_OutputDoesNotModifyInput
+--- PASS: TestQA_OutputDoesNotModifyInput (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/indexer	3.672s

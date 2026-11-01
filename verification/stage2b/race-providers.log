@@ -1,0 +1,13 @@
+﻿# CMD: go test -race ./core/providers/... -count=1 -timeout=180s
+# CWD: c:\Zhy\code\go-rag\server
+# EXIT: 1
+# DATE: 2026-10-19 18:19:13
+# STATUS: 运行异常、race 未完成、根因：MinGW-w64 8.1.0 缺少 Go race 运行时所需入口点 (0xc0000139)
+# NOTE: 两个包均触发相同异常：providers (0.083s), bailian (0.091s)
+
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	0.083s
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers/bailian	0.091s
+FAIL
+

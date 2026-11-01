@@ -1,0 +1,51 @@
+fix(probe): 关闭停止标记后的发送窗口并补齐预检目标/输入规则
+
+独立复核（verification/independent-2d-bdd3a6d-20261028/REPORT.md，固定目标
+bdd3a6d，父提交 3aea024）发现三项问题，本批逐项修复：
+
+1. 停止标记后的发送窗口
+   - 新增 server/core/probe/sendgate.go：所有模型端点共用的 providers.Transport
+     外包一层 sendGate，RoundTrip 在真正发送前调用 (*Chain).commitSend。
+   - commitSend 在 c.mu 读侧观察 stopped，stop 在写侧发布停止标记
+     （sync.RWMutex ⇒ 全序）；已准入未过闸门的尝试返回 ErrAlreadyStopped，
+     零字节发出；已过闸门的在途请求只取消 ctx，不声称可撤销、不重试。
+   - 明确区分入口准入（beginAttempt）与已经在途（已过闸门），并更新包文档。
+
+2. 完整预检遗漏 nil Rerank 文档
+   - 从生产 (*rerank.Rerank).Rerank 提取公开纯函数 rerank.ValidateInput
+     （空文档 / nil 文档 / 非法 top_k），生产入口与预检共用。
+   - Step.validateAgainst 调用该函数，错误链同时保留 ErrEmptyStep 与
+     rerank.ErrInvalidInput；合法 Chat 在前、Rerank 含 nil 时全部端点零命中。
+
+3. 非法目标与不匹配 similarity 被误报就绪
+   - Plan.Validate 复用 vector.ValidatePhysicalName（bad,* / 多目标拒绝）。
+   - 新增 validateTargetIdentity：按生产期望 vector.NewExpectedEmbeddingFingerprint
+     与 vector.NewFingerprint 构造，再用 Fingerprint.Equal 全字段比较；dot 等
+     不匹配 similarity 在 Readiness 与执行入口一致拒绝，并保留
+     vector.ErrFingerprintMismatch 与双方 Digest。
+   - 文档明确静态预检只判定配置自洽性，不保证真实资源在预检后不变。
+
+回归测试（本机 fake 模型 / fake ES，默认与 online 构建）：
+   - sendgate_test.go：确定性同步点、传输边界、在途不撤销不重试、原复核
+     20k 句柄形状、并发停止收敛。
+   - preflight_target_test.go：nil Rerank 文档四入口零发送；目标规则覆盖
+     bad,* / 多目标 / dot / 非法 similarity 与 cosine 正例。
+   - online_endpoint_test.go：online 构建下同一预检结论与零外发。
+   - chain_test.go：身份不匹配用例拆成“配置层预检拒绝”与“后端指纹不一致
+     仍由生产 binding.Verify 拒绝”两段。
+
+验证（证据 verification/stage2d-fix3-bdd3a6d-20261028/）：
+   - 默认与 online 普通测试 / UCRT64 race / race -count=5 均 exit 0，
+     无 DATA RACE；串行全量、build、vet、online vet 均 exit 0。
+   - 原补充复现 overlay 复跑：20k/100k 停止窗口形状 25+5 样本 0 命中并 SKIP
+     （exit 0，不据此单独声称窗口关闭）；nil 文档 / bad,* / dot 三组反例在
+     第一次断言处 FAIL（exit 1），即缺陷不再复现。
+   - 变异非空转：剥离 commitSend 后传输边界用例失败、原 20k 形状 3/3 复现
+     1 次命中；剥离 rerank 校验或目标身份比较后对应用例失败。
+
+边界：在途请求不可撤销；闸门拒绝发生在预算 Commit 之后，CommittedAttempts
+单调 +1（零发送 ≠ 零预算占用）；fake ES 不经闸门；静态预检不保证真实资源
+后续不变；20k/100k 人工句柄只用于放大窗口，不代表一般负载触发概率。未执行
+在线探针，未调用真实模型/ES/Qdrant/MySQL，未解除门禁，未更新验收状态，未
+新增映射表或 DDL。不包含独立复核目录、既有 .git-commit-msg.txt 与既有
+CLAIMS.md 改动。

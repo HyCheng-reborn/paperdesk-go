@@ -4,15 +4,15 @@
 # 不访问真实模型、ES、Qdrant、MySQL 或互联网；不执行在线探针。
 
 $ErrorActionPreference = 'Continue'
-$root = 'C:\Zhy\code\go-rag'
+$root = '<WORKSPACE>'
 $outDir = Join-Path $root 'verification\stage2d-fix4-1e81aa4-20261028'
 
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = 'C:/msys64/ucrt64/bin/gcc.exe'
-$env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
+$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
+$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 

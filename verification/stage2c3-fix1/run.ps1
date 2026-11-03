@@ -5,9 +5,9 @@ $sha = git rev-parse HEAD
 $env:GOFLAGS = ''
 # -race requires cgo on windows/amd64. Use the msys64 UCRT64 toolchain and put its
 # runtime DLL directory on PATH (otherwise test binaries exit 0xc0000139).
-$env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
-$env:CC = 'C:\msys64\ucrt64\bin\gcc.exe'
-$env:CXX = 'C:\msys64\ucrt64\bin\g++.exe'
+$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = '<TOOLCHAIN>\ucrt64\bin\gcc.exe'
+$env:CXX = '<TOOLCHAIN>\ucrt64\bin\g++.exe'
 $env:CGO_ENABLED = '1'
 Set-Location server
 
@@ -18,7 +18,7 @@ Set-Location server
   'BRANCH: codex/stage2c2-fingerprint',
   ('CWD: ' + (Get-Location).Path),
   'Offline evidence: no real model/ES/Qdrant/MySQL calls; only httptest and local fakes.',
-  'CGO toolchain: C:\msys64\ucrt64 (gcc), CGO_ENABLED=1, PATH includes C:\msys64\ucrt64\bin'
+  'CGO toolchain: <TOOLCHAIN>\ucrt64 (gcc), CGO_ENABLED=1, PATH includes <TOOLCHAIN>\ucrt64\bin'
 ) | Set-Content "$r/environment.log"
 go version | Add-Content "$r/environment.log"
 go env GOOS GOARCH CGO_ENABLED GOFLAGS | Add-Content "$r/environment.log"

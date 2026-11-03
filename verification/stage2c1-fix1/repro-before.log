@@ -1,5 +1,5 @@
 BASELINE: 1850da1fcff2e66c1ed61594139e7e2e068fd775
-CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CWD: <USER_HOME>\.codex\worktrees\stage2c1-dimensions\go-rag\server
 CMD: go test ./core/config ./internal/logic/rag -run ^TestDimensions_(JSONNumber|YAMLFile) -count=1 -timeout=120s -v
 === RUN   TestDimensions_JSONNumber
     dimensions_json_test.go:16: json.Number("768"): got 0, invalid embedding dimensions: must be a positive integer, got json.Number

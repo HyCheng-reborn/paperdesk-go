@@ -1,5 +1,5 @@
-﻿CMD: go test -race -overlay C:\Zhy\code\go-rag\verification\stage2d-fix3-bdd3a6d-20261028\overlay-repro-stop100k.json -p 1 ./core/probe -run ^TestReviewStopMarkedBeforeCancellationAllowsSend$ -count=1 -v
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -race -overlay <WORKSPACE>\verification\stage2d-fix3-bdd3a6d-20261028\overlay-repro-stop100k.json -p 1 ./core/probe -run ^TestReviewStopMarkedBeforeCancellationAllowsSend$ -count=1 -v
+WORKDIR: <WORKSPACE>\server
 === RUN   TestReviewStopMarkedBeforeCancellationAllowsSend
     independent_review_stop_test.go:20: iteration 0: embedding sends after stop marker: 0
     independent_review_stop_test.go:20: iteration 1: embedding sends after stop marker: 0

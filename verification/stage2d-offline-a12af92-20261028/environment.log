@@ -1,4 +1,4 @@
-﻿== recorded_at (local) ==
+== recorded_at (local) ==
 2026-10-28T19:10:19.5942565+08:00
 == git rev-parse HEAD ==
 a12af924f0441363b46e0fec41fca29bdc30993a
@@ -18,12 +18,12 @@ fix(stage2c3): close P1/P2 from second incremental independent review
 ?? verification/independent-2c3-c4111e0-20261028/
 ?? verification/stage2d-offline-a12af92-20261028/
 == git worktree list ==
-C:/Zhy/code/go-rag                                        a12af92 [codex/stage2c2-fingerprint]
-C:/Users/<redacted>/.codex/worktrees/stage2c1-dimensions/go-rag  2dc0b82 [codex/stage2c1-dimensions]
-C:/Zhy/code/go-rag/.review-stage2c1-1850da1               1850da1 (detached HEAD)
-C:/Zhy/code/go-rag/.review-stage2c1-2dc0b82               a12af92 (detached HEAD)
-C:/Zhy/code/go-rag/.review-stage2c1-8611750               8611750 (detached HEAD)
-C:/Zhy/code/go-rag-review-1d3                             c15287a (detached HEAD)
+<WORKSPACE>                                        a12af92 [codex/stage2c2-fingerprint]
+<USER_HOME>/<redacted>/.codex/worktrees/stage2c1-dimensions/go-rag  2dc0b82 [codex/stage2c1-dimensions]
+<WORKSPACE>/.review-stage2c1-1850da1               1850da1 (detached HEAD)
+<WORKSPACE>/.review-stage2c1-2dc0b82               a12af92 (detached HEAD)
+<WORKSPACE>/.review-stage2c1-8611750               8611750 (detached HEAD)
+<WORKSPACE>                             c15287a (detached HEAD)
 == go version ==
 go version go1.27.1 windows/amd64
 == GOFLAGS ==
@@ -35,7 +35,7 @@ GOFLAGS=
 CGO_ENABLED=1
 CC=gcc
 == gcc (race 所需 C 工具链) ==
-C:\Program Files\mingw64\bin\gcc.exe
+<TOOLCHAIN>\bin\gcc.exe
 gcc.exe (x86_64-posix-seh-rev0, Built by MinGW-W64 project) 8.1.0
 == 凭据存在性（只记是否存在，不记值） ==
 DASHSCOPE_API_KEY=<absent>

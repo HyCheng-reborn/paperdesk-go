@@ -1,5 +1,5 @@
-Set-Location "c:\Zhy\code\go-rag\server"
-$logDir = "c:\Zhy\code\go-rag\verification\stage1d1"
+Set-Location "<WORKSPACE>\server"
+$logDir = "<WORKSPACE>\verification\stage1d1"
 
 # Retry race-core
 Write-Host ">>> Retrying: go test -race ./core -count=1"

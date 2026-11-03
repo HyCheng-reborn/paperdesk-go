@@ -1,6 +1,6 @@
-﻿# CMD: go test -race ./core/providers/... -count=10 -v -run "TestStream_|TestOwner_|TestInit_|TestRetrieve_|TestIndex_"
-# CWD: c:\Zhy\code\go-rag\server
-# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# CMD: go test -race ./core/providers/... -count=10 -v -run "TestStream_|TestOwner_|TestInit_|TestRetrieve_|TestIndex_"
+# CWD: <WORKSPACE>\server
+# ENV: PATH=<TOOLCHAIN>\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
 # EXIT: 0
 # DATE: 2026-10-20 11:43:16
 

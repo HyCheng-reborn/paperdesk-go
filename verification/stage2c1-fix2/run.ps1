@@ -9,8 +9,8 @@ $mapping=@{};$mapping[$virtual]=$source
 $numeric=Join-Path $root 'server/internal/logic/rag/independent_numeric_review_test.go'
 $mapping[$numeric]=Join-Path $r 'independent-numeric_test.go.txt'
 @{Replace=$mapping}|ConvertTo-Json -Depth 4|Set-Content "$r/overlay.json" -Encoding utf8
-$env:PATH='C:\msys64\ucrt64\bin;'+$env:PATH
-$env:CC='C:\msys64\ucrt64\bin\gcc.exe';$env:CXX='C:\msys64\ucrt64\bin\g++.exe';$env:CGO_ENABLED='1';$env:GOFLAGS='';$env:GOPROXY='off';$env:GOSUMDB='off'
+$env:PATH='<TOOLCHAIN>\ucrt64\bin;'+$env:PATH
+$env:CC='<TOOLCHAIN>\ucrt64\bin\gcc.exe';$env:CXX='<TOOLCHAIN>\ucrt64\bin\g++.exe';$env:CGO_ENABLED='1';$env:GOFLAGS='';$env:GOPROXY='off';$env:GOSUMDB='off'
 Set-Location server
 @("CODE_SHA: $sha",'BASELINE: 8611750bb89dbf0de268b04a212ca873d500cb6f',('CWD: '+(Get-Location).Path),'Process only; GOFLAGS empty; GOPROXY=off; GOSUMDB=off')|Set-Content "$r/environment.log"
 go version|Add-Content "$r/environment.log"

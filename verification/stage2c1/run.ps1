@@ -2,8 +2,8 @@ $ErrorActionPreference='Continue'
 $root=(Get-Location).Path
 $r=Join-Path $root 'verification/stage2c1'
 $sha=git rev-parse HEAD
-$env:PATH='C:\msys64\ucrt64\bin;'+$env:PATH
-$env:CC='C:\msys64\ucrt64\bin\gcc.exe';$env:CXX='C:\msys64\ucrt64\bin\g++.exe';$env:CGO_ENABLED='1';$env:GOFLAGS='';$env:GOPROXY='off';$env:GOSUMDB='off'
+$env:PATH='<TOOLCHAIN>\ucrt64\bin;'+$env:PATH
+$env:CC='<TOOLCHAIN>\ucrt64\bin\gcc.exe';$env:CXX='<TOOLCHAIN>\ucrt64\bin\g++.exe';$env:CGO_ENABLED='1';$env:GOFLAGS='';$env:GOPROXY='off';$env:GOSUMDB='off'
 Set-Location server
 @("CODE_SHA: $sha",'BASELINE: 8d2c21225d4627a2668cad788cc254f78f2e04e4',('CWD: '+(Get-Location).Path),'Process only; GOFLAGS empty; GOPROXY=off; GOSUMDB=off')|Set-Content "$r/environment.log"
 go version|Add-Content "$r/environment.log"

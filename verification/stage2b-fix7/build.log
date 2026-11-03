@@ -1,5 +1,5 @@
-﻿# CMD: go build ./...
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go build ./...
+# CWD: <WORKSPACE>\server
 # ENV: default
 # EXIT: 0
 # DATE: 2026-10-20 17:23:22

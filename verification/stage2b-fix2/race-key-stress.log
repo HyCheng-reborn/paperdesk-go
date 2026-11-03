@@ -1,6 +1,6 @@
-﻿# CMD: go test -race ./core/providers/... -count=10 -v -run "TestBudget_Real|TestBudget_Stream|TestBudget_Retry|TestBudget_Redirect|TestBudget_Output|TestBudget_Embedding|TestBudget_Local|TestStream_|TestReset_|TestConfig_|TestRerank_|TestBuilder_|TestEmbedding_"
-# CWD: c:\Zhy\code\go-rag\server
-# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# CMD: go test -race ./core/providers/... -count=10 -v -run "TestBudget_Real|TestBudget_Stream|TestBudget_Retry|TestBudget_Redirect|TestBudget_Output|TestBudget_Embedding|TestBudget_Local|TestStream_|TestReset_|TestConfig_|TestRerank_|TestBuilder_|TestEmbedding_"
+# CWD: <WORKSPACE>\server
+# ENV: PATH=<TOOLCHAIN>\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
 # EXIT: 1
 # DATE: 2026-10-20 00:35:07
 === RUN   TestBudget_RetryNoRefresh

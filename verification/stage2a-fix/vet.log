@@ -1,5 +1,5 @@
-﻿# CMD: go vet ./... 2>&1; exit $LASTEXITCODE
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go vet ./... 2>&1; exit $LASTEXITCODE
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 03:45:18
 # DURATION: 2.5s

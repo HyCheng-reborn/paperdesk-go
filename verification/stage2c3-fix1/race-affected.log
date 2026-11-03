@@ -1,5 +1,5 @@
 CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -race ./core/config ./core/providers ./core/vector ./core/common ./core ./internal/logic/rag -count=1 -timeout=600s
 DATE: 2026-10-28T11:57:26.6713206+08:00
 ok  	github.com/wangle201210/go-rag/server/core/config	10.214s

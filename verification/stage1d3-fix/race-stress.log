@@ -1,4 +1,4 @@
-﻿# CMD: go test -race ./core -count=10 -v -run TestIndex_SyncPanic_Stops|TestIndex_BackgroundSaveChunks|TestReset_Shutdown
+# CMD: go test -race ./core -count=10 -v -run TestIndex_SyncPanic_Stops|TestIndex_BackgroundSaveChunks|TestReset_Shutdown
 # GOFLAGS: (empty)
 # EXIT: 0
 # DATE: 2026-10-18 16:05:56
@@ -10,7 +10,7 @@
 2026-10-18T16:06:01.069+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.21s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -20,7 +20,7 @@ Stack:
 2026-10-18T16:06:01.277+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -30,7 +30,7 @@ Stack:
 2026-10-18T16:06:01.483+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -40,7 +40,7 @@ Stack:
 2026-10-18T16:06:01.688+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -50,7 +50,7 @@ Stack:
 2026-10-18T16:06:01.894+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -60,7 +60,7 @@ Stack:
 2026-10-18T16:06:02.100+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -70,7 +70,7 @@ Stack:
 2026-10-18T16:06:02.305+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -80,7 +80,7 @@ Stack:
 2026-10-18T16:06:02.511+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -90,7 +90,7 @@ Stack:
 2026-10-18T16:06:02.716+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 === RUN   TestIndex_SyncPanic_StopsAfterFuncBridge
@@ -100,7 +100,7 @@ Stack:
 2026-10-18T16:06:02.922+08:00 [ERRO] indexAsyncByDocsID failed, err=async error from saveChunks simulation 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func3
-    C:/Zhy/code/go-rag/server/core/indexer.go:212
+    <WORKSPACE>/server/core/indexer.go:212
 
 --- PASS: TestIndex_BackgroundSaveChunksFailure_NoDuplicateFailed (0.20s)
 PASS

@@ -1,9 +1,9 @@
 # CMD: go test ./core/providers/... -count=1 -v
-# CWD: c:\Zhy\code\go-rag\server
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-20 14:54:20
 
-$ cd c:\Zhy\code\go-rag\server; go test ./core/providers/... -count=1 -v 2>&1 | Tee-Object -Variable testOutput; echo "EXIT: $LASTEXITCODE"
+$ cd <WORKSPACE>\server; go test ./core/providers/... -count=1 -v 2>&1 | Tee-Object -Variable testOutput; echo "EXIT: $LASTEXITCODE"
 iders/... -count=1 -v 2>&1 | Tee-Object -Variable testOutput; echo "EXIT: $LASTEXITCODE"
 === RUN   TestAdapter_ChatRole
 --- PASS: TestAdapter_ChatRole (0.01s)

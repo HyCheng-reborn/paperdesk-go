@@ -10,10 +10,10 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
-Set-Location 'c:\Zhy\code\go-rag\server'
+Set-Location '<WORKSPACE>\server'
 
 if ($UseMsys) {
-    $env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
+    $env:PATH = "<TOOLCHAIN>\ucrt64\bin;$env:PATH"
     $env:CC = 'gcc'
     $env:CGO_ENABLED = '1'
 }
@@ -35,9 +35,9 @@ if ($null -eq $body) { $body = '' }
 $d = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 $gccVer = ''
 if ($UseMsys) {
-    $gccVer = (& C:\msys64\ucrt64\bin\gcc.exe --version 2>&1 | Select-Object -First 1) -join ''
+    $gccVer = (& <TOOLCHAIN>\ucrt64\bin\gcc.exe --version 2>&1 | Select-Object -First 1) -join ''
 }
-$header = "# CMD: $CmdLine`r`n# CWD: c:\Zhy\code\go-rag\server`r`n# ENV: $EnvNote`r`n# EXIT: $ec`r`n# DATE: $d`r`n# DURATION_SEC: $([math]::Round($sw.Elapsed.TotalSeconds, 1))`r`n"
+$header = "# CMD: $CmdLine`r`n# CWD: <WORKSPACE>\server`r`n# ENV: $EnvNote`r`n# EXIT: $ec`r`n# DATE: $d`r`n# DURATION_SEC: $([math]::Round($sw.Elapsed.TotalSeconds, 1))`r`n"
 if ($gccVer) { $header += "# GCC: $gccVer`r`n" }
 $header += "# GIT_HEAD: $((git rev-parse HEAD 2>&1) -join '')`r`n# NOTE: stdout and stderr are interleaved in a single stream`r`n"
 Set-Content -Path $LogFile -Value ($header + "--- OUTPUT BEGIN ---`r`n" + $body + "--- OUTPUT END ---`r`n") -NoNewline -Encoding UTF8

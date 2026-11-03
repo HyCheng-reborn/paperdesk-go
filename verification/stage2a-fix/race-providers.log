@@ -1,5 +1,5 @@
-﻿# CMD: go test -race ./core/providers/... -count=1 -timeout=180s 2>&1; exit $LASTEXITCODE
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test -race ./core/providers/... -count=1 -timeout=180s 2>&1; exit $LASTEXITCODE
+# CWD: <WORKSPACE>\server
 # EXIT: 1
 # DATE: 2026-10-19 03:46:33
 # DURATION: 2.6s

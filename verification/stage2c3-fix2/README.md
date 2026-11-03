@@ -4,7 +4,7 @@
 - 该起点的父提交（上一轮 P1-1…P2-3 修复）：`c4111e031521eb372198d6b428759637cf21fee8`
 - 分支：`codex/stage2c2-fingerprint`
 - 独立报告：`verification/independent-2c3-2c952ce-20261028/REPORT.md`
-- 运行时：go1.27.1 windows/amd64，`CGO_ENABLED=1`，CC=`C:\msys64\ucrt64\bin\gcc.exe`，`GOTMPDIR=C:\gotmp`
+- 运行时：go1.27.1 windows/amd64，`CGO_ENABLED=1`，CC=`<TOOLCHAIN>\ucrt64\bin\gcc.exe`，`GOTMPDIR=<TEMP>`
 - 离线约束：不调用真实模型 / ES / Qdrant / MySQL；只使用内存 transport、`httptest` 与本机 fake。
 
 > 日志里的 `CODE_SHA` 是**提交前**工作区的固定起点（`2c952ce…`）。修复提交的 SHA 以仓库
@@ -59,7 +59,7 @@
    `fork/exec` 或 `unlinkat` 阶段报 `Access is denied`（此时用例本身全 PASS）。原始日志保留为
    `focused-transient-exec-denied.log`、`focused-transient-tempfile-locked.log`、
    `affected-transient-tempfile-locked.log`、`full-transient-tempfile-locked.log`。
-2. 规避措施：设置 `GOTMPDIR=C:\gotmp`、对多包命令加 `-p 1` 串行，并仅在「日志中没有任何
+2. 规避措施：设置 `GOTMPDIR=<TEMP>`、对多包命令加 `-p 1` 串行，并仅在「日志中没有任何
    `--- FAIL` / `FAIL <pkg>` / `panic:`」时做最多 3 次重试（逐次记录 `ATTEMPT`）。最终
    `run.ps1` 全流程一次通过（每个日志均为 `ATTEMPT 1 EXIT: 0`）。
 3. `gofmt -l` 对 `server/core/vector/fingerprint.go`、`server/core/providers/adapter_test.go`

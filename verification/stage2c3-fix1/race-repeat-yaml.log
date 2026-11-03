@@ -1,5 +1,5 @@
 CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -race ./internal/logic/rag -run ^(TestP21_|TestP23_|TestP13_FactoryPath) -count=3 -timeout=300s -v
 DATE: 2026-10-28T11:58:37.8031082+08:00
 === RUN   TestP21_LegacyChatUsesDedicatedEndpointAndCredential

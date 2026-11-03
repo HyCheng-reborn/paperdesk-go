@@ -1,4 +1,4 @@
-﻿# CMD: go build ./...
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go build ./...
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 04:10:00

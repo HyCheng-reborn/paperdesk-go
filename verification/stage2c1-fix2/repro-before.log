@@ -1,5 +1,5 @@
 BASELINE: 8611750bb89dbf0de268b04a212ca873d500cb6f + new YAML boundary cases
-CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CWD: <USER_HOME>\.codex\worktrees\stage2c1-dimensions\go-rag\server
 CMD: go test ./internal/logic/rag -run ^TestDimensions_YAMLFileInvalidAndConflict$ -count=1 -timeout=120s -v
 === RUN   TestDimensions_YAMLFileInvalidAndConflict
 === RUN   TestDimensions_YAMLFileInvalidAndConflict/legacy/0

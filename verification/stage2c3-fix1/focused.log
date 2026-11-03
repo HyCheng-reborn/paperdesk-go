@@ -1,5 +1,5 @@
 CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test ./core/config ./core/providers ./core/vector ./core/common ./core ./internal/logic/rag -run ^(TestP11_|TestP12_|TestP13_|TestP21_|TestP22_|TestP23_|TestProviderNameNormalization|TestStrictBool_) -count=1 -timeout=300s -v
 DATE: 2026-10-28T11:56:10.0496693+08:00
 === RUN   TestStrictBool_MissingField_NoError

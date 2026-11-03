@@ -1,4 +1,4 @@
-﻿CMD: go test -tags online -p 1 -count=1 ./core/probe/...
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -tags online -p 1 -count=1 ./core/probe/...
+WORKDIR: <WORKSPACE>\server
 ok  	github.com/wangle201210/go-rag/server/core/probe	0.626s
 EXIT=0

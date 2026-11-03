@@ -1,5 +1,5 @@
-﻿# CMD: go test -p 1 ./... -count=1
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test -p 1 ./... -count=1
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 02:48:46
 ----

@@ -3,7 +3,7 @@
 ## 包信息
 
 - 模块：`github.com/wangle201210/chat-history v0.0.1`
-- 路径：`C:\Users\zhy\go\pkg\mod\github.com\wangle201210\chat-history@v0.0.1\`
+- 路径：`<USER_HOME>\go\pkg\mod\github.com\wangle201210\chat-history@v0.0.1\`
 
 ## 文件结构
 

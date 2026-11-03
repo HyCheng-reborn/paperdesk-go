@@ -4,7 +4,7 @@
 - 上一提交（父提交）：`6ab2027ecf8e5cf6664ac751f3a40305772d9ffd`
 - 分支：`codex/stage2c2-fingerprint`
 - 独立报告：`verification/independent-2c3-c4111e0-20261028/REPORT.md`
-- 运行时：go1.27.1 windows/amd64，`CGO_ENABLED=1`，CC=`C:\msys64\ucrt64\bin\gcc.exe`
+- 运行时：go1.27.1 windows/amd64，`CGO_ENABLED=1`，CC=`<TOOLCHAIN>\ucrt64\bin\gcc.exe`
 - 离线约束：不调用真实模型 / ES / Qdrant / MySQL；只使用 `httptest` 与本机 fake。
 
 ## 复现脚本
@@ -39,7 +39,7 @@
 首次执行 `-race` 时 `core/config`、`core/providers`、`core/common` 出现
 `exit status 0xc0000139`（Windows 下 cgo 测试二进制找不到 UCRT64 运行库 DLL），
 属于本机工具链 PATH 问题，不是测试失败。原始日志保留为
-`race-affected-cgo-dll-failed.log`。把 `C:\msys64\ucrt64\bin` 加入 `PATH` 并显式指定
+`race-affected-cgo-dll-failed.log`。把 `<TOOLCHAIN>\ucrt64\bin` 加入 `PATH` 并显式指定
 `CC/CXX` 后重跑，上述三包 `-race` 全部通过（见 `race-affected.log`）。
 
 ## 用例说明

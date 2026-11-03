@@ -1,4 +1,4 @@
-$dir = 'c:\Zhy\code\go-rag\verification\stage2b-fix3'
+$dir = '<WORKSPACE>\verification\stage2b-fix3'
 $out = Join-Path $dir 'analysis.log'
 $sb = New-Object System.Text.StringBuilder
 

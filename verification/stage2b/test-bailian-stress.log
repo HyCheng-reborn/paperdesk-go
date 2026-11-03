@@ -1,5 +1,5 @@
-﻿# CMD: go test ./core/providers/bailian/... -count=10 -v
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test ./core/providers/bailian/... -count=10 -v
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 18:18:42
 # SUMMARY: 31 tests x 10 runs = 310 PASS, 0 FAIL

@@ -1,6 +1,6 @@
-﻿# CMD: go test -race ./core/providers/... -count=10 -v -run "TestStream_|TestBudget_|TestOpenAI_|TestOwner_|TestRedirect_|TestEmbedding_Concurrent"
-# CWD: c:\Zhy\code\go-rag\server
-# ENV: PATH=C:\msys64\ucrt64\bin;<original PATH>, CC=gcc, CGO_ENABLED=1 (process-level only)
+# CMD: go test -race ./core/providers/... -count=10 -v -run "TestStream_|TestBudget_|TestOpenAI_|TestOwner_|TestRedirect_|TestEmbedding_Concurrent"
+# CWD: <WORKSPACE>\server
+# ENV: PATH=<TOOLCHAIN>\ucrt64\bin;<original PATH>, CC=gcc, CGO_ENABLED=1 (process-level only)
 # EXIT: 0
 # DATE: 2026-10-20 01:43:48
 # DURATION_SEC: 4.5

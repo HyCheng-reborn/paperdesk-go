@@ -1,5 +1,5 @@
 CODE_SHA: 62aeb772e38e56dbda8c70d2c47070e663df28e4
-CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CWD: <USER_HOME>\.codex\worktrees\stage2c1-dimensions\go-rag\server
 CMD: go test -p 1 ./... -count=1 -timeout=180s
 DATE: 2026-10-21T16:24:01.1319219+08:00
 ?   	github.com/wangle201210/go-rag/server	[no test files]

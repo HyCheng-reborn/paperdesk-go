@@ -1,4 +1,4 @@
-﻿# CMD: go test -race ./core -count=10 -v -run "TestIndex_Admission|TestIndex_Sync|TestIndex_Shutdown|TestIndex_AsyncWait|TestIndex_RequestCtx|TestIndex_IndexAndShutdown"
+# CMD: go test -race ./core -count=10 -v -run "TestIndex_Admission|TestIndex_Sync|TestIndex_Shutdown|TestIndex_AsyncWait|TestIndex_RequestCtx|TestIndex_IndexAndShutdown"
 # GOFLAGS: (empty)
 # EXIT: 0
 # DATE: 2026-10-18 13:53:16
@@ -7,9 +7,9 @@
 2026-10-18T13:53:12.093+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.01s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -27,9 +27,9 @@ Stack:
 2026-10-18T13:53:12.296+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:12.296+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -43,94 +43,94 @@ Stack:
 2026-10-18T13:53:12.296+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.296+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.296+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.296+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.296+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.296+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.296+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.296+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.297+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:12.297+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.297+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:12.297+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -157,9 +157,9 @@ Stack:
 2026-10-18T13:53:12.404+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -177,9 +177,9 @@ Stack:
 2026-10-18T13:53:12.606+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:12.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -192,48 +192,48 @@ Stack:
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -241,47 +241,47 @@ Stack:
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:12.606+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.606+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_Shutdown_WaitsAdmittedSyncAndBG (0.00s)
@@ -307,9 +307,9 @@ Stack:
 2026-10-18T13:53:12.711+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -327,9 +327,9 @@ Stack:
 2026-10-18T13:53:12.913+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:12.913+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -342,95 +342,95 @@ Stack:
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.913+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.913+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.913+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.913+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:12.913+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:12.913+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -457,9 +457,9 @@ Stack:
 2026-10-18T13:53:13.019+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -477,9 +477,9 @@ Stack:
 2026-10-18T13:53:13.222+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:13.222+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -492,95 +492,95 @@ Stack:
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.222+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.222+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:13.223+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:13.223+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -607,9 +607,9 @@ Stack:
 2026-10-18T13:53:13.328+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -627,9 +627,9 @@ Stack:
 2026-10-18T13:53:13.531+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:13.531+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -643,94 +643,94 @@ Stack:
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.531+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.531+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.531+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.531+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:13.531+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -757,9 +757,9 @@ Stack:
 2026-10-18T13:53:13.637+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -777,9 +777,9 @@ Stack:
 2026-10-18T13:53:13.839+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:13.839+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -792,13 +792,13 @@ Stack:
 2026-10-18T13:53:13.839+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.839+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.839+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -806,81 +806,81 @@ Stack:
 2026-10-18T13:53:13.839+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.839+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:13.839+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.839+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.839+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:13.839+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.840+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:13.840+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:13.840+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -907,9 +907,9 @@ Stack:
 2026-10-18T13:53:13.945+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -927,9 +927,9 @@ Stack:
 2026-10-18T13:53:14.147+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:14.147+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -942,95 +942,95 @@ Stack:
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.148+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.148+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.148+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.148+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.148+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:14.148+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -1057,9 +1057,9 @@ Stack:
 2026-10-18T13:53:14.253+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -1077,9 +1077,9 @@ Stack:
 2026-10-18T13:53:14.455+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -1092,95 +1092,95 @@ Stack:
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
+2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    <WORKSPACE>/server/core/indexer.go:143
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
+    <WORKSPACE>/server/core/indexer_test.go:603
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    <WORKSPACE>/server/core/indexer_test.go:59
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    <WORKSPACE>/server/core/indexer.go:159
+
+2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
-
-2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
-2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
-2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
-Stack:
-1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
-2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
-3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
-4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.455+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:14.455+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -1207,9 +1207,9 @@ Stack:
 2026-10-18T13:53:14.561+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -1227,9 +1227,9 @@ Stack:
 2026-10-18T13:53:14.763+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:14.763+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -1241,96 +1241,96 @@ Stack:
 2026-10-18T13:53:14.763+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.763+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.763+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.763+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.763+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.763+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.763+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.763+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.763+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.763+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:14.764+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:14.764+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:14.764+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:14.764+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
@@ -1357,9 +1357,9 @@ Stack:
 2026-10-18T13:53:14.869+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:100
+    <WORKSPACE>/server/core/indexer_test.go:100
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -1377,9 +1377,9 @@ Stack:
 2026-10-18T13:53:15.072+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:110
+    <WORKSPACE>/server/core/indexer.go:110
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:580
+    <WORKSPACE>/server/core/indexer_test.go:580
 
 2026-10-18T13:53:15.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -1392,95 +1392,95 @@ Stack:
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
-
-2026-10-18T13:53:15.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
-2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
-Stack:
-1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
-2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
-3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
-4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:15.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:15.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:15.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
+
+2026-10-18T13:53:15.072+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
+Stack:
+1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
+    <WORKSPACE>/server/core/indexer.go:143
+2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
+    <WORKSPACE>/server/core/indexer_test.go:603
+3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
+    <WORKSPACE>/server/core/indexer_test.go:59
+4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
+    <WORKSPACE>/server/core/indexer.go:159
 
 --- PASS: TestIndex_SyncSuccess_TransfersOwnershipOnce (0.00s)
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 2026-10-18T13:53:15.072+08:00 [ERRO] Index background panic: close of closed channel 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:143
+    <WORKSPACE>/server/core/indexer.go:143
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncSuccess_TransfersOwnershipOnce.func1
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:603
+    <WORKSPACE>/server/core/indexer_test.go:603
 3.  github.com/wangle201210/go-rag/server/core.(*fakeAsyncIndexer).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:59
+    <WORKSPACE>/server/core/indexer_test.go:59
 4.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:159
+    <WORKSPACE>/server/core/indexer.go:159
 
 === RUN   TestIndex_Shutdown_WaitsAdmittedSyncAndBG
 2026-10-18T13:53:15.073+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]

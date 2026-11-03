@@ -83,7 +83,7 @@
 
 ## 3. 补充复现的复跑方式（原证据只读）
 
-复核方当时在 detached worktree `C:/Zhy/code/go-rag/.review-stage2c1-2dc0b82` 内用 `-overlay` 把反例映射进包。本次**不修改**该 worktree 与任何复核目录，而是在真实工作区用新的 overlay JSON 将同一份未修改的反例源码映射进 `server/core/probe` 包：
+复核方当时在 detached worktree `<WORKSPACE>/.review-stage2c1-2dc0b82` 内用 `-overlay` 把反例映射进包。本次**不修改**该 worktree 与任何复核目录，而是在真实工作区用新的 overlay JSON 将同一份未修改的反例源码映射进 `server/core/probe` 包：
 
 | 复跑 | overlay key（虚拟/既有文件） | value（复核源码，未修改） |
 |---|---|---|
@@ -108,7 +108,7 @@
 
 ## 5. 命令与结果（干净目标测试，默认与 online 分开）
 
-环境：Windows/amd64、Go 1.27.1、UCRT64 gcc 16.2.0（`C:/msys64/ucrt64/bin/gcc.exe`）、`GOPROXY=off`、`GOSUMDB=off`、`GOFLAGS=`。完整命令另见 `run-tests.ps1` / `run-overlays.ps1`。
+环境：Windows/amd64、Go 1.27.1、UCRT64 gcc 16.2.0（`<TOOLCHAIN>/ucrt64/bin/gcc.exe`）、`GOPROXY=off`、`GOSUMDB=off`、`GOFLAGS=`。完整命令另见 `run-tests.ps1` / `run-overlays.ps1`。
 
 | 日志 | 命令（`WORKDIR=server/`） | 结果 |
 |---|---|---|

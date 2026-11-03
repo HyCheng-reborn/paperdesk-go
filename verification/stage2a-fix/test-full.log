@@ -1,5 +1,5 @@
-﻿# CMD: go test -p 1 ./... -count=1 2>&1; exit $LASTEXITCODE
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test -p 1 ./... -count=1 2>&1; exit $LASTEXITCODE
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 03:47:38
 # DURATION: 47.2s

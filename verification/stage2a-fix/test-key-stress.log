@@ -1,5 +1,5 @@
-﻿# CMD: go test ./core/providers/... -count=10 -v -run 'TestBudget_Negative|TestBudget_Overflow|TestBudget_Owner|TestBudget_Deadline|TestBudget_Transfer|TestProfile_CacheKey|TestRegistry_Snapshot|TestBudget_Concurrent|TestBudget_SlotRelease' 2>&1; exit $LASTEXITCODE
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test ./core/providers/... -count=10 -v -run 'TestBudget_Negative|TestBudget_Overflow|TestBudget_Owner|TestBudget_Deadline|TestBudget_Transfer|TestProfile_CacheKey|TestRegistry_Snapshot|TestBudget_Concurrent|TestBudget_SlotRelease' 2>&1; exit $LASTEXITCODE
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 03:45:55
 # DURATION: 2.1s

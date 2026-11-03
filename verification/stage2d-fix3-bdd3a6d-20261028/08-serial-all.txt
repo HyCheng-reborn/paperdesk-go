@@ -1,5 +1,5 @@
-﻿CMD: go test -p 1 -count=1 ./...
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -p 1 -count=1 ./...
+WORKDIR: <WORKSPACE>\server
 ?   	github.com/wangle201210/go-rag/server	[no test files]
 ?   	github.com/wangle201210/go-rag/server/api/rag	[no test files]
 ?   	github.com/wangle201210/go-rag/server/api/rag/v1	[no test files]

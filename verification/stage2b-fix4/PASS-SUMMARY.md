@@ -1,7 +1,7 @@
 # Stage 2B Fix4 Verification Summary
 
 - **Date**: 2026-10-20
-- **CWD**: c:\Zhy\code\go-rag\server
+- **CWD**: <WORKSPACE>\server
 - **Toolchain**: Go 1.27.1 windows/amd64, MSYS2 UCRT64 gcc 16.2.0
 
 ## Exit Code Summary

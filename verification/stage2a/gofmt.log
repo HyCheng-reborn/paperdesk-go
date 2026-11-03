@@ -1,5 +1,5 @@
-﻿# CMD: gofmt -l core/providers/
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: gofmt -l core/providers/
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 02:46:47
 ----

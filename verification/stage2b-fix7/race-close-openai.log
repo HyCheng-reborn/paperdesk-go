@@ -1,6 +1,6 @@
-﻿# CMD: go test -race ./core/providers/openai/... -count=10 -v -run "TestIndependentStreamEarlyClose"
-# CWD: c:\Zhy\code\go-rag\server
-# ENV: PATH=C:\msys64\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
+# CMD: go test -race ./core/providers/openai/... -count=10 -v -run "TestIndependentStreamEarlyClose"
+# CWD: <WORKSPACE>\server
+# ENV: PATH=<TOOLCHAIN>\ucrt64\bin;..., CC=gcc, CGO_ENABLED=1
 # EXIT: 0
 # DATE: 2026-10-20 17:25:03
 

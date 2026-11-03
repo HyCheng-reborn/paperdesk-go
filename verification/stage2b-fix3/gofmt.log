@@ -1,5 +1,5 @@
-﻿# CMD: gofmt -l core/providers/ core/common/ core/config/ internal/logic/rag/ internal/logic/chat/ core/
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: gofmt -l core/providers/ core/common/ core/config/ internal/logic/rag/ internal/logic/chat/ core/
+# CWD: <WORKSPACE>\server
 # ENV: default (gofmt needs no CGO toolchain)
 # EXIT: 0
 # DATE: 2026-10-20 01:42:24

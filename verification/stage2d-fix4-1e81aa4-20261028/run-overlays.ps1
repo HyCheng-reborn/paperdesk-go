@@ -18,7 +18,7 @@
 #     证明这些用例不是空转。
 
 $ErrorActionPreference = 'Continue'
-$root = 'C:\Zhy\code\go-rag'
+$root = '<WORKSPACE>'
 $outDir = Join-Path $root 'verification\stage2d-fix4-1e81aa4-20261028'
 $reviewGate = Join-Path $root 'verification\independent-2d-1e81aa-gate'
 $reviewValidation = Join-Path $root 'verification\independent-2d-1e81aa-validation'
@@ -27,8 +27,8 @@ $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = 'C:/msys64/ucrt64/bin/gcc.exe'
-$env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
+$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
+$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 
@@ -59,10 +59,10 @@ function Write-Overlay {
 }
 
 # ---- 复核原始源码的 overlay 映射 ----
-Write-Overlay 'overlay-review-gate.json' 'C:/Zhy/code/go-rag/server/core/probe/independent_review_gate_test.go' (Join-Path $reviewGate 'review_gate_test.go')
-Write-Overlay 'overlay-review-gate-ctx.json' 'C:/Zhy/code/go-rag/server/core/probe/independent_review_gate_ctx_test.go' (Join-Path $reviewGate 'review_gate_ctx_test.go')
-Write-Overlay 'overlay-review-attempt.json' 'C:/Zhy/code/go-rag/server/core/probe/independent_review_attempt_test.go' (Join-Path $reviewGate 'review_attempt_test.go')
-Write-Overlay 'overlay-review-space-model.json' 'C:/Zhy/code/go-rag/server/core/probe/independent_review_space_model_test.go' (Join-Path $reviewValidation 'space_model_test.go')
+Write-Overlay 'overlay-review-gate.json' '<WORKSPACE>/server/core/probe/independent_review_gate_test.go' (Join-Path $reviewGate 'review_gate_test.go')
+Write-Overlay 'overlay-review-gate-ctx.json' '<WORKSPACE>/server/core/probe/independent_review_gate_ctx_test.go' (Join-Path $reviewGate 'review_gate_ctx_test.go')
+Write-Overlay 'overlay-review-attempt.json' '<WORKSPACE>/server/core/probe/independent_review_attempt_test.go' (Join-Path $reviewGate 'review_attempt_test.go')
+Write-Overlay 'overlay-review-space-model.json' '<WORKSPACE>/server/core/probe/independent_review_space_model_test.go' (Join-Path $reviewValidation 'space_model_test.go')
 
 $ovGate = Join-Path $outDir 'overlay-review-gate.json'
 $ovGateCtx = Join-Path $outDir 'overlay-review-gate-ctx.json'
@@ -76,8 +76,8 @@ Invoke-Logged '23-review-space-model.txt' @('test', '-tags', 'online', '-overlay
 Invoke-Logged '24-review-normalized-similarity.txt' @('test', '-tags', 'online', '-overlay', $ovSpace, '-p', '1', './core/probe', '-run', '^TestReviewNormalizedSimilarityReadyButFakeSchemaFails$', '-count=1', '-v')
 
 # ---- 变异：剥离修复后，对应用例必须失败（非空转证据）----
-Write-Overlay 'overlay-mutation-sendgate.json' 'C:/Zhy/code/go-rag/server/core/probe/sendgate.go' (Join-Path $outDir 'mutation-sendgate-no-commit.go')
-Write-Overlay 'overlay-mutation-canonical.json' 'C:/Zhy/code/go-rag/server/core/probe/probe.go' (Join-Path $outDir 'mutation-probe-no-canonical.go')
+Write-Overlay 'overlay-mutation-sendgate.json' '<WORKSPACE>/server/core/probe/sendgate.go' (Join-Path $outDir 'mutation-sendgate-no-commit.go')
+Write-Overlay 'overlay-mutation-canonical.json' '<WORKSPACE>/server/core/probe/probe.go' (Join-Path $outDir 'mutation-probe-no-canonical.go')
 
 $ovMutSend = Join-Path $outDir 'overlay-mutation-sendgate.json'
 $ovMutCanon = Join-Path $outDir 'overlay-mutation-canonical.json'

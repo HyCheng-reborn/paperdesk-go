@@ -1,5 +1,5 @@
 # CMD: go test -p 1 ./... -count=1 -timeout=300s
-# CWD: c:\Zhy\code\go-rag\server
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-20 21:10:14
 

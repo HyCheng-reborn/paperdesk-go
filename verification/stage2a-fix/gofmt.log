@@ -1,5 +1,5 @@
-﻿# CMD: gofmt -l core/providers/; exit $LASTEXITCODE
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: gofmt -l core/providers/; exit $LASTEXITCODE
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-19 03:45:01
 # DURATION: 0.3s

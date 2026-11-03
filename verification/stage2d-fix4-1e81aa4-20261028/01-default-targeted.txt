@@ -1,5 +1,5 @@
-﻿CMD: go test ./core/probe ./core/rerank -count=1 -v -run TestSendGate|TestStepReport_CountsSeparateCommitFromSend|TestPlan_CanonicalIdentityRejectedEverywhere|TestPlan_TargetRulesMatchProduction|TestPreflight_RejectsNilRerankDocumentBeforeAnySend
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test ./core/probe ./core/rerank -count=1 -v -run TestSendGate|TestStepReport_CountsSeparateCommitFromSend|TestPlan_CanonicalIdentityRejectedEverywhere|TestPlan_TargetRulesMatchProduction|TestPreflight_RejectsNilRerankDocumentBeforeAnySend
+WORKDIR: <WORKSPACE>\server
 === RUN   TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt
 --- PASS: TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt (0.01s)
 === RUN   TestSendGate_InFlightRequestIsNotRevokedAndNotRetried

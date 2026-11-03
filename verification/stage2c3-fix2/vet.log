@@ -1,5 +1,5 @@
 CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go vet ./...
 DATE: 2026-10-28T16:09:19.9540127+08:00
 ATTEMPT: 1

@@ -1,4 +1,4 @@
-﻿# CMD: go test -race ./core -count=10 -v -run "TestIndexAsyncByDocsID_"
+# CMD: go test -race ./core -count=10 -v -run "TestIndexAsyncByDocsID_"
 # GOFLAGS: (empty)
 # EXIT: 0
 # DATE: 2026-10-17 10:51:28
@@ -10,9 +10,9 @@
 2026-10-17T10:51:17.152+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.01s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -20,9 +20,9 @@ Stack:
 2026-10-17T10:51:17.152+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -32,11 +32,11 @@ Stack:
 2026-10-17T10:51:18.153+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -44,9 +44,9 @@ Stack:
 2026-10-17T10:51:18.154+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -54,9 +54,9 @@ Stack:
 2026-10-17T10:51:18.154+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -64,9 +64,9 @@ Stack:
 2026-10-17T10:51:18.154+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -88,9 +88,9 @@ Stack:
 2026-10-17T10:51:18.157+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -98,9 +98,9 @@ Stack:
 2026-10-17T10:51:18.157+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -110,11 +110,11 @@ Stack:
 2026-10-17T10:51:19.158+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -122,9 +122,9 @@ Stack:
 2026-10-17T10:51:19.158+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -132,9 +132,9 @@ Stack:
 2026-10-17T10:51:19.159+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -142,9 +142,9 @@ Stack:
 2026-10-17T10:51:19.159+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -166,9 +166,9 @@ Stack:
 2026-10-17T10:51:19.162+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -176,9 +176,9 @@ Stack:
 2026-10-17T10:51:19.162+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -188,11 +188,11 @@ Stack:
 2026-10-17T10:51:20.163+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -200,9 +200,9 @@ Stack:
 2026-10-17T10:51:20.163+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -210,9 +210,9 @@ Stack:
 2026-10-17T10:51:20.164+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -220,9 +220,9 @@ Stack:
 2026-10-17T10:51:20.164+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -244,9 +244,9 @@ Stack:
 2026-10-17T10:51:20.167+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -254,9 +254,9 @@ Stack:
 2026-10-17T10:51:20.167+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -266,11 +266,11 @@ Stack:
 2026-10-17T10:51:21.168+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -278,9 +278,9 @@ Stack:
 2026-10-17T10:51:21.168+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -288,9 +288,9 @@ Stack:
 2026-10-17T10:51:21.168+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -298,9 +298,9 @@ Stack:
 2026-10-17T10:51:21.168+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -322,9 +322,9 @@ Stack:
 2026-10-17T10:51:21.171+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -332,9 +332,9 @@ Stack:
 2026-10-17T10:51:21.171+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -344,11 +344,11 @@ Stack:
 2026-10-17T10:51:22.171+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -356,9 +356,9 @@ Stack:
 2026-10-17T10:51:22.172+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -366,9 +366,9 @@ Stack:
 2026-10-17T10:51:22.172+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -376,9 +376,9 @@ Stack:
 2026-10-17T10:51:22.172+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -400,9 +400,9 @@ Stack:
 2026-10-17T10:51:22.174+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -410,9 +410,9 @@ Stack:
 2026-10-17T10:51:22.174+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -422,11 +422,11 @@ Stack:
 2026-10-17T10:51:23.175+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -434,9 +434,9 @@ Stack:
 2026-10-17T10:51:23.176+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -444,9 +444,9 @@ Stack:
 2026-10-17T10:51:23.176+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -454,9 +454,9 @@ Stack:
 2026-10-17T10:51:23.177+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -478,9 +478,9 @@ Stack:
 2026-10-17T10:51:23.179+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -488,9 +488,9 @@ Stack:
 2026-10-17T10:51:23.179+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -500,11 +500,11 @@ Stack:
 2026-10-17T10:51:24.181+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -512,9 +512,9 @@ Stack:
 2026-10-17T10:51:24.182+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -522,9 +522,9 @@ Stack:
 2026-10-17T10:51:24.182+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -532,9 +532,9 @@ Stack:
 2026-10-17T10:51:24.183+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -556,9 +556,9 @@ Stack:
 2026-10-17T10:51:24.185+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -566,9 +566,9 @@ Stack:
 2026-10-17T10:51:24.186+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -578,11 +578,11 @@ Stack:
 2026-10-17T10:51:25.186+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -590,9 +590,9 @@ Stack:
 2026-10-17T10:51:25.186+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -600,9 +600,9 @@ Stack:
 2026-10-17T10:51:25.187+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -610,9 +610,9 @@ Stack:
 2026-10-17T10:51:25.187+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -634,9 +634,9 @@ Stack:
 2026-10-17T10:51:25.189+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -644,9 +644,9 @@ Stack:
 2026-10-17T10:51:25.189+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -656,11 +656,11 @@ Stack:
 2026-10-17T10:51:26.190+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -668,9 +668,9 @@ Stack:
 2026-10-17T10:51:26.190+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -678,9 +678,9 @@ Stack:
 2026-10-17T10:51:26.190+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -688,9 +688,9 @@ Stack:
 2026-10-17T10:51:26.190+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess
@@ -712,9 +712,9 @@ Stack:
 2026-10-17T10:51:26.193+08:00 [ERRO] indexAsyncByDocsID sonic.Marshal failed for doc doc1, err=json: unsupported type: chan int 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:216
+    <WORKSPACE>/server/core/indexer.go:216
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MarshalError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:598
+    <WORKSPACE>/server/core/indexer_test.go:598
 
 --- PASS: TestIndexAsyncByDocsID_MarshalError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_MissingDocs_ReturnsError
@@ -722,9 +722,9 @@ Stack:
 2026-10-17T10:51:26.193+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_MissingDocs_ReturnsError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:632
+    <WORKSPACE>/server/core/indexer_test.go:632
 
 --- PASS: TestIndexAsyncByDocsID_MissingDocs_ReturnsError (0.00s)
 === RUN   TestIndexAsyncByDocsID_RetryExhausted_Missing
@@ -734,11 +734,11 @@ Stack:
 2026-10-17T10:51:27.193+08:00 [ERRO] indexAsyncByDocsID documents missing after retries, missing=[b] 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:188
+    <WORKSPACE>/server/core/indexer.go:188
 2.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:184
+    <WORKSPACE>/server/core/indexer.go:184
 3.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_RetryExhausted_Missing
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:656
+    <WORKSPACE>/server/core/indexer_test.go:656
 
 --- PASS: TestIndexAsyncByDocsID_RetryExhausted_Missing (1.00s)
 === RUN   TestIndexAsyncByDocsID_SaveChunksError_Stops
@@ -746,9 +746,9 @@ Stack:
 2026-10-17T10:51:27.193+08:00 [ERRO] indexAsyncByDocsID insert chunks failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:237
+    <WORKSPACE>/server/core/indexer.go:237
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_SaveChunksError_Stops
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:681
+    <WORKSPACE>/server/core/indexer_test.go:681
 
 --- PASS: TestIndexAsyncByDocsID_SaveChunksError_Stops (0.00s)
 === RUN   TestIndexAsyncByDocsID_IndexAsyncError_NoActive
@@ -756,9 +756,9 @@ Stack:
 2026-10-17T10:51:27.194+08:00 [ERRO] indexAsyncByDocsID IndexAsync failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:249
+    <WORKSPACE>/server/core/indexer.go:249
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_IndexAsyncError_NoActive
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:709
+    <WORKSPACE>/server/core/indexer_test.go:709
 
 --- PASS: TestIndexAsyncByDocsID_IndexAsyncError_NoActive (0.00s)
 === RUN   TestIndexAsyncByDocsID_ActiveUpdateError
@@ -766,9 +766,9 @@ Stack:
 2026-10-17T10:51:27.195+08:00 [ERRO] indexAsyncByDocsID UpdateDocumentsStatus Active failed, err=sentinel test error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).indexAsyncByDocsID
-    C:/Zhy/code/go-rag/server/core/indexer.go:255
+    <WORKSPACE>/server/core/indexer.go:255
 2.  github.com/wangle201210/go-rag/server/core.TestIndexAsyncByDocsID_ActiveUpdateError
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:735
+    <WORKSPACE>/server/core/indexer_test.go:735
 
 --- PASS: TestIndexAsyncByDocsID_ActiveUpdateError (0.00s)
 === RUN   TestIndexAsyncByDocsID_FullSuccess

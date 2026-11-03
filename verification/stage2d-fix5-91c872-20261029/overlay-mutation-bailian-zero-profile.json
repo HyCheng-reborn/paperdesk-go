@@ -1,5 +1,5 @@
 {
   "Replace": {
-    "C:/Zhy/code/go-rag/server/core/providers/bailian/embedding.go": "C:/Zhy/code/go-rag/verification/stage2d-fix5-91c872-20261029/mutation-bailian-zero-profile.go"
+    "<WORKSPACE>/server/core/providers/bailian/embedding.go": "<WORKSPACE>/verification/stage2d-fix5-91c872-20261029/mutation-bailian-zero-profile.go"
   }
 }

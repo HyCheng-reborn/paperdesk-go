@@ -2,8 +2,8 @@ Stage 2D S-1 fix batch 1 —— 命令与退出码汇总
 固定起点（父提交）= 7a30899b0e205ad714b5a8ac4db152eb200bcb76
 祖父提交        = a12af924f0441363b46e0fec41fca29bdc30993a
 分支            = codex/stage2c2-fingerprint
-工作目录        = C:/Zhy/code/go-rag/server（除标注外）
-环境            = go1.27.1 windows/amd64；gcc 16.2.0 (UCRT64, C:/msys64/ucrt64/bin)
+工作目录        = <WORKSPACE>/server（除标注外）
+环境            = go1.27.1 windows/amd64；gcc 16.2.0 (UCRT64, <TOOLCHAIN>/ucrt64/bin)
 
 [1] go test -p 1 ./core/probe/... -count=1 -v
     exit 0  log: test-probe-default.log
@@ -27,7 +27,7 @@ Stage 2D S-1 fix batch 1 —— 命令与退出码汇总
     TestOnlineBuild_QuerySecretNotEchoedInEvidence / TestOnlineBuild_CredentialValueNeverAppearsInEvidence /
     TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
 
-[3] PATH += C:/msys64/ucrt64/bin; CC=C:/msys64/ucrt64/bin/gcc.exe; CGO_ENABLED=1
+[3] PATH += <TOOLCHAIN>/ucrt64/bin; CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe; CGO_ENABLED=1
     go test -race -p 1 ./core/probe/... -count=1 -v
     exit 0  log: race-probe-default.log
 

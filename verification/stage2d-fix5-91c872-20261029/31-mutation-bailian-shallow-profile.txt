@@ -1,5 +1,5 @@
-﻿CMD: go test -overlay C:\Zhy\code\go-rag\verification\stage2d-fix5-91c872-20261029\overlay-mutation-bailian-shallow-profile.json -p 1 ./core/probe -run ^TestBailianEmbeddingProfileIsDefensiveCopy$ -count=1 -v
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -overlay <WORKSPACE>\verification\stage2d-fix5-91c872-20261029\overlay-mutation-bailian-shallow-profile.json -p 1 ./core/probe -run ^TestBailianEmbeddingProfileIsDefensiveCopy$ -count=1 -v
+WORKDIR: <WORKSPACE>\server
 === RUN   TestBailianEmbeddingProfileIsDefensiveCopy
     bailian_identity_test.go:185: second snapshot KeyOptions = "tampered", want probe (internal map leaked)
 --- FAIL: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)

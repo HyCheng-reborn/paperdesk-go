@@ -1,8 +1,8 @@
-﻿DATE: 2026-10-28T22:58:33.0369289+08:00
-ROOT: C:\Zhy\code\go-rag
+DATE: 2026-10-28T22:58:33.0369289+08:00
+ROOT: <WORKSPACE>
 go version go1.27.1 windows/amd64
 gcc.exe (Rev6, Built by MSYS2 project) 16.2.0
-GOPROXY=off GOSUMDB=off CGO_ENABLED=1 CC=C:/msys64/ucrt64/bin/gcc.exe
+GOPROXY=off GOSUMDB=off CGO_ENABLED=1 CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe
 1e81aa406501219d4ce1ad7c2083c4819cfcf644
 bdd3a6dedb4a0284e1db8925de489c80d5aba3d3
  M .git-commit-msg.txt

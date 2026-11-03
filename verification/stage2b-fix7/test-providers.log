@@ -1,10 +1,10 @@
-﻿# CMD: go test ./core/providers/... -count=1 -v
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test ./core/providers/... -count=1 -v
+# CWD: <WORKSPACE>\server
 # ENV: default
 # EXIT: 0
 # DATE: 2026-10-20 17:25:23
 
-$ cd c:\Zhy\code\go-rag\server; go test ./core/providers/... -count=1 -v 2>&1 | Out-String
+$ cd <WORKSPACE>\server; go test ./core/providers/... -count=1 -v 2>&1 | Out-String
 iders/... -count=1 -v 2>&1 | Out-String
 === RUN   TestAdapter_ChatRole
 --- PASS: TestAdapter_ChatRole (0.01s)

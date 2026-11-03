@@ -1,7 +1,7 @@
 Stage 2D S-1 fix batch 2 (incremental review of 3aea024) - environment
 
-repo            = C:/Zhy/code/go-rag
-work dir        = C:/Zhy/code/go-rag/server (unless noted)
+repo            = <WORKSPACE>
+work dir        = <WORKSPACE>/server (unless noted)
 go version      = go version go1.27.1 windows/amd64
 GOOS/GOARCH     = windows/amd64
 CGO_ENABLED     = 1

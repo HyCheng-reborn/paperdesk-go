@@ -1,5 +1,5 @@
-﻿# CMD: go test ./core/providers/... -count=1 -v
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test ./core/providers/... -count=1 -v
+# CWD: <WORKSPACE>\server
 # EXIT: 0
 # DATE: 2026-10-20 00:34:43
 === RUN   TestAdapter_ChatRole

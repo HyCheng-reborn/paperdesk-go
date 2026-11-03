@@ -71,7 +71,7 @@
 |---|---|---|---|---|
 | 1 | `go test -p 1 ./core/probe/... -count=1 -v` | 0 | `--- PASS` 32，`--- FAIL` 0 | `test-probe-default.log` |
 | 2 | `go test -tags online -p 1 ./core/probe/... -count=1 -v` | 0 | `--- PASS` 39，`--- FAIL` 0 | `test-probe-online.log` |
-| 3 | `PATH+=C:/msys64/ucrt64/bin`, `CC=C:/msys64/ucrt64/bin/gcc.exe`; `go test -race -p 1 ./core/probe/... -count=1 -v` | 0 | `DATA RACE` 0 行 | `race-probe-default.log` |
+| 3 | `PATH+=<TOOLCHAIN>/ucrt64/bin`, `CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe`; `go test -race -p 1 ./core/probe/... -count=1 -v` | 0 | `DATA RACE` 0 行 | `race-probe-default.log` |
 | 4 | `go test -tags online -race -p 1 ./core/probe/... -count=1 -v` | 0 | `DATA RACE` 0 行 | `race-probe-online.log` |
 | 5 | `go test -race -p 1 ./core/probe/ -count=5 -v -run '<授权/并发停止/预检/克隆/W1-W5/重定向/停止原因>'` | 0 | 5 轮全部 PASS，`DATA RACE` 0 行 | `race-targeted-repeat-default.log` |
 | 6 | `go test -tags online -race -p 1 ./core/probe/ -count=5 -v -run '<online 授权/预检角色/凭据/W1-W5/并发停止/克隆>'` | 0 | 5 轮全部 PASS，`DATA RACE` 0 行 | `race-targeted-repeat-online.log` |

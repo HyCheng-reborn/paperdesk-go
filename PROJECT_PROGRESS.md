@@ -46,7 +46,7 @@
 
 - **被验收完整 SHA**：`71c4c81cb6a3eae060365e1f59f6dfe79aed83ce`；本轮审查范围 `3e24a533f99aaa8578b848ae550dfd2e10292723..71c4c81`（1D-3 累计起点 `17d7654`）。已用 Git 对象核实该完整 SHA（= 当前 HEAD）。
 - **独立报告**：`verification/independent-1d3-71c4c81/REPORT.md`。结论：1D-3 有明确边界可通过，未发现剩余阻塞；可验收 1D-3，**不代表整个 Stage 1 完成**。
-- **本地 Codex 干净树独立重跑**（`C:/Zhy/code/go-rag-review-1d3/server`，Go 1.27.1 windows/amd64，CGO=1/gcc，GOPROXY=off、GOSUMDB=off、无 online 标签、无真实 DB/ES/Qdrant/模型），全 EXIT 0（日志 `target-1..7.log`）：受影响包普通测试、同组 `-race`、关键用例 `-race -count=10 -v`（正则 `^(TestIndex_Background(Chunks.*|CleanupBeforeDone)|TestSaveChunks_IndexingOnlyUpdater_SkipsFailed|TestShutdownCoordinator_.*)$`，命中 12 项×10=120 RUN，无 no tests to run）、`-p 1 ./...` 串行全量、`go build ./...`、`go vet ./...`。本轮未出现 `0xc0000139`。
+- **本地 Codex 干净树独立重跑**（`<WORKSPACE>/server`，Go 1.27.1 windows/amd64，CGO=1/gcc，GOPROXY=off、GOSUMDB=off、无 online 标签、无真实 DB/ES/Qdrant/模型），全 EXIT 0（日志 `target-1..7.log`）：受影响包普通测试、同组 `-race`、关键用例 `-race -count=10 -v`（正则 `^(TestIndex_Background(Chunks.*|CleanupBeforeDone)|TestSaveChunks_IndexingOnlyUpdater_SkipsFailed|TestShutdownCoordinator_.*)$`，命中 12 项×10=120 RUN，无 no tests to run）、`-p 1 ./...` 串行全量、`go build ./...`、`go vet ./...`。本轮未出现 `0xc0000139`。
 - **真实生产适配器补证**（`production-adapter.log` EXIT 0）：`TestReviewProductionAdapterChunksLifecycle` 用真实 `prodAsyncIndexer`→真实 `indexAsyncByDocsID`→知识层 `SaveChunksDataWithDeps`（共享 `saveChunks`+`indexingOnly`），三场景各十轮 race：chunk insert 失败→Failed 恰好一次/无 Active/QA 未执行/原始 sentinel 与 docID 可识别/清理 ctx 未取消；chunks 成功→Indexing→Active 一次无 Failed；Indexing 写失败→原始 sentinel 保留、Failed 一次。结果归属“目标＋独立补充测试”，不计入目标自带次数；不测真实 DAO/SQL driver/真实模型。
 - **两前次阻塞闭合**：①依赖不完整（chunks.go `ChunkStore`/`DocStatusUpdater`/`SaveChunksDataWithDeps`，与生产 `SaveChunksDataIndexingOnly` 同内核，公开签名不变）；②完成边界与 cleanup 假通过（组合测试先等内层再等生产 Shutdown，覆盖 markFailed/容量释放/bgWG.Done）。
 - **r4 归属**：`verification/stage1d3-r4/` 在验收提交中未跟踪，为原工作区未跟踪；已有独立补证，不为其再开修复或重复测试轮次，不改写历史日志；`server/verification/stage1d3a` 错位历史日志本轮纳入但不当 r4 新验证。
@@ -746,7 +746,7 @@
 - **被验收完整 SHA**：`c15287a71a61f2b3c0d619c071265d08c76d3555`（= 当前 HEAD/交付提交）；修复基线 `91ab52dd3f942da00fadcdbb8963a5537a0e4c9a`（已核实为祖先）。报告：`verification/independent-2b-c15287a/REPORT.md`。**注**：报告实际审查对象经核实为 `c15287a`（非假定）；修复基线 `91ab52d` 不等同 2B 累计起点。
 - **结论**：通过。在既定离线边界内 2B 可验收，未发现剩余阻塞；不宣布整个 Stage 2 完成。
 - **本轮修复**：百炼父取消背压——Registry 直返 bailian builder role、旧 `wrapLeaseStreamReader` 丢弃传入 ctx；导出 `WrapBudgetStreamReader`，百炼 `chatAdapter.StreamSession` 传入原始父 ctx，删除旧包装（约 90 行），百炼与 OpenAI 同一生命周期验收路径。R1（预留溢出）/R2（resolver Profile 隔离）保持闭合。
-- **Codex 干净树独立实测**（`C:/Zhy/code/go-rag-review-1d3/server`，MSYS2 UCRT64 GCC 16.2.0/Binutils 2.47，离线 httptest only，全 EXIT 0）：ordinary 305/330、race-providers 138/152、race-wiring 188/199、race-key-stress 580/580、race-chat-key 70/70、`-p 1 ./...`、vet、build；另独立复现 managed-review/race-managed-review（百炼/OpenAI 父取消、nil-budget）。均 0 DATA RACE；未把 no-tests/普通测试当 race。
+- **Codex 干净树独立实测**（`<WORKSPACE>/server`，MSYS2 UCRT64 GCC 16.2.0/Binutils 2.47，离线 httptest only，全 EXIT 0）：ordinary 305/330、race-providers 138/152、race-wiring 188/199、race-key-stress 580/580、race-chat-key 70/70、`-p 1 ./...`、vet、build；另独立复现 managed-review/race-managed-review（百炼/OpenAI 父取消、nil-budget）。均 0 DATA RACE；未把 no-tests/普通测试当 race。
 - **保留边界**（未验证，不写成通过）：真实协议/usage/模型可用性→2D 在线探针；2C 维度配置/fingerprint/模型身份 guard；新 Embedding profile 生产启用继续等待 guard；A-4、真实 ES/Qdrant、SQL driver 取消、持久化恢复不变；受控会话 Close ≠ 原始 Eino reader.Close 可中断任意阻塞 Recv（继续用已批准 StreamSession 契约）。实现者日志 `verification/stage2b-fix11/` 与独立结果分开。
 
 ### Stage 2C 实施交接（精简；详见 design/stage2-plan.md §5/§7.3）

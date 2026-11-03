@@ -3,7 +3,7 @@ Stage 2D S-1 方案 A 离线探针骨架与回归测试 —— 命令与逐项�
 
 固定基线 : a12af924f0441363b46e0fec41fca29bdc30993a
 分支     : codex/stage2c2-fingerprint
-工作目录 : C:/Zhy/code/go-rag/server
+工作目录 : <WORKSPACE>/server
 记录时间 : 2026-10-28（Asia/Shanghai）
 性质     : 离线验证（本机 fake ES + 本机 fake 模型对端）。未执行任何在线探针，
            未连接真实模型/真实 ES/Qdrant/MySQL，未解除任何门禁，未更新验收状态。
@@ -14,7 +14,7 @@ Stage 2D S-1 方案 A 离线探针骨架与回归测试 —— 命令与逐项�
 go version go1.27.1 windows/amd64
 GOPROXY=https://goproxy.cn,direct   GOSUMDB=sum.golang.org   GOFLAGS=(空)
 CGO_ENABLED=1   CC=gcc
-gcc = C:\Program Files\mingw64\bin\gcc.exe
+gcc = <TOOLCHAIN>\bin\gcc.exe
     gcc.exe (x86_64-posix-seh-rev0, Built by MinGW-W64 project) 8.1.0
 凭据存在性（只记存在与否，不记值）：
     DASHSCOPE_API_KEY=<absent>  BAILIAN_API_KEY=<absent>  OPENAI_API_KEY=<absent>

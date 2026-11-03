@@ -1,5 +1,5 @@
-﻿CMD: go test -race -overlay C:\Zhy\code\go-rag\verification\stage2d-fix4-1e81aa4-20261028\overlay-review-gate-ctx.json -p 1 ./core/probe -run ^TestReviewGateContextLiveAfterStop$ -count=5 -v
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -race -overlay <WORKSPACE>\verification\stage2d-fix4-1e81aa4-20261028\overlay-review-gate-ctx.json -p 1 ./core/probe -run ^TestReviewGateContextLiveAfterStop$ -count=5 -v
+WORKDIR: <WORKSPACE>\server
 === RUN   TestReviewGateContextLiveAfterStop
     independent_review_gate_ctx_test.go:16: trial=0 hits at stop=0 hits after release=1 context at release=<nil>
     independent_review_gate_ctx_test.go:16: trial=1 hits at stop=0 hits after release=1 context at release=<nil>

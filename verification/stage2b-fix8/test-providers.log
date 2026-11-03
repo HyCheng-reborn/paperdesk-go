@@ -1,5 +1,5 @@
-﻿# CMD: go test ./core/providers/... -count=1 -v
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go test ./core/providers/... -count=1 -v
+# CWD: <WORKSPACE>\server
 # ENV: default
 # EXIT: 0
 # DATE: 2026-10-20 19:23:33

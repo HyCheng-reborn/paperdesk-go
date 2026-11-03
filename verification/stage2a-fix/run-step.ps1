@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
-$serverDir = 'c:\Zhy\code\go-rag\server'
+$serverDir = '<WORKSPACE>\server'
 $outPath = Join-Path $PSScriptRoot $LogFile
 
 Set-Location $serverDir

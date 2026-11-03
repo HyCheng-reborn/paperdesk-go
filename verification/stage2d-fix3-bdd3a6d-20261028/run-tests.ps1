@@ -9,7 +9,7 @@
 # 每个用例单独写日志，日志尾部记录 EXIT=<真实退出码>。
 
 $ErrorActionPreference = 'Continue'
-$root = 'C:\Zhy\code\go-rag'
+$root = '<WORKSPACE>'
 $outDir = Join-Path $root 'verification\stage2d-fix3-bdd3a6d-20261028'
 
 # 离线：只使用本地 module cache。
@@ -19,8 +19,8 @@ $env:GOFLAGS = ''
 
 # UCRT64 gcc 用于 -race（Windows/amd64）。
 $env:CGO_ENABLED = '1'
-$env:CC = 'C:/msys64/ucrt64/bin/gcc.exe'
-$env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
+$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
+$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 

@@ -1031,7 +1031,7 @@ CitationValidity为100%不能替代EvidenceSupport；没有引用不是无答案
 
 ### 11.1 与Go练习/Java项目分开
 
-`C:\goproject`继续用于`learn-go`基础练习，不改它的module、不覆盖练习main.go。PaperDesk在独立工程目录，例如 `C:\AIProjects\paperdesk-go`。示例路径不是当前已配置事实，不包含用户身份目录。
+`<TEMP>`继续用于`learn-go`基础练习，不改它的module、不覆盖练习main.go。PaperDesk在独立工程目录，例如 `<WORKSPACE>`。示例路径不是当前已配置事实，不包含用户身份目录。
 
 PC开发API/前端，Docker只运行该工程MySQL/ES；将数据、测试数据、配置和持久卷分开。Stage0建立端口登记表，再选择实际值，不能随便复用Java的5432/5433、Redis或对象存储资源。
 
@@ -1042,7 +1042,7 @@ PC开发API/前端，Docker只运行该工程MySQL/ES；将数据、测试数据
 以下目录需替换为真实PaperDesk工程。没有Git元数据的zip先记录文件hash，不把git报错伪装成干净工作树。
 
 ```powershell
-$PaperDeskRepo = 'C:\AIProjects\paperdesk-go'
+$PaperDeskRepo = '<WORKSPACE>'
 Set-Location $PaperDeskRepo
 git status --short
 git rev-parse HEAD
@@ -1061,7 +1061,7 @@ rg --files -g '*_test.go' -g 'AGENTS.md' -g 'go.mod' -g '*compose*.yml'
 下列环境变量/profile是**拟实现的应用约定**，现在原项目不保证识别。Stage1落地后以README和实际help输出为准，命令输出逐个核对exit code，不只复制字符串。
 
 ```powershell
-$PaperDeskRepo = 'C:\AIProjects\paperdesk-go'
+$PaperDeskRepo = '<WORKSPACE>'
 Set-Location (Join-Path $PaperDeskRepo 'server')
 $env:PAPERDESK_TEST_PROFILE = 'offline'
 $env:PAPERDESK_ALLOW_PAID_API = '0'
@@ -1076,7 +1076,7 @@ go test -race ./core/retriever/... ./core/providers/... ./internal/task/...
 `gofmt -l`用于只读列出格式问题；不把无关目录全量gofmt写入同一提交。在线/integration测试建议通过build tags与显式profile入口隔离，默认不得依赖环境里刚好存在的API_KEY。
 
 ```powershell
-$PaperDeskRepo = 'C:\AIProjects\paperdesk-go'
+$PaperDeskRepo = '<WORKSPACE>'
 Set-Location (Join-Path $PaperDeskRepo 'server')
 $env:PAPERDESK_TEST_PROFILE = 'integration'
 $env:PAPERDESK_ALLOW_PAID_API = '0'
@@ -1090,7 +1090,7 @@ integration profile只连接独立测试容器；程序须检查test DB/index前
 这些入口需要对应Stage创建，目前不是现成可执行命令：
 
 ```powershell
-$PaperDeskRepo = 'C:\AIProjects\paperdesk-go'
+$PaperDeskRepo = '<WORKSPACE>'
 Set-Location (Join-Path $PaperDeskRepo 'server')
 $PaperDeskConfig = Join-Path $PaperDeskRepo 'config\demo.yaml'
 go run ./cmd/migrate --config $PaperDeskConfig up
@@ -1099,14 +1099,14 @@ go run ./cmd/migrate --config $PaperDeskConfig up
 API沿用main显式bootstrap，启动方式在Stage1固定；Worker和评测设计目标：
 
 ```powershell
-$PaperDeskRepo = 'C:\AIProjects\paperdesk-go'
+$PaperDeskRepo = '<WORKSPACE>'
 Set-Location (Join-Path $PaperDeskRepo 'server')
 $PaperDeskConfig = Join-Path $PaperDeskRepo 'config\demo.yaml'
 go run ./cmd/worker --config $PaperDeskConfig
 ```
 
 ```powershell
-$PaperDeskRepo = 'C:\AIProjects\paperdesk-go'
+$PaperDeskRepo = '<WORKSPACE>'
 Set-Location (Join-Path $PaperDeskRepo 'server')
 $PaperDeskConfig = Join-Path $PaperDeskRepo 'config\online-eval.yaml'
 $PaperDeskRun = Join-Path $PaperDeskRepo 'runs\eval-demo-001'

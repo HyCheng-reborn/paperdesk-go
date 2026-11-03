@@ -1,5 +1,5 @@
-﻿CMD: go test -p 1 -count=1 -v -run TestSendGate|TestPreflight_RejectsNilRerankDocumentBeforeAnySend|TestPlan_TargetRulesMatchProduction|TestConcurrentStop_RefusesNewRetryAndConverges|TestW[1-5]_|TestProbeChain_GuardRejectsReplacedTarget|TestRedirect_ProhibitedIsNotRetried|TestStopReasonIsSanitized ./core/probe/
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -p 1 -count=1 -v -run TestSendGate|TestPreflight_RejectsNilRerankDocumentBeforeAnySend|TestPlan_TargetRulesMatchProduction|TestConcurrentStop_RefusesNewRetryAndConverges|TestW[1-5]_|TestProbeChain_GuardRejectsReplacedTarget|TestRedirect_ProhibitedIsNotRetried|TestStopReasonIsSanitized ./core/probe/
+WORKDIR: <WORKSPACE>\server
 === RUN   TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt
 --- PASS: TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt (0.01s)
 === RUN   TestSendGate_InFlightRequestIsNotRevokedAndNotRetried

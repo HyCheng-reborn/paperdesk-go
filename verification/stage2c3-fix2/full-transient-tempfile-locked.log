@@ -1,5 +1,5 @@
 CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -p 1 ./... -count=1 -timeout=600s
 DATE: 2026-10-28T15:56:18.5136565+08:00
 ATTEMPT: 1
@@ -34,9 +34,9 @@ ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	18.373s
 ?   	github.com/wangle201210/go-rag/server/internal/model/gorm	[no test files]
 ?   	github.com/wangle201210/go-rag/server/internal/testutil	[no test files]
 ?   	github.com/wangle201210/go-rag/server/server	[no test files]
-go : go: unlinkat C:\gotmp\go-build745234778\b1474\core.test.exe: Access is den
+go : go: unlinkat <TEMP>\go-build745234778\b1474\core.test.exe: Access is den
 ied.
-所在位置 C:\Zhy\code\go-rag\verification\stage2c3-fix2\run.ps1:60 字符: 5
+所在位置 <WORKSPACE>\verification\stage2c3-fix2\run.ps1:60 字符: 5
 +     go @a 2>&1 | Out-File $log -Append -Encoding utf8
 +     ~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (go: unlinkat C:...cess is denied.

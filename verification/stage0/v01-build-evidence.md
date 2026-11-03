@@ -5,8 +5,8 @@
 | 项目 | 值 |
 |---|---|
 | Go 版本 | go1.27.1 windows/amd64 |
-| GOMODCACHE | C:\Users\zhy\go\pkg\mod |
-| GOPATH | C:\Users\zhy\go |
+| GOMODCACHE | <USER_HOME>\go\pkg\mod |
+| GOPATH | <USER_HOME>\go |
 
 ## 命令与结果
 

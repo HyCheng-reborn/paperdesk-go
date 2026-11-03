@@ -4,7 +4,7 @@
 - OS: Windows 26H2
 - Go: 1.27.1 windows/amd64
 - GCC: MinGW-W64 8.1.0 (已知 race 阻塞)
-- CWD: c:\Zhy\code\go-rag\server
+- CWD: <WORKSPACE>\server
 - DATE: 2026-10-19
 
 ## 退出码汇总

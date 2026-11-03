@@ -1,5 +1,5 @@
-﻿# CMD: go vet ./...
-# CWD: c:\Zhy\code\go-rag\server
+# CMD: go vet ./...
+# CWD: <WORKSPACE>\server
 # ENV: default (PATH/CC/CGO_ENABLED unchanged from shell defaults)
 # EXIT: 0
 # DATE: 2026-10-20 01:42:44

@@ -1,4 +1,4 @@
-﻿# CMD: go test -race ./core -count=10 -v -run "TestIndex_Sync|TestIndex_Shutdown|TestIndex_Background|TestIndex_IndexAndShutdown"
+# CMD: go test -race ./core -count=10 -v -run "TestIndex_Sync|TestIndex_Shutdown|TestIndex_Background|TestIndex_IndexAndShutdown"
 # GOFLAGS: 
 # EXIT: 0
 # DATE: 2026-10-18 14:26:39
@@ -7,9 +7,9 @@
 2026-10-18T14:26:32.051+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.01s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -21,19 +21,19 @@ Stack:
 2026-10-18T14:26:32.153+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:32.153+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -77,9 +77,9 @@ Stack:
 2026-10-18T14:26:32.710+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -91,19 +91,19 @@ Stack:
 2026-10-18T14:26:32.811+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:32.812+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:32.812+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -147,9 +147,9 @@ Stack:
 2026-10-18T14:26:33.368+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -161,19 +161,19 @@ Stack:
 2026-10-18T14:26:33.469+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:33.470+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:33.470+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -217,9 +217,9 @@ Stack:
 2026-10-18T14:26:34.025+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -231,19 +231,19 @@ Stack:
 2026-10-18T14:26:34.126+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:34.127+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:34.127+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -287,9 +287,9 @@ Stack:
 2026-10-18T14:26:34.682+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -301,19 +301,19 @@ Stack:
 2026-10-18T14:26:34.783+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:34.783+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:34.784+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -357,9 +357,9 @@ Stack:
 2026-10-18T14:26:35.341+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -371,19 +371,19 @@ Stack:
 2026-10-18T14:26:35.442+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:35.442+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:35.442+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -427,9 +427,9 @@ Stack:
 2026-10-18T14:26:35.998+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -441,19 +441,19 @@ Stack:
 2026-10-18T14:26:36.100+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:36.100+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:36.100+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -497,9 +497,9 @@ Stack:
 2026-10-18T14:26:36.656+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -511,19 +511,19 @@ Stack:
 2026-10-18T14:26:36.757+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:36.758+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:36.758+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -567,9 +567,9 @@ Stack:
 2026-10-18T14:26:37.313+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -581,19 +581,19 @@ Stack:
 2026-10-18T14:26:37.414+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:37.414+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:37.414+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)
@@ -637,9 +637,9 @@ Stack:
 2026-10-18T14:26:37.969+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFailure_NoAsync
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:101
+    <WORKSPACE>/server/core/indexer_test.go:101
 
 --- PASS: TestIndex_SyncFailure_NoAsync (0.00s)
 === RUN   TestIndex_SyncSuccess_AsyncStillBlocked
@@ -651,19 +651,19 @@ Stack:
 2026-10-18T14:26:38.071+08:00 [ERRO] Index background panic: boom in wait 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2.2
-    C:/Zhy/code/go-rag/server/core/indexer.go:165
+    <WORKSPACE>/server/core/indexer.go:165
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_BackgroundPanic_Recovered.func2
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:382
+    <WORKSPACE>/server/core/indexer_test.go:382
 3.  github.com/wangle201210/go-rag/server/core.(*Rag).Index.func2
-    C:/Zhy/code/go-rag/server/core/indexer.go:172
+    <WORKSPACE>/server/core/indexer.go:172
 
 === RUN   TestIndex_SyncFail_ReleasesOnce
 2026-10-18T14:26:38.071+08:00 [ERRO] Index idxer.Invoke failed, err=sync error 
 Stack:
 1.  github.com/wangle201210/go-rag/server/core.(*Rag).Index
-    C:/Zhy/code/go-rag/server/core/indexer.go:133
+    <WORKSPACE>/server/core/indexer.go:133
 2.  github.com/wangle201210/go-rag/server/core.TestIndex_SyncFail_ReleasesOnce
-    C:/Zhy/code/go-rag/server/core/indexer_test.go:581
+    <WORKSPACE>/server/core/indexer_test.go:581
 
 2026-10-18T14:26:38.071+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
 --- PASS: TestIndex_SyncFail_ReleasesOnce (0.00s)

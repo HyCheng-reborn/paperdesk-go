@@ -1,5 +1,5 @@
 CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -race ./core/common -run ^(TestP11_|TestP12_|TestP13_|TestP22_|TestProviderNameNormalization) -count=3 -timeout=300s -v
 DATE: 2026-10-28T11:58:22.3867928+08:00
 === RUN   TestP11_QAAndEmbeddingShareRegistryBudget

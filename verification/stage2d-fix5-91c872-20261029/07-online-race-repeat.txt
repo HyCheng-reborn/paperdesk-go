@@ -1,5 +1,5 @@
-﻿CMD: go test -tags online -race ./core/probe -count=3 -v -run TestProviderRegistrationBuildsProductionChain|TestStopMarkerDoesNotRetractBudgetCommit|TestOnlineBuild_DirectNewChainRequiresAuthorization
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -tags online -race ./core/probe -count=3 -v -run TestProviderRegistrationBuildsProductionChain|TestStopMarkerDoesNotRetractBudgetCommit|TestOnlineBuild_DirectNewChainRequiresAuthorization
+WORKDIR: <WORKSPACE>\server
 === RUN   TestProviderRegistrationBuildsProductionChain
 === RUN   TestProviderRegistrationBuildsProductionChain/bailian
     bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0

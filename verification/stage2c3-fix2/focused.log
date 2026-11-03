@@ -1,5 +1,5 @@
 CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -p 1 ./core/providers ./core/providers/bailian ./core/vector ./core/common ./core ./internal/logic/rag -run ^(TestRequestModelIDRejectsVersionedIdentity|TestP1_|TestP2_|TestP12_|TestR2_|TestNewProviderEmbedding_|TestComputeFingerprintMeta) -count=1 -timeout=300s -v
 DATE: 2026-10-28T16:04:31.2009643+08:00
 ATTEMPT: 1

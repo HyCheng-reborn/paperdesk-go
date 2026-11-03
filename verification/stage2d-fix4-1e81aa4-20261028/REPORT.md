@@ -119,7 +119,7 @@ online 构建（`online_endpoint_test.go` 表新增 3 例）：`spaced_embedding
 
 ## 3. 命令与结果（干净目标）
 
-环境：Windows/amd64、Go 1.27.1、UCRT64 gcc 16.2.0（`C:/msys64/ucrt64/bin/gcc.exe`）、`GOPROXY=off`、`GOSUMDB=off`、`GOFLAGS=`、`CGO_ENABLED=1`。完整命令见 `run-tests.ps1` / `run-overlays.ps1`（每个日志首行含实际命令与 WORKDIR）。
+环境：Windows/amd64、Go 1.27.1、UCRT64 gcc 16.2.0（`<TOOLCHAIN>/ucrt64/bin/gcc.exe`）、`GOPROXY=off`、`GOSUMDB=off`、`GOFLAGS=`、`CGO_ENABLED=1`。完整命令见 `run-tests.ps1` / `run-overlays.ps1`（每个日志首行含实际命令与 WORKDIR）。
 
 | 日志 | 命令（WORKDIR=`server/`） | 结果 |
 |---|---|---|

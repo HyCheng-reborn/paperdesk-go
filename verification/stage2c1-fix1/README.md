@@ -4,7 +4,7 @@
 
 修复基线：`1850da1fcff2e66c1ed61594139e7e2e068fd775`。
 被验证的干净代码提交：`562bc884bdd1a2913a0a557455de765308668719`。
-实现分支：`codex/stage2c1-dimensions`；工作目录：`C:/Users/zhy/.codex/worktrees/stage2c1-dimensions/go-rag/server`。
+实现分支：`codex/stage2c1-dimensions`；工作目录：`<USER_HOME>/.codex/worktrees/stage2c1-dimensions/go-rag/server`。
 最终交付会追加本目录证据；server 树与被验证提交完全相同，树对象见 server-tree.txt。不把后续证据提交 SHA 冒充命令执行时的代码 SHA。
 
 ## 生产修复
@@ -34,7 +34,7 @@ common.NewEmbedding、InitWith/core.New 门禁均保留，未启用新 Embedding
 
 受影响包为 core/config、common、vector、indexer、retriever、core、internal/logic/rag。本轮无生产并发改动或 DATA RACE，不机械重复历史十轮。命令非 verbose 时不编造测试数量；定点个别无命中包不冒充实际命中。
 
-独立原复现来源：`C:/Zhy/code/go-rag/verification/independent-2c1-1850da1-20261021/independent_test.go`，原文件未改，逐字复制为本目录 independent-original_test.go.txt，哈希见 original-repro-hash.txt。overlay 仅补充层，不算目标自带测试；本批正式 YAML 回归已提交，干净测试不依赖原仓未跟踪文件。runner 会按实际 worktree 重建 overlay 的绝对路径。
+独立原复现来源：`<WORKSPACE>/verification/independent-2c1-1850da1-20261021/independent_test.go`，原文件未改，逐字复制为本目录 independent-original_test.go.txt，哈希见 original-repro-hash.txt。overlay 仅补充层，不算目标自带测试；本批正式 YAML 回归已提交，干净测试不依赖原仓未跟踪文件。runner 会按实际 worktree 重建 overlay 的绝对路径。
 
 全部离线；只使用现有本机测试 fixture、临时文件和既有测试数据库，无真实 DB/ES/Qdrant 或模型 API/在线探针，无系统工具链改动。
 

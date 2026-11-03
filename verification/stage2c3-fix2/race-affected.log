@@ -1,5 +1,5 @@
 CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -p 1 -race ./core/providers ./core/providers/bailian ./core/vector ./core/common ./core ./internal/logic/rag -count=1 -timeout=1200s
 DATE: 2026-10-28T16:06:03.4584359+08:00
 ATTEMPT: 1

@@ -1,5 +1,5 @@
-﻿CMD: go test -race ./core/probe -count=5 -v -run TestProviderRegistrationBuildsProductionChain|TestBailianEmbeddingProfileIsDefensiveCopy|TestBailianEmbeddingIdentityMismatchFailsClosed|TestBailianEmbeddingCancelAndConcurrentBudget|TestStopMarkerDoesNotRetractBudgetCommit
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -race ./core/probe -count=5 -v -run TestProviderRegistrationBuildsProductionChain|TestBailianEmbeddingProfileIsDefensiveCopy|TestBailianEmbeddingIdentityMismatchFailsClosed|TestBailianEmbeddingCancelAndConcurrentBudget|TestStopMarkerDoesNotRetractBudgetCommit
+WORKDIR: <WORKSPACE>\server
 === RUN   TestProviderRegistrationBuildsProductionChain
 === RUN   TestProviderRegistrationBuildsProductionChain/bailian
     bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0

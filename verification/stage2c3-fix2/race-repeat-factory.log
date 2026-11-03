@@ -1,5 +1,5 @@
 CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test -race ./internal/logic/rag -run ^(TestP1_|TestP2_|TestP13_) -count=3 -timeout=600s -v
 DATE: 2026-10-28T16:07:39.8512751+08:00
 ATTEMPT: 1

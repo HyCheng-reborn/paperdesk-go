@@ -395,7 +395,7 @@ YAML config
 ### 9.1 基础验证命令
 
 ```powershell
-cd c:\Zhy\code\go-rag\server
+cd <WORKSPACE>\server
 go build ./...
 go vet ./...
 go test -p 1 ./core/... ./internal/... -count=1

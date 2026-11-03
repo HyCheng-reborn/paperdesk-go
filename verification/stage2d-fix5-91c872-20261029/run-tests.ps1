@@ -7,15 +7,15 @@
 # 共享构造门禁（core/common）、探针链（core/probe）。
 
 $ErrorActionPreference = 'Continue'
-$root = 'C:\Zhy\code\go-rag'
+$root = '<WORKSPACE>'
 $outDir = Join-Path $root 'verification\stage2d-fix5-91c872-20261029'
 
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = 'C:/msys64/ucrt64/bin/gcc.exe'
-$env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
+$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
+$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 

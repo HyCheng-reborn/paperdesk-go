@@ -1,5 +1,5 @@
-﻿CMD: go test ./core/probe ./core/providers/... ./core/common -count=1
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test ./core/probe ./core/providers/... ./core/common -count=1
+WORKDIR: <WORKSPACE>\server
 ATTEMPT 1: transient windows binary lock, retrying
 ATTEMPT 2: transient windows binary lock, retrying
 ATTEMPT 3: transient windows binary lock, retrying

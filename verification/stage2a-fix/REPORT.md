@@ -1,7 +1,7 @@
 # Stage 2A 阻塞修复验证报告
 
 - 日期：2026-10-19
-- CWD：`c:\Zhy\code\go-rag\server`
+- CWD：`<WORKSPACE>\server`
 - 执行方式：`run-step.ps1` 统一封装，日志含 CMD/CWD/EXIT/DATE 头
 
 ## 退出码汇总

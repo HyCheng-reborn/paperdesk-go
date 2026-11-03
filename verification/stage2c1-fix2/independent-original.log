@@ -1,6 +1,6 @@
 CODE_SHA: 62aeb772e38e56dbda8c70d2c47070e663df28e4
-CWD: C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\server
-CMD: go test -overlay C:\Users\zhy\.codex\worktrees\stage2c1-dimensions\go-rag\verification\stage2c1-fix2/overlay.json ./internal/logic/rag -run ^TestIndependent -count=1 -timeout=120s -v
+CWD: <USER_HOME>\.codex\worktrees\stage2c1-dimensions\go-rag\server
+CMD: go test -overlay <USER_HOME>\.codex\worktrees\stage2c1-dimensions\go-rag\verification\stage2c1-fix2/overlay.json ./internal/logic/rag -run ^TestIndependent -count=1 -timeout=120s -v
 DATE: 2026-10-21T16:23:51.8806203+08:00
 === RUN   TestIndependentYAMLProductionReader
 === RUN   TestIndependentYAMLProductionReader/768

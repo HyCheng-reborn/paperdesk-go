@@ -1,4 +1,4 @@
-﻿CMD: go test -race ./core/probe -count=5 -run TestSendGate|TestStepReport_CountsSeparateCommitFromSend|TestPlan_CanonicalIdentityRejectedEverywhere
-WORKDIR: C:\Zhy\code\go-rag\server
+CMD: go test -race ./core/probe -count=5 -run TestSendGate|TestStepReport_CountsSeparateCommitFromSend|TestPlan_CanonicalIdentityRejectedEverywhere
+WORKDIR: <WORKSPACE>\server
 ok  	github.com/wangle201210/go-rag/server/core/probe	5.351s
 EXIT=0

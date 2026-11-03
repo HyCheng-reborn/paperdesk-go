@@ -5,7 +5,7 @@
 交接基线：`8d2c21225d4627a2668cad788cc254f78f2e04e4`。
 干净代码/测试提交（以下验证对象）：`5bb15e8eb7c17070eaa29203efcf58fb008c0b53`。
 实际分支：`codex/stage2c1-dimensions`。
-实际实现 worktree：`C:/Users/zhy/.codex/worktrees/stage2c1-dimensions/go-rag`。
+实际实现 worktree：`<USER_HOME>/.codex/worktrees/stage2c1-dimensions/go-rag`。
 验证后只追加本目录证据及方案文字核正，server 树没有变；server-tree.txt 记录被验证代码/测试树对象，可与最终交付 tip 的 server 树核对。不把后续证据提交的 SHA 冒充当时命令的代码 SHA。
 
 ## 生产流向与范围

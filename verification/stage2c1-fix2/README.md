@@ -4,7 +4,7 @@
 
 增量基线：`8611750bb89dbf0de268b04a212ca873d500cb6f`。
 本轮实测的干净代码/测试提交：`62aeb772e38e56dbda8c70d2c47070e663df28e4`。
-分支 `codex/stage2c1-dimensions`；实现目录 `C:/Users/zhy/.codex/worktrees/stage2c1-dimensions/go-rag`。
+分支 `codex/stage2c1-dimensions`；实现目录 `<USER_HOME>/.codex/worktrees/stage2c1-dimensions/go-rag`。
 最终追加证据提交不改 server 树，树对象见 server-tree.txt。所有命令 cwd 是该实现目录的 server/。
 
 ## 原因与修复范围

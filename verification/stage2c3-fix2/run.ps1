@@ -5,13 +5,13 @@ $sha = git rev-parse HEAD
 $env:GOFLAGS = ''
 # -race requires cgo on windows/amd64. Use the msys64 UCRT64 toolchain and put its
 # runtime DLL directory on PATH (otherwise test binaries exit 0xc0000139).
-$env:PATH = 'C:\msys64\ucrt64\bin;' + $env:PATH
-$env:CC = 'C:\msys64\ucrt64\bin\gcc.exe'
-$env:CXX = 'C:\msys64\ucrt64\bin\g++.exe'
+$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = '<TOOLCHAIN>\ucrt64\bin\gcc.exe'
+$env:CXX = '<TOOLCHAIN>\ucrt64\bin\g++.exe'
 $env:CGO_ENABLED = '1'
 # Windows 下 %TEMP% 中的测试二进制会被外部进程（杀毒/索引器）短时占用，
 # 导致 `go` 清理阶段报 `unlinkat ... Access is denied`。改用仓库外的独立临时目录。
-$env:GOTMPDIR = 'C:\gotmp'
+$env:GOTMPDIR = '<TEMP>'
 New-Item -ItemType Directory -Force -Path $env:GOTMPDIR | Out-Null
 Set-Location server
 
@@ -22,8 +22,8 @@ Set-Location server
   'BRANCH: codex/stage2c2-fingerprint',
   ('CWD: ' + (Get-Location).Path),
   'Offline evidence: no real model/ES/Qdrant/MySQL calls; only in-memory transport, httptest and local fakes.',
-  'CGO toolchain: C:\msys64\ucrt64 (gcc), CGO_ENABLED=1, PATH includes C:\msys64\ucrt64\bin'
-  'GOTMPDIR: C:\gotmp (temp exe cleanup failures in %TEMP% are an environment limit)'
+  'CGO toolchain: <TOOLCHAIN>\ucrt64 (gcc), CGO_ENABLED=1, PATH includes <TOOLCHAIN>\ucrt64\bin'
+  'GOTMPDIR: <TEMP> (temp exe cleanup failures in %TEMP% are an environment limit)'
 ) | Set-Content "$r/environment.log"
 go version | Add-Content "$r/environment.log"
 go env GOOS GOARCH CGO_ENABLED GOFLAGS | Add-Content "$r/environment.log"

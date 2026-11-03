@@ -1,5 +1,5 @@
 CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
-CWD: C:\Zhy\code\go-rag\server
+CWD: <WORKSPACE>\server
 CMD: go test ./core/providers ./core/providers/bailian ./core/vector ./core/common ./core ./internal/logic/rag -run ^(TestRequestModelIDRejectsVersionedIdentity|TestP1_|TestP2_|TestP12_|TestR2_|TestNewProviderEmbedding_|TestComputeFingerprintMeta) -count=1 -timeout=300s -v
 DATE: 2026-10-28T15:49:04.0434763+08:00
 === RUN   TestRequestModelIDRejectsVersionedIdentity
@@ -32,7 +32,7 @@ ok  	github.com/wangle201210/go-rag/server/core/providers	3.787s
 --- PASS: TestP1_BailianBuildersFailClosedForVersionedProfile (0.00s)
 PASS
 ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.736s
-fork/exec C:\Users\<redacted>\AppData\Local\Temp\go-build777798905\b1381\vector.test.exe: Access is denied.
+fork/exec <USER_HOME>\<redacted>\AppData\Local\Temp\go-build777798905\b1381\vector.test.exe: Access is denied.
 FAIL	github.com/wangle201210/go-rag/server/core/vector	8.109s
 === RUN   TestP12_EmbeddingIdentityFailsClosed
 === RUN   TestP12_EmbeddingIdentityFailsClosed/role_without_verifiable_profile
@@ -94,7 +94,7 @@ FAIL	github.com/wangle201210/go-rag/server/core/vector	8.109s
 --- PASS: TestNewProviderEmbedding_GuardPropagation (0.00s)
 PASS
 ok  	github.com/wangle201210/go-rag/server/core/common	2.742s
-fork/exec C:\Users\<redacted>\AppData\Local\Temp\go-build777798905\b1443\core.test.exe: Access is denied.
+fork/exec <USER_HOME>\<redacted>\AppData\Local\Temp\go-build777798905\b1443\core.test.exe: Access is denied.
 FAIL	github.com/wangle201210/go-rag/server/core	5.011s
 === RUN   TestP1_FactoryFailsClosedBeforeTouchingES
 --- PASS: TestP1_FactoryFailsClosedBeforeTouchingES (0.05s)
@@ -105,9 +105,9 @@ FAIL	github.com/wangle201210/go-rag/server/core	5.011s
 PASS
 ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	11.201s
 FAIL
-go : go: unlinkat C:\Users\<redacted>\AppData\Local\Temp\go-build777798905\b1381\vecto
+go : go: unlinkat <USER_HOME>\<redacted>\AppData\Local\Temp\go-build777798905\b1381\vecto
 r.test.exe: Access is denied.
-所在位置 C:\Zhy\code\go-rag\verification\stage2c3-fix2\run.ps1:49 字符: 3
+所在位置 <WORKSPACE>\verification\stage2c3-fix2\run.ps1:49 字符: 3
 +   go @a 2>&1 | Out-File $log -Append -Encoding utf8
 +   ~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (go: unlinkat C:...cess is denied.

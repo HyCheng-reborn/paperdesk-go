@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Continue'
-Set-Location "c:\Zhy\code\go-rag\server"
-$logDir = "c:\Zhy\code\go-rag\verification\stage1d1"
+Set-Location "<WORKSPACE>\server"
+$logDir = "<WORKSPACE>\verification\stage1d1"
 
 function Run-Cmd {
     param([string]$cmd, [string]$logFile)

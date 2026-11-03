@@ -4,7 +4,7 @@
 [2] go test -tags online -p 1 ./core/probe/... -count=1 -v
     exit 0 ; --- PASS count=39 ; --- FAIL count=0 ; log: test-probe-online.log
 
-[3] PATH+=C:/msys64/ucrt64/bin ; CC=C:/msys64/ucrt64/bin/gcc.exe
+[3] PATH+=<TOOLCHAIN>/ucrt64/bin ; CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe
     go test -race -p 1 ./core/probe/... -count=1 -v
     exit 0 ; DATA RACE lines=0 ; log: race-probe-default.log
 

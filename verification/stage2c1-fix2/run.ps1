@@ -1,7 +1,7 @@
 $ErrorActionPreference='Continue'
 
-# Path configuration — override via environment variables; defaults are desensitized placeholders.
-$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+. "$PSScriptRoot\..\_env-setup.ps1"
+$Toolchain = Test-RequiredEnv -Name 'RAG_TOOLCHAIN' -Placeholder '<TOOLCHAIN>'
 
 $root=(Get-Location).Path
 $r=Join-Path $root 'verification/stage2c1-fix2'

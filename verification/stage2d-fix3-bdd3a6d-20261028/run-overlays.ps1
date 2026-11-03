@@ -16,9 +16,9 @@
 #     在各自断言处 FAIL，exit 1——这是"缺陷不再复现"的证据。
 #   - 变异（30-32）：剥离修复后对应用例必须 FAIL，证明用例不是空转。
 
-# Path configuration — override via environment variables; defaults are desensitized placeholders.
-$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
-$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+. "$PSScriptRoot\..\_env-setup.ps1"
+$Workspace = Test-RequiredEnv -Name 'RAG_WORKSPACE' -Placeholder '<WORKSPACE>'
+$Toolchain = Test-RequiredEnv -Name 'RAG_TOOLCHAIN' -Placeholder '<TOOLCHAIN>'
 
 $ErrorActionPreference = 'Continue'
 $root = $Workspace

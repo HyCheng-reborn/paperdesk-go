@@ -20,9 +20,9 @@
 #   - 30/31（变异）：exit 1——把 Profile() 变成零身份 / 浅拷贝后，
 #     22 与防御性复制用例必须失败，证明这两个用例不是空转。
 
-# Path configuration — override via environment variables; defaults are desensitized placeholders.
-$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
-$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+. "$PSScriptRoot\..\_env-setup.ps1"
+$Workspace = Test-RequiredEnv -Name 'RAG_WORKSPACE' -Placeholder '<WORKSPACE>'
+$Toolchain = Test-RequiredEnv -Name 'RAG_TOOLCHAIN' -Placeholder '<TOOLCHAIN>'
 
 $ErrorActionPreference = 'Continue'
 $root = $Workspace

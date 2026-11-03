@@ -5,8 +5,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Command
 )
 
-# Path configuration — override via environment variables; defaults are desensitized placeholders.
-$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+. "$PSScriptRoot\..\_env-setup.ps1"
+$Workspace = Test-RequiredEnv -Name 'RAG_WORKSPACE' -Placeholder '<WORKSPACE>'
 
 $ErrorActionPreference = 'Continue'
 $serverDir = "$Workspace\server"

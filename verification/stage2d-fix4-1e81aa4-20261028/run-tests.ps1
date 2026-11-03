@@ -3,9 +3,9 @@
 # 边界：只用本机 fake / httptest / fake 代理 / 外部 overlay；
 # 不访问真实模型、ES、Qdrant、MySQL 或互联网；不执行在线探针。
 
-# Path configuration — override via environment variables; defaults are desensitized placeholders.
-$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
-$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+. "$PSScriptRoot\..\_env-setup.ps1"
+$Workspace = Test-RequiredEnv -Name 'RAG_WORKSPACE' -Placeholder '<WORKSPACE>'
+$Toolchain = Test-RequiredEnv -Name 'RAG_TOOLCHAIN' -Placeholder '<TOOLCHAIN>'
 
 $ErrorActionPreference = 'Continue'
 $root = $Workspace

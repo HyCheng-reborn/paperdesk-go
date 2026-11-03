@@ -1,6 +1,10 @@
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-Set-Location '<WORKSPACE>\server'
-$dir = '<WORKSPACE>\verification\stage2d-fix2-3aea024-20261028'
+Set-Location "$Workspace\server"
+$dir = "$Workspace\verification\stage2d-fix2-3aea024-20261028"
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
@@ -15,12 +19,12 @@ $results = New-Object System.Collections.ArrayList
 $envLines = New-Object System.Collections.ArrayList
 $envLines += "Stage 2D S-1 fix batch 2 (incremental review of 3aea024) - environment"
 $envLines += ""
-$envLines += "repo            = <WORKSPACE>"
-$envLines += "work dir        = <WORKSPACE>/server (unless noted)"
+$envLines += "repo            = $Workspace"
+$envLines += "work dir        = $Workspace/server (unless noted)"
 $envLines += "go version      = $(& go version 2>&1)"
 $envLines += "GOOS/GOARCH     = $(& go env GOOS)/$(& go env GOARCH)"
 $envLines += "CGO_ENABLED     = $(& go env CGO_ENABLED)"
-$envLines += "gcc (UCRT64)    = $(& '<TOOLCHAIN>\ucrt64\bin\gcc.exe' --version 2>&1 | Select-Object -First 1)"
+$envLines += "gcc (UCRT64)    = $(& "$Toolchain\ucrt64\bin\gcc.exe" --version 2>&1 | Select-Object -First 1)"
 $envLines += "fixed start     = $(& git rev-parse HEAD 2>&1)"
 $envLines += "parent          = $(& git rev-parse HEAD^ 2>&1)"
 $envLines += "branch          = $(& git branch --show-current 2>&1)"
@@ -50,15 +54,15 @@ $results += "    exit $code ; --- PASS count=$pass ; --- FAIL count=$fails ; log
 $results += ""
 
 # ---------- race env (UCRT64) ----------
-$env:PATH = "<TOOLCHAIN>\ucrt64\bin;$env:PATH"
-$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
+$env:PATH = "$Toolchain\ucrt64\bin;$env:PATH"
+$env:CC = "$Toolchain/ucrt64/bin/gcc.exe"
 
 # ---------- [3] race default ----------
 $out = & go test -race -p 1 ./core/probe/... -count=1 -v 2>&1
 $code = $LASTEXITCODE
 Save 'race-probe-default.log' $out
 $races = ($out | Where-Object { $_ -match 'DATA RACE' }).Count
-$results += "[3] PATH+=<TOOLCHAIN>/ucrt64/bin ; CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe"
+$results += "[3] PATH+=$Toolchain/ucrt64/bin ; CC=$Toolchain/ucrt64/bin/gcc.exe"
 $results += "    go test -race -p 1 ./core/probe/... -count=1 -v"
 $results += "    exit $code ; DATA RACE lines=$races ; log: race-probe-default.log"
 $results += ""
@@ -93,7 +97,7 @@ $results += "    exit $code ; DATA RACE lines=$races ; log: race-targeted-repeat
 $results += ""
 
 # ---------- [7] full serial suite (default env) ----------
-$env:PATH = ($env:PATH -replace '^<TOOLCHAIN>\\ucrt64\\bin;', '')
+$env:PATH = ($env:PATH -replace ("^" + [regex]::Escape("$Toolchain\ucrt64\bin;")), '')
 Remove-Item Env:\CC -ErrorAction SilentlyContinue
 $out = & go test -p 1 ./... -count=1 2>&1
 $code = $LASTEXITCODE

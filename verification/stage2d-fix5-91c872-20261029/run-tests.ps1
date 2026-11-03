@@ -6,16 +6,20 @@
 # 受影响范围：百炼 embedding 身份接口（core/providers/bailian）、
 # 共享构造门禁（core/common）、探针链（core/probe）。
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-$root = '<WORKSPACE>'
+$root = $Workspace
 $outDir = Join-Path $root 'verification\stage2d-fix5-91c872-20261029'
 
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = "$Toolchain/ucrt64/bin/gcc.exe"
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 

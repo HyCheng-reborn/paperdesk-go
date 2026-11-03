@@ -5,8 +5,11 @@ param(
     [Parameter(Mandatory = $true)][string]$Command
 )
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+
 $ErrorActionPreference = 'Continue'
-$serverDir = '<WORKSPACE>\server'
+$serverDir = "$Workspace\server"
 $outPath = Join-Path $PSScriptRoot $LogFile
 
 Set-Location $serverDir

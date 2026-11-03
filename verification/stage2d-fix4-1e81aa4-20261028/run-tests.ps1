@@ -3,16 +3,20 @@
 # 边界：只用本机 fake / httptest / fake 代理 / 外部 overlay；
 # 不访问真实模型、ES、Qdrant、MySQL 或互联网；不执行在线探针。
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-$root = '<WORKSPACE>'
+$root = $Workspace
 $outDir = Join-Path $root 'verification\stage2d-fix4-1e81aa4-20261028'
 
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = "$Toolchain/ucrt64/bin/gcc.exe"
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 

@@ -1,4 +1,7 @@
-$dir = '<WORKSPACE>\verification\stage2b-fix3'
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+
+$dir = "$Workspace\verification\stage2b-fix3"
 $out = Join-Path $dir 'analysis.log'
 $sb = New-Object System.Text.StringBuilder
 

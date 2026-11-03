@@ -1,6 +1,9 @@
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+
 $ErrorActionPreference = 'Continue'
-Set-Location "<WORKSPACE>\server"
-$logDir = "<WORKSPACE>\verification\stage1d1"
+Set-Location "$Workspace\server"
+$logDir = "$Workspace\verification\stage1d1"
 
 function Run-Cmd {
     param([string]$cmd, [string]$logFile)

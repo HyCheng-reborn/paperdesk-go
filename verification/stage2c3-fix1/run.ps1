@@ -1,13 +1,17 @@
 $ErrorActionPreference = 'Continue'
+
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $root = (Get-Location).Path
 $r = Join-Path $root 'verification/stage2c3-fix1'
 $sha = git rev-parse HEAD
 $env:GOFLAGS = ''
 # -race requires cgo on windows/amd64. Use the msys64 UCRT64 toolchain and put its
 # runtime DLL directory on PATH (otherwise test binaries exit 0xc0000139).
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
-$env:CC = '<TOOLCHAIN>\ucrt64\bin\gcc.exe'
-$env:CXX = '<TOOLCHAIN>\ucrt64\bin\g++.exe'
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
+$env:CC = "$Toolchain\ucrt64\bin\gcc.exe"
+$env:CXX = "$Toolchain\ucrt64\bin\g++.exe"
 $env:CGO_ENABLED = '1'
 Set-Location server
 
@@ -18,7 +22,7 @@ Set-Location server
   'BRANCH: codex/stage2c2-fingerprint',
   ('CWD: ' + (Get-Location).Path),
   'Offline evidence: no real model/ES/Qdrant/MySQL calls; only httptest and local fakes.',
-  'CGO toolchain: <TOOLCHAIN>\ucrt64 (gcc), CGO_ENABLED=1, PATH includes <TOOLCHAIN>\ucrt64\bin'
+  "CGO toolchain: $Toolchain\ucrt64 (gcc), CGO_ENABLED=1, PATH includes $Toolchain\ucrt64\bin"
 ) | Set-Content "$r/environment.log"
 go version | Add-Content "$r/environment.log"
 go env GOOS GOARCH CGO_ENABLED GOFLAGS | Add-Content "$r/environment.log"

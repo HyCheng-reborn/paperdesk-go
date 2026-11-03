@@ -20,8 +20,12 @@
 #   - 30/31（变异）：exit 1——把 Profile() 变成零身份 / 浅拷贝后，
 #     22 与防御性复制用例必须失败，证明这两个用例不是空转。
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-$root = '<WORKSPACE>'
+$root = $Workspace
 $outDir = Join-Path $root 'verification\stage2d-fix5-91c872-20261029'
 $reviewCounts = Join-Path $root 'verification\independent-2d-91c872-counts'
 $reviewStop = Join-Path $root 'verification\independent-2d-91c872-stopreview'
@@ -31,8 +35,8 @@ $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = "$Toolchain/ucrt64/bin/gcc.exe"
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
 
 function Invoke-Logged {
     param(
@@ -87,13 +91,13 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 # ---- 复核原始源码的 overlay 映射（指向本工作区，key 为包内虚拟文件名）----
 Write-Overlay 'overlay-review-bailian-counts.json' `
-    '<WORKSPACE>/server/core/probe/independent_counts_test.go' `
+    "$Workspace/server/core/probe/independent_counts_test.go" `
     (Join-Path $reviewCounts 'review_counts_test.go')
 Write-Overlay 'overlay-review-openai-counts.json' `
-    '<WORKSPACE>/server/core/probe/independent_counts_test.go' `
+    "$Workspace/server/core/probe/independent_counts_test.go" `
     (Join-Path $reviewCounts 'review_openai_test.go')
 Write-Overlay 'overlay-review-budget-stop.json' `
-    '<WORKSPACE>/server/core/probe/independent_budget_stop_test.go' `
+    "$Workspace/server/core/probe/independent_budget_stop_test.go" `
     (Join-Path $reviewStop 'budget_after_stop_test.go')
 
 $ovBailian = Join-Path $outDir 'overlay-review-bailian-counts.json'
@@ -143,14 +147,14 @@ $shallowProfile = $source.Replace($needle, 'return *v.profile')
 # 注意：go 只接受一个 -overlay 参数（后一个覆盖前一个），因此变异与复核用例
 # 必须合并进同一张映射表，否则变异不生效（本目录首轮即因写成两个 -overlay 而空转）。
 Write-OverlayMulti 'overlay-mutation-zero-profile-with-review.json' @(
-    '<WORKSPACE>/server/core/providers/bailian/embedding.go',
-    '<WORKSPACE>/server/core/probe/independent_counts_test.go'
+    "$Workspace/server/core/providers/bailian/embedding.go",
+    "$Workspace/server/core/probe/independent_counts_test.go"
 ) @(
     (Join-Path $outDir 'mutation-bailian-zero-profile.go'),
     (Join-Path $reviewCounts 'review_counts_test.go')
 )
 Write-Overlay 'overlay-mutation-bailian-shallow-profile.json' `
-    '<WORKSPACE>/server/core/providers/bailian/embedding.go' `
+    "$Workspace/server/core/providers/bailian/embedding.go" `
     (Join-Path $outDir 'mutation-bailian-shallow-profile.go')
 
 $ovMutZero = Join-Path $outDir 'overlay-mutation-zero-profile-with-review.json'

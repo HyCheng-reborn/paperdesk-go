@@ -1,17 +1,22 @@
 $ErrorActionPreference = 'Continue'
+
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+$TempDir   = if ($env:RAG_TEMP)     { $env:RAG_TEMP }     else { '<TEMP>' }
+
 $root = (Get-Location).Path
 $r = Join-Path $root 'verification/stage2c3-fix2'
 $sha = git rev-parse HEAD
 $env:GOFLAGS = ''
 # -race requires cgo on windows/amd64. Use the msys64 UCRT64 toolchain and put its
 # runtime DLL directory on PATH (otherwise test binaries exit 0xc0000139).
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
-$env:CC = '<TOOLCHAIN>\ucrt64\bin\gcc.exe'
-$env:CXX = '<TOOLCHAIN>\ucrt64\bin\g++.exe'
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
+$env:CC = "$Toolchain\ucrt64\bin\gcc.exe"
+$env:CXX = "$Toolchain\ucrt64\bin\g++.exe"
 $env:CGO_ENABLED = '1'
 # Windows 下 %TEMP% 中的测试二进制会被外部进程（杀毒/索引器）短时占用，
 # 导致 `go` 清理阶段报 `unlinkat ... Access is denied`。改用仓库外的独立临时目录。
-$env:GOTMPDIR = '<TEMP>'
+$env:GOTMPDIR = $TempDir
 New-Item -ItemType Directory -Force -Path $env:GOTMPDIR | Out-Null
 Set-Location server
 
@@ -22,8 +27,8 @@ Set-Location server
   'BRANCH: codex/stage2c2-fingerprint',
   ('CWD: ' + (Get-Location).Path),
   'Offline evidence: no real model/ES/Qdrant/MySQL calls; only in-memory transport, httptest and local fakes.',
-  'CGO toolchain: <TOOLCHAIN>\ucrt64 (gcc), CGO_ENABLED=1, PATH includes <TOOLCHAIN>\ucrt64\bin'
-  'GOTMPDIR: <TEMP> (temp exe cleanup failures in %TEMP% are an environment limit)'
+  "CGO toolchain: $Toolchain\ucrt64 (gcc), CGO_ENABLED=1, PATH includes $Toolchain\ucrt64\bin"
+  "GOTMPDIR: $TempDir (temp exe cleanup failures in %TEMP% are an environment limit)"
 ) | Set-Content "$r/environment.log"
 go version | Add-Content "$r/environment.log"
 go env GOOS GOARCH CGO_ENABLED GOFLAGS | Add-Content "$r/environment.log"
@@ -61,8 +66,8 @@ foreach ($c in $commands) {
     $rc = $LASTEXITCODE
     "ATTEMPT ${attempt} EXIT: $rc" | Add-Content $log
     if ($rc -eq 0) { break }
-    # 控制台宽度可能把错误文本拆行，因此不直接匹配整句；改为“没有任何真实
-    # 测试失败标记”才视为环境级问题。
+    # 控制台宽度可能把错误文本拆行，因此不直接匹配整句；改为"没有任何真实
+    # 测试失败标记"才视为环境级问题。
     $text = Get-Content $log -Raw
     if ($text -match '(?m)^(--- FAIL|FAIL\s+github|panic:)') { break }
     Start-Sleep -Seconds 3

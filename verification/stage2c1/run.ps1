@@ -1,9 +1,13 @@
 $ErrorActionPreference='Continue'
+
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $root=(Get-Location).Path
 $r=Join-Path $root 'verification/stage2c1'
 $sha=git rev-parse HEAD
-$env:PATH='<TOOLCHAIN>\ucrt64\bin;'+$env:PATH
-$env:CC='<TOOLCHAIN>\ucrt64\bin\gcc.exe';$env:CXX='<TOOLCHAIN>\ucrt64\bin\g++.exe';$env:CGO_ENABLED='1';$env:GOFLAGS='';$env:GOPROXY='off';$env:GOSUMDB='off'
+$env:PATH="$Toolchain\ucrt64\bin;"+$env:PATH
+$env:CC="$Toolchain\ucrt64\bin\gcc.exe";$env:CXX="$Toolchain\ucrt64\bin\g++.exe";$env:CGO_ENABLED='1';$env:GOFLAGS='';$env:GOPROXY='off';$env:GOSUMDB='off'
 Set-Location server
 @("CODE_SHA: $sha",'BASELINE: 8d2c21225d4627a2668cad788cc254f78f2e04e4',('CWD: '+(Get-Location).Path),'Process only; GOFLAGS empty; GOPROXY=off; GOSUMDB=off')|Set-Content "$r/environment.log"
 go version|Add-Content "$r/environment.log"

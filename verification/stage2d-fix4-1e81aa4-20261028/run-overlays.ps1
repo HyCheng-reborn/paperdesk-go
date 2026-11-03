@@ -12,13 +12,17 @@
 #     若 hits after release > 0，即复核窗口仍可观测（本批**未闭合**）；若未观察到则 SKIP。
 #   - 22（计数）：exit 0——复核断言 Attempts=1/committed=1/对端 0 依然成立；
 #     新增的 GateAdmissions/TransportCalls 由本批自有测试覆盖（见 01/04 日志）。
-#   - 23/24（规范化）：exit 1——复核用例的前提“Ready()==true”在修复后为 false，
-#     因此在它自己的第一处断言失败；这是“非规范输入已在就绪阶段拒绝”的证据。
+#   - 23/24（规范化）：exit 1——复核用例的前提"Ready()==true"在修复后为 false，
+#     因此在它自己的第一处断言失败；这是"非规范输入已在就绪阶段拒绝"的证据。
 #   - 30/31/32（变异）：exit 1——剥离 commitSend 或规范形式校验后，对应用例必须失败，
 #     证明这些用例不是空转。
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-$root = '<WORKSPACE>'
+$root = $Workspace
 $outDir = Join-Path $root 'verification\stage2d-fix4-1e81aa4-20261028'
 $reviewGate = Join-Path $root 'verification\independent-2d-1e81aa-gate'
 $reviewValidation = Join-Path $root 'verification\independent-2d-1e81aa-validation'
@@ -27,8 +31,8 @@ $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = "$Toolchain/ucrt64/bin/gcc.exe"
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 
@@ -59,10 +63,10 @@ function Write-Overlay {
 }
 
 # ---- 复核原始源码的 overlay 映射 ----
-Write-Overlay 'overlay-review-gate.json' '<WORKSPACE>/server/core/probe/independent_review_gate_test.go' (Join-Path $reviewGate 'review_gate_test.go')
-Write-Overlay 'overlay-review-gate-ctx.json' '<WORKSPACE>/server/core/probe/independent_review_gate_ctx_test.go' (Join-Path $reviewGate 'review_gate_ctx_test.go')
-Write-Overlay 'overlay-review-attempt.json' '<WORKSPACE>/server/core/probe/independent_review_attempt_test.go' (Join-Path $reviewGate 'review_attempt_test.go')
-Write-Overlay 'overlay-review-space-model.json' '<WORKSPACE>/server/core/probe/independent_review_space_model_test.go' (Join-Path $reviewValidation 'space_model_test.go')
+Write-Overlay 'overlay-review-gate.json' "$Workspace/server/core/probe/independent_review_gate_test.go" (Join-Path $reviewGate 'review_gate_test.go')
+Write-Overlay 'overlay-review-gate-ctx.json' "$Workspace/server/core/probe/independent_review_gate_ctx_test.go" (Join-Path $reviewGate 'review_gate_ctx_test.go')
+Write-Overlay 'overlay-review-attempt.json' "$Workspace/server/core/probe/independent_review_attempt_test.go" (Join-Path $reviewGate 'review_attempt_test.go')
+Write-Overlay 'overlay-review-space-model.json' "$Workspace/server/core/probe/independent_review_space_model_test.go" (Join-Path $reviewValidation 'space_model_test.go')
 
 $ovGate = Join-Path $outDir 'overlay-review-gate.json'
 $ovGateCtx = Join-Path $outDir 'overlay-review-gate-ctx.json'
@@ -76,8 +80,8 @@ Invoke-Logged '23-review-space-model.txt' @('test', '-tags', 'online', '-overlay
 Invoke-Logged '24-review-normalized-similarity.txt' @('test', '-tags', 'online', '-overlay', $ovSpace, '-p', '1', './core/probe', '-run', '^TestReviewNormalizedSimilarityReadyButFakeSchemaFails$', '-count=1', '-v')
 
 # ---- 变异：剥离修复后，对应用例必须失败（非空转证据）----
-Write-Overlay 'overlay-mutation-sendgate.json' '<WORKSPACE>/server/core/probe/sendgate.go' (Join-Path $outDir 'mutation-sendgate-no-commit.go')
-Write-Overlay 'overlay-mutation-canonical.json' '<WORKSPACE>/server/core/probe/probe.go' (Join-Path $outDir 'mutation-probe-no-canonical.go')
+Write-Overlay 'overlay-mutation-sendgate.json' "$Workspace/server/core/probe/sendgate.go" (Join-Path $outDir 'mutation-sendgate-no-commit.go')
+Write-Overlay 'overlay-mutation-canonical.json' "$Workspace/server/core/probe/probe.go" (Join-Path $outDir 'mutation-probe-no-canonical.go')
 
 $ovMutSend = Join-Path $outDir 'overlay-mutation-sendgate.json'
 $ovMutCanon = Join-Path $outDir 'overlay-mutation-canonical.json'

@@ -12,12 +12,16 @@
 # 预期：
 #   - 停止窗口复现（20-21）：exit 0，命中数恒为 0，最终 SKIP（"timing-dependent
 #     window not observed"）；"PASS" 本身不证明窗口已关闭，需看 hits 与 SKIP。
-#   - nil 文档 / 非法目标 / dot 相似度（22-25）：反例期望“缺陷存在”，修复后
-#     在各自断言处 FAIL，exit 1——这是“缺陷不再复现”的证据。
+#   - nil 文档 / 非法目标 / dot 相似度（22-25）：反例期望"缺陷存在"，修复后
+#     在各自断言处 FAIL，exit 1——这是"缺陷不再复现"的证据。
 #   - 变异（30-32）：剥离修复后对应用例必须 FAIL，证明用例不是空转。
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-$root = '<WORKSPACE>'
+$root = $Workspace
 $outDir = Join-Path $root 'verification\stage2d-fix3-bdd3a6d-20261028'
 $reviewConcurrency = Join-Path $root 'verification\independent-2d-bdd3a6-concurrency'
 $reviewAuth = Join-Path $root 'verification\independent-2d-bdd3a6-auth'
@@ -26,8 +30,8 @@ $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:GOFLAGS = ''
 $env:CGO_ENABLED = '1'
-$env:CC = '<TOOLCHAIN>/ucrt64/bin/gcc.exe'
-$env:PATH = '<TOOLCHAIN>\ucrt64\bin;' + $env:PATH
+$env:CC = "$Toolchain/ucrt64/bin/gcc.exe"
+$env:PATH = "$Toolchain\ucrt64\bin;" + $env:PATH
 
 Set-Location (Join-Path $root 'server')
 
@@ -70,13 +74,13 @@ $envLog = Join-Path $outDir '00-environment.txt'
 
 # ---- 补充复现（复核方原始源码，未修改）----
 $ovStop20k = Join-Path $outDir 'overlay-repro-stop20k.json'
-Write-Overlay 'overlay-repro-stop20k.json' '<WORKSPACE>/server/core/probe/independent_review_stop_test.go' (Join-Path $reviewConcurrency 'review_stop_20k_test.go')
+Write-Overlay 'overlay-repro-stop20k.json' "$Workspace/server/core/probe/independent_review_stop_test.go" (Join-Path $reviewConcurrency 'review_stop_20k_test.go')
 $ovStop100k = Join-Path $outDir 'overlay-repro-stop100k.json'
-Write-Overlay 'overlay-repro-stop100k.json' '<WORKSPACE>/server/core/probe/independent_review_stop_test.go' (Join-Path $reviewConcurrency 'review_stop_test.go')
+Write-Overlay 'overlay-repro-stop100k.json' "$Workspace/server/core/probe/independent_review_stop_test.go" (Join-Path $reviewConcurrency 'review_stop_test.go')
 $ovNilDoc = Join-Path $outDir 'overlay-repro-nildoc.json'
-Write-Overlay 'overlay-repro-nildoc.json' '<WORKSPACE>/server/core/probe/independent_nil_doc_test.go' (Join-Path $reviewConcurrency 'nil_doc_test.go')
+Write-Overlay 'overlay-repro-nildoc.json' "$Workspace/server/core/probe/independent_nil_doc_test.go" (Join-Path $reviewConcurrency 'nil_doc_test.go')
 $ovAuth = Join-Path $outDir 'overlay-repro-auth.json'
-Write-Overlay 'overlay-repro-auth.json' '<WORKSPACE>/server/core/probe/independent_auth_bdd_test.go' (Join-Path $reviewAuth 'review_test.go')
+Write-Overlay 'overlay-repro-auth.json' "$Workspace/server/core/probe/independent_auth_bdd_test.go" (Join-Path $reviewAuth 'review_test.go')
 
 Invoke-Logged '20-repro-stop-window-20k.txt' @('test', '-race', '-overlay', $ovStop20k, '-p', '1', './core/probe', '-run', '^TestReviewStopMarkedBeforeCancellationAllowsSend$', '-count=5', '-v')
 Invoke-Logged '21-repro-stop-window-100k.txt' @('test', '-race', '-overlay', $ovStop100k, '-p', '1', './core/probe', '-run', '^TestReviewStopMarkedBeforeCancellationAllowsSend$', '-count=1', '-v')
@@ -87,15 +91,15 @@ Invoke-Logged '25-repro-auth-mismatched-similarity.txt' @('test', '-tags', 'onli
 
 # ---- 变异：剥离修复后，对应用例必须失败（非空转证据）----
 $ovMutSend = Join-Path $outDir 'overlay-mutation-sendgate.json'
-Write-Overlay 'overlay-mutation-sendgate.json' '<WORKSPACE>/server/core/probe/sendgate.go' (Join-Path $outDir 'mutation-sendgate-no-commit.go')
+Write-Overlay 'overlay-mutation-sendgate.json' "$Workspace/server/core/probe/sendgate.go" (Join-Path $outDir 'mutation-sendgate-no-commit.go')
 $ovMutPre = Join-Path $outDir 'overlay-mutation-preflight.json'
-Write-Overlay 'overlay-mutation-preflight.json' '<WORKSPACE>/server/core/probe/preflight.go' (Join-Path $outDir 'mutation-preflight-no-rerank-validation.go')
+Write-Overlay 'overlay-mutation-preflight.json' "$Workspace/server/core/probe/preflight.go" (Join-Path $outDir 'mutation-preflight-no-rerank-validation.go')
 $ovMutProbe = Join-Path $outDir 'overlay-mutation-probe.json'
-Write-Overlay 'overlay-mutation-probe.json' '<WORKSPACE>/server/core/probe/probe.go' (Join-Path $outDir 'mutation-probe-no-target-identity.go')
+Write-Overlay 'overlay-mutation-probe.json' "$Workspace/server/core/probe/probe.go" (Join-Path $outDir 'mutation-probe-no-target-identity.go')
 
 Invoke-Logged '30-mutation-sendgate-boundary.txt' @('test', '-overlay', $ovMutSend, '-p', '1', './core/probe', '-run', '^TestSendGate_TransportBoundaryRefusesAfterStopMarker$', '-count=1', '-v')
-# 诚实记录：端到端固定窗口用例在剥离闸门后仍可能因“ctx 已被 stop 取消”而未发送，
-# 因此它不能单独区分“有闸门”与“只靠 ctx 取消”；非空转证明依赖上面的传输边界用例。
+# 诚实记录：端到端固定窗口用例在剥离闸门后仍可能因"ctx 已被 stop 取消"而未发送，
+# 因此它不能单独区分"有闸门"与"只靠 ctx 取消"；非空转证明依赖上面的传输边界用例。
 Invoke-Logged '30b-mutation-sendgate-admitted-unsent.txt' @('test', '-overlay', $ovMutSend, '-p', '1', './core/probe', '-run', '^TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt$', '-count=1', '-v')
 # 原复核形状（20k 人工句柄）：剥离闸门后，若取消尚未轮到该步骤，fake 模型会收到请求。
 Invoke-Logged '30c-mutation-sendgate-review-shape.txt' @('test', '-overlay', $ovMutSend, '-p', '1', './core/probe', '-run', '^TestSendGate_OriginalReviewStopWindowShapeHasNoSend$', '-count=3', '-v')

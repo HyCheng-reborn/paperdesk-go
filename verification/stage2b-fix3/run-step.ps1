@@ -9,11 +9,15 @@ param(
     [Parameter(Mandatory = $true)][string[]]$CmdArgs
 )
 
+# Path configuration — override via environment variables; defaults are desensitized placeholders.
+$Workspace = if ($env:RAG_WORKSPACE) { $env:RAG_WORKSPACE } else { '<WORKSPACE>' }
+$Toolchain = if ($env:RAG_TOOLCHAIN) { $env:RAG_TOOLCHAIN } else { '<TOOLCHAIN>' }
+
 $ErrorActionPreference = 'Continue'
-Set-Location '<WORKSPACE>\server'
+Set-Location "$Workspace\server"
 
 if ($UseMsys) {
-    $env:PATH = "<TOOLCHAIN>\ucrt64\bin;$env:PATH"
+    $env:PATH = "$Toolchain\ucrt64\bin;$env:PATH"
     $env:CC = 'gcc'
     $env:CGO_ENABLED = '1'
 }
@@ -35,9 +39,9 @@ if ($null -eq $body) { $body = '' }
 $d = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 $gccVer = ''
 if ($UseMsys) {
-    $gccVer = (& <TOOLCHAIN>\ucrt64\bin\gcc.exe --version 2>&1 | Select-Object -First 1) -join ''
+    $gccVer = (& "$Toolchain\ucrt64\bin\gcc.exe" --version 2>&1 | Select-Object -First 1) -join ''
 }
-$header = "# CMD: $CmdLine`r`n# CWD: <WORKSPACE>\server`r`n# ENV: $EnvNote`r`n# EXIT: $ec`r`n# DATE: $d`r`n# DURATION_SEC: $([math]::Round($sw.Elapsed.TotalSeconds, 1))`r`n"
+$header = "# CMD: $CmdLine`r`n# CWD: $Workspace\server`r`n# ENV: $EnvNote`r`n# EXIT: $ec`r`n# DATE: $d`r`n# DURATION_SEC: $([math]::Round($sw.Elapsed.TotalSeconds, 1))`r`n"
 if ($gccVer) { $header += "# GCC: $gccVer`r`n" }
 $header += "# GIT_HEAD: $((git rev-parse HEAD 2>&1) -join '')`r`n# NOTE: stdout and stderr are interleaved in a single stream`r`n"
 Set-Content -Path $LogFile -Value ($header + "--- OUTPUT BEGIN ---`r`n" + $body + "--- OUTPUT END ---`r`n") -NoNewline -Encoding UTF8

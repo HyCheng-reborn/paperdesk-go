@@ -5,7 +5,6 @@
 # After dot-sourcing, the following functions are available:
 #   Test-RequiredEnv   - Fail-fast validation of required environment variables
 #   Set-ToolchainEnv   - Configure MSYS2/UCRT64 toolchain environment
-#   Assert-InGitRepo   - Validate that a directory is within a git repository
 #   Assert-ToolchainExists - Validate that the toolchain gcc exists
 
 function Test-RequiredEnv {
@@ -77,22 +76,6 @@ function Set-ToolchainEnv {
     # Prepend to PATH
     $currentPath = $env:PATH -split ';' | Where-Object { $_ -ne $ucrtBin }
     $env:PATH = ($ucrtBin + ';' + ($currentPath -join ';'))
-}
-
-function Assert-InGitRepo {
-    <#
-    .SYNOPSIS
-        Validates that the specified directory is within a git repository.
-    .PARAMETER Path
-        Directory to check. Defaults to current location.
-    #>
-    param([string]$Path = (Get-Location).Path)
-
-    $gitDir = git -C $Path rev-parse --git-dir 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Not inside a git repository: $Path"
-        exit 1
-    }
 }
 
 function Assert-ToolchainExists {

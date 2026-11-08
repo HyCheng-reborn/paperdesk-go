@@ -40,7 +40,7 @@ function Test-RequiredEnv {
 
     # Check for angle-bracket patterns (generic placeholder detection)
     if ($value -match '<[^>]+>') {
-        Write-Error "Environment variable $Name appears to contain an unresolved placeholder: '$value'."
+        Write-Error "Environment variable $Name appears to contain an unresolved placeholder."
         exit 1
     }
 

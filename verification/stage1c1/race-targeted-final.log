@@ -1,0 +1,11 @@
+﻿CMD: go test -race ./core/common/... ./internal/controller/rag/... ./internal/cmd/... -count=1
+GOFLAGS=[]  (untagged default)
+---- stdout ----
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/common	0.102s
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	1.291s
+ok  	github.com/wangle201210/go-rag/server/internal/cmd	5.282s
+FAIL
+
+---- stderr ----
+---- EXIT: 1 ----

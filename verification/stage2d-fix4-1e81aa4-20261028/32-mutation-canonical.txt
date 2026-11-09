@@ -1,0 +1,28 @@
+CMD: go test -overlay <WORKSPACE>\verification\stage2d-fix4-1e81aa4-20261028\overlay-mutation-canonical.json -p 1 ./core/probe -run ^TestPlan_CanonicalIdentityRejectedEverywhere$ -count=1 -v
+WORKDIR: <WORKSPACE>\server
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/embedding_model_with_spaces
+    preflight_target_test.go:312: Plan.Validate() = <nil>, want ErrNotConfigured
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/chat_model_with_trailing_space
+    preflight_target_test.go:312: Plan.Validate() = <nil>, want ErrNotConfigured
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/similarity_spaces_and_uppercase
+    preflight_target_test.go:312: Plan.Validate() = <nil>, want ErrNotConfigured
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/similarity_uppercase
+    preflight_target_test.go:312: Plan.Validate() = <nil>, want ErrNotConfigured
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/provider_uppercase
+    preflight_target_test.go:312: Plan.Validate() = <nil>, want ErrNotConfigured
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/canonical_cosine_digest_matches_binding_and_round_trip
+=== RUN   TestPlan_CanonicalIdentityRejectedEverywhere/local_fake_target_rejects_non_canonical_identity
+    preflight_target_test.go:444: spaced model = probe: bind local target: FINGERPRINT_CORRUPTED: expected sha256:4e9134164062c3645f7bf67a003c9558b18d68d4d3c6c1d2ea254d8ef4b7cf9e, got sha256:9835fac00a5b6be16f8bb675b5ed34cc265bb3a3f704bad4ee4e167dd6bf8ed6, want ErrNotConfigured mentioning embed.model
+--- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere (0.02s)
+    --- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere/embedding_model_with_spaces (0.00s)
+    --- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere/chat_model_with_trailing_space (0.00s)
+    --- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere/similarity_spaces_and_uppercase (0.00s)
+    --- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere/similarity_uppercase (0.00s)
+    --- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere/provider_uppercase (0.00s)
+    --- PASS: TestPlan_CanonicalIdentityRejectedEverywhere/canonical_cosine_digest_matches_binding_and_round_trip (0.02s)
+    --- FAIL: TestPlan_CanonicalIdentityRejectedEverywhere/local_fake_target_rejects_non_canonical_identity (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.282s
+FAIL
+EXIT=1

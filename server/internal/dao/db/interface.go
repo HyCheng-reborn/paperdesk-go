@@ -1,5 +1,7 @@
 package db
 
+import "gorm.io/gorm"
+
 // Database 数据库接口
 type Database interface {
 	// Connect 连接管理
@@ -10,6 +12,16 @@ type Database interface {
 	AutoMigrate() error
 	// Ping 健康检查
 	Ping() error
+	// Close 关闭数据库连接
+	Close() error
+	// GormDB 返回底层的 *gorm.DB 实例
+	GormDB() *gorm.DB
+}
+
+// DatabaseFactory 创建 Database 实例的工厂接口
+// 生产环境使用 defaultFactory（真实驱动），测试使用 fakeFactory
+type DatabaseFactory interface {
+	Create(cfg Config) (Database, error)
 }
 
 type Config struct {

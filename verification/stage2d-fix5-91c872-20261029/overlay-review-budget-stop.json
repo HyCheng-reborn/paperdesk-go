@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/independent_budget_stop_test.go": "<WORKSPACE>/verification/independent-2d-91c872-stopreview/budget_after_stop_test.go"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/providers/bailian/embedding.go": "<WORKSPACE>/verification/stage2d-fix5-91c872-20261029/mutation-bailian-zero-profile.go",
+    "<WORKSPACE>/server/core/probe/independent_counts_test.go": "<WORKSPACE>/verification/independent-2d-91c872-counts/review_counts_test.go"
+  }
+}

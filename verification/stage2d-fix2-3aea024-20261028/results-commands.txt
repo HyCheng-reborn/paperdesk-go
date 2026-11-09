@@ -1,0 +1,35 @@
+[1] go test -p 1 ./core/probe/... -count=1 -v
+    exit 0 ; --- PASS count=32 ; --- FAIL count=0 ; log: test-probe-default.log
+
+[2] go test -tags online -p 1 ./core/probe/... -count=1 -v
+    exit 0 ; --- PASS count=39 ; --- FAIL count=0 ; log: test-probe-online.log
+
+[3] PATH+=<TOOLCHAIN>/ucrt64/bin ; CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe
+    go test -race -p 1 ./core/probe/... -count=1 -v
+    exit 0 ; DATA RACE lines=0 ; log: race-probe-default.log
+
+[4] go test -tags online -race -p 1 ./core/probe/... -count=1 -v
+    exit 0 ; DATA RACE lines=0 ; log: race-probe-online.log
+
+[5] go test -race -p 1 ./core/probe/ -count=5 -v -run '<authorization|concurrent stop|preflight|clone|W1-W5|redirect|stop reason>'
+    exit 0 ; DATA RACE lines=0 ; log: race-targeted-repeat-default.log
+
+[6] go test -tags online -race -p 1 ./core/probe/ -count=5 -v -run '<online auth|preflight roles|credentials|W1-W5|concurrent stop|clone>'
+    exit 0 ; DATA RACE lines=0 ; log: race-targeted-repeat-online.log
+
+[7] go test -p 1 ./... -count=1   (serial, whole module)
+    exit 0 ; log: test-full-serial.log
+
+[8] go build ./...                 exit 0 ; log: build-vet-online-vet.log
+[9] go vet ./...                   exit 0 ; same log
+[10] go vet -tags online ./...     exit 0 ; same log
+[11] gofmt -l core/probe           exit 0 (empty output = formatted) ; same log
+
+[12] go test -tags online -race -p 1 ./core/probe/ -run '^TestBudgetReviewMutablePlanRace$' -count=3 -v -overlay overlay-race.json
+     exit 0 ; original DATA RACE counterexample PASS x3 ; DATA RACE lines=0 ; log: review-race-repro.log
+
+[13] go test -tags online -p 1 ./core/probe/ -run '^TestReview...$' -v -overlay overlay-isolation.json
+     exit 1 (EXPECTED) ; three original reproducers now FAIL at their bug-expectation assertions ; log: review-isolation-repro.log
+
+[14] go test -tags online -p 1 ./core/probe/ -run '^(TestBudgetReviewVersionedChat...|TestBudgetReviewRetries...)$' -v -overlay overlay-race.json
+     exit 1 (EXPECTED) ; both reproduced defects no longer reproduce (readiness rejects m@v1; hits stay 1) ; log: review-behavior-repro.log

@@ -1,0 +1,7 @@
+CMD: go test -overlay <WORKSPACE>\verification\stage2d-fix3-bdd3a6d-20261028\overlay-mutation-sendgate.json -p 1 ./core/probe -run ^TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt$ -count=1 -v
+WORKDIR: <WORKSPACE>\server
+=== RUN   TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt
+--- PASS: TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt (0.01s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	0.247s
+EXIT=0

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/independent_review_attempt_test.go": "<WORKSPACE>/verification/independent-2d-1e81aa-gate/review_attempt_test.go"
+  }
+}

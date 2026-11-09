@@ -1,0 +1,8 @@
+CMD: go test -overlay <WORKSPACE>\verification\stage2d-fix4-1e81aa4-20261028\overlay-review-attempt.json -p 1 ./core/probe -run ^TestReviewAttemptEvidenceCountsGateBlockedCall$ -count=1 -v
+WORKDIR: <WORKSPACE>\server
+=== RUN   TestReviewAttemptEvidenceCountsGateBlockedCall
+    independent_review_attempt_test.go:6: OBSERVED HTTP server hits=0 but StepReport.Attempts=1 committed=1
+--- PASS: TestReviewAttemptEvidenceCountsGateBlockedCall (0.01s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	0.257s
+EXIT=0

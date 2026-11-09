@@ -1,0 +1,38 @@
+﻿# CMD: go test -race ./core -count=10 -v -run "TestShutdown_|TestMarkFailed_|TestBackground"
+# GOFLAGS: 
+# EXIT: 0
+# DATE: 2026-10-18 15:11:34
+
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.153+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.11s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.257+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.361+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.465+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.569+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.673+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.778+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.881+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:32.986+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+=== RUN   TestBackgroundCancelAfterWait_NoAsyncIndexer
+2026-10-18T15:11:33.091+08:00 [INFO] Index success, generated 1 chunks with IDs: [id1]
+--- PASS: TestBackgroundCancelAfterWait_NoAsyncIndexer (0.10s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core	2.336s
+

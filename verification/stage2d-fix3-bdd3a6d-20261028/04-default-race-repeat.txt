@@ -1,0 +1,4 @@
+CMD: go test -race -count=5 -run TestSendGate|TestPreflight_RejectsNilRerankDocumentBeforeAnySend|TestPlan_TargetRulesMatchProduction|TestConcurrentStop_RefusesNewRetryAndConverges|TestW[1-5]_|TestProbeChain_GuardRejectsReplacedTarget|TestRedirect_ProhibitedIsNotRetried|TestStopReasonIsSanitized ./core/probe/
+WORKDIR: <WORKSPACE>\server
+ok  	github.com/wangle201210/go-rag/server/core/probe	6.299s
+EXIT=0

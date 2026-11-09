@@ -1,0 +1,4 @@
+CMD: go test -tags online -race -count=5 -run TestOnlineBuild|TestSendGate|TestW[1-5]_ ./core/probe/
+WORKDIR: <WORKSPACE>\server
+ok  	github.com/wangle201210/go-rag/server/core/probe	6.136s
+EXIT=0

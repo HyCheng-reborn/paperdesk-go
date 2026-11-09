@@ -1,0 +1,68 @@
+CMD: go test -tags online -race ./core/probe -count=3 -v -run TestProviderRegistrationBuildsProductionChain|TestStopMarkerDoesNotRetractBudgetCommit|TestOnlineBuild_DirectNewChainRequiresAuthorization
+WORKDIR: <WORKSPACE>\server
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.07s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.06s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.01s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.00s)
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.01s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.00s)
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.01s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.01s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	2.895s
+EXIT=0

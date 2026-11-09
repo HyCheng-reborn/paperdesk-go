@@ -1,0 +1,12 @@
+=== RUN   TestReviewOnlineDirectChainSkipsAuthorization
+    zz_review_isolation_test.go:8: unauthorized NewChain rejected: probe: online execution is not authorized
+--- FAIL: TestReviewOnlineDirectChainSkipsAuthorization (0.01s)
+=== RUN   TestReviewReadinessAcceptsEmptyCredential
+    zz_review_isolation_test.go:17: expected observed ready=true: [{Name:plan OK:true Detail:fixed target/parameters/budget/retry, endpoint policy and role identities are set} {Name:authorization OK:true Detail:approved for S-1} {Name:credentials OK:false Detail:probe: required credential environment variable is not set: PROBE_REVIEW_EMPTY is set but empty (an empty value is not a credential)} {Name:steps OK:true Detail:1 step(s) declared}]
+--- FAIL: TestReviewReadinessAcceptsEmptyCredential (0.00s)
+=== RUN   TestReviewPreflightAllowsVersionedLaterRerank
+    zz_review_isolation_test.go:23: expected observed ready: [{Name:plan OK:false Detail:probe: rerank role: providers: protocol cannot express model version in request: model="m" version="v1"} {Name:authorization OK:true Detail:approved for S-1} {Name:credentials OK:true Detail:exactly one credential environment variable is declared, present and non-empty (its value is never recorded)} {Name:steps OK:true Detail:2 step(s) declared}]
+--- FAIL: TestReviewPreflightAllowsVersionedLaterRerank (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.253s
+FAIL

@@ -1,0 +1,32 @@
+DATE: 2026-10-29T13:29:27.7044211+08:00
+ROOT: <WORKSPACE>
+go version go1.27.1 windows/amd64
+gcc.exe (Rev6, Built by MSYS2 project) 16.2.0
+GOPROXY=off GOSUMDB=off CGO_ENABLED=1 CC=<TOOLCHAIN>/ucrt64/bin/gcc.exe
+HEAD=91c872fa75c5b51b33dd479cebae33aeba56aeb0
+HEAD^=1e81aa406501219d4ce1ad7c2083c4819cfcf644
+BRANCH=codex/stage2c2-fingerprint
+ M .git-commit-msg.txt
+ M design/stage2d-plan.md
+ M server/core/providers/bailian/embedding.go
+ M verification/stage2d-offline-a12af92-20261028/CLAIMS.md
+?? design/stage2d-stop-b-plan.md
+?? server/core/probe/bailian_identity_test.go
+?? server/core/probe/budget_stop_test.go
+?? verification/independent-2c3-2c952ce-20261028/
+?? verification/independent-2c3-6ab2027-20261028/
+?? verification/independent-2c3-a12af92-20261028/
+?? verification/independent-2c3-c4111e0-20261028/
+?? verification/independent-2d-1e81aa-gate/
+?? verification/independent-2d-1e81aa-validation/
+?? verification/independent-2d-1e81aa4-20261028/
+?? verification/independent-2d-3aea024-20261028/
+?? verification/independent-2d-3aea024-isolation/
+?? verification/independent-2d-7a30899-20261028/
+?? verification/independent-2d-91c872-20261029/
+?? verification/independent-2d-91c872-counts/
+?? verification/independent-2d-91c872-stopreview/
+?? verification/independent-2d-bdd3a6-auth/
+?? verification/independent-2d-bdd3a6-concurrency/
+?? verification/independent-2d-bdd3a6d-20261028/
+?? verification/stage2d-fix5-91c872-20261029/

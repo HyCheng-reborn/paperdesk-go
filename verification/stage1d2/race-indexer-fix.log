@@ -1,0 +1,9 @@
+﻿# CMD: go test -race ./core/indexer/... -count=1
+# GOFLAGS: (empty)
+# EXIT: 1
+# DATE: 2026-10-17 10:51:05
+# NOTE: 运行异常、race 未完成、根因待确认（Windows DLL 0xc0000139 entry point not found）
+
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/indexer	0.117s
+FAIL

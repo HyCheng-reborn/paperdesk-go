@@ -1,0 +1,6 @@
+=== go test -race ./core/providers/... -count=10 -run CloseWaitsRecv|ParentCancel|TempGoroutine ===
+EXIT=0
+
+ok  	github.com/wangle201210/go-rag/server/core/providers	4.300s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.248s [no tests to run]
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	1.229s [no tests to run]

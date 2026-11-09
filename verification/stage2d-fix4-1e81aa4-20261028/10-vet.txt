@@ -1,0 +1,3 @@
+CMD: go vet ./...
+WORKDIR: <WORKSPACE>\server
+EXIT=0

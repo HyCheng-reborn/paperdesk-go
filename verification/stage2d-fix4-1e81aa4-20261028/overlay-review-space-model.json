@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/independent_review_space_model_test.go": "<WORKSPACE>/verification/independent-2d-1e81aa-validation/space_model_test.go"
+  }
+}

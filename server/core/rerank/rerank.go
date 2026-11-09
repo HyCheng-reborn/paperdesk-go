@@ -3,15 +3,35 @@ package rerank
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 )
 
+// HTTPDoer is the interface for executing HTTP requests.
+// It is satisfied by *http.Client and can be mocked in tests.
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// RerankConfig holds the configuration for the rerank service.
+type RerankConfig struct {
+	URL             string
+	APIKey          string
+	Model           string
+	ReturnDocuments bool
+	MaxChunksPerDoc int
+	OverlapTokens   int
+}
+
+// Conf is kept for backward compatibility with config loading.
 type Conf struct {
 	Model           string `json:"model"`
 	ReturnDocuments bool   `json:"return_documents"`
@@ -20,6 +40,19 @@ type Conf struct {
 	url             string
 	apiKey          string
 }
+
+// ToRerankConfig converts Conf to RerankConfig.
+func (c *Conf) ToRerankConfig() *RerankConfig {
+	return &RerankConfig{
+		URL:             c.url,
+		APIKey:          c.apiKey,
+		Model:           c.Model,
+		ReturnDocuments: c.ReturnDocuments,
+		MaxChunksPerDoc: c.MaxChunksPerDoc,
+		OverlapTokens:   c.OverlapTokens,
+	}
+}
+
 type Data struct {
 	Query     string   `json:"query"`
 	Documents []string `json:"documents"`
@@ -31,9 +64,11 @@ type Req struct {
 	*Conf
 }
 
+// Result represents a single rerank result item.
+// Pointer fields allow detection of missing JSON values.
 type Result struct {
-	Index          int     `json:"index"`
-	RelevanceScore float64 `json:"relevance_score"`
+	Index          *int     `json:"index"`
+	RelevanceScore *float64 `json:"relevance_score"`
 }
 
 type Resp struct {
@@ -41,90 +76,257 @@ type Resp struct {
 	Results []*Result `json:"results"`
 }
 
-var rerankCfg *Conf
-
-func NewRerank(ctx context.Context, query string, docs []*schema.Document, topK int) (output []*schema.Document, err error) {
-	output, err = rerank(ctx, query, docs, topK)
-	if err != nil {
-		return
-	}
-	return
+// Rerank is the rerank service client.
+type Rerank struct {
+	cfg    *RerankConfig
+	client HTTPDoer
 }
 
-func GetConf(ctx context.Context) *Conf {
-	if rerankCfg != nil {
-		return rerankCfg
+// NewRerank creates a new Rerank instance.
+// If client is nil, http.DefaultClient is used.
+func NewRerank(cfg *RerankConfig, client HTTPDoer) *Rerank {
+	if client == nil {
+		client = http.DefaultClient
 	}
-	baseUrl := g.Cfg().MustGet(ctx, "rerank.baseURL").String()
-	apiKey := g.Cfg().MustGet(ctx, "rerank.apiKey").String()
-	model := g.Cfg().MustGet(ctx, "rerank.model").String()
-	url := fmt.Sprintf("%s/rerank", baseUrl)
-	rerankCfg = &Conf{
-		apiKey:          apiKey,
-		Model:           model,
+	return &Rerank{cfg: cfg, client: client}
+}
+
+// ConfigReader 注入逐项读取字符串配置的能力
+type ConfigReader interface {
+	GetString(ctx context.Context, key string) (string, error)
+}
+
+// goFrameConfigReader 是生产环境的 GoFrame 适配器
+type goFrameConfigReader struct{}
+
+func (r *goFrameConfigReader) GetString(ctx context.Context, key string) (string, error) {
+	v, err := g.Cfg().Get(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	return v.String(), nil
+}
+
+// loadConf 实际使用的配置解析函数
+func loadConf(ctx context.Context, reader ConfigReader) (*Conf, error) {
+	cfg := &Conf{
 		ReturnDocuments: false,
 		MaxChunksPerDoc: 1024,
 		OverlapTokens:   80,
-		url:             url,
 	}
-	return rerankCfg
+
+	baseURL, err := reader.GetString(ctx, "rerank.baseURL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rerank.baseURL: %w", err)
+	}
+	if baseURL != "" {
+		cfg.url = fmt.Sprintf("%s/rerank", baseURL)
+	}
+
+	model, err := reader.GetString(ctx, "rerank.model")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rerank.model: %w", err)
+	}
+	if model != "" {
+		cfg.Model = model
+	}
+
+	apiKey, err := reader.GetString(ctx, "rerank.apiKey")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rerank.apiKey: %w", err)
+	}
+	if apiKey != "" {
+		cfg.apiKey = apiKey
+	}
+
+	return cfg, nil
 }
 
-func rerank(ctx context.Context, query string, docs []*schema.Document, topK int) (output []*schema.Document, err error) {
+// GetConf loads the rerank config from GoFrame configuration.
+// Each call reads config fresh; errors propagate instead of panicking.
+func GetConf(ctx context.Context) (*Conf, error) {
+	return loadConf(ctx, &goFrameConfigReader{})
+}
+
+// ErrInvalidInput 表示请求在本地即可判定的无效输入。
+//
+// 生产入口 (*Rerank).Rerank 与需要提前校验的调用方（如离线探针预检）共用
+// ValidateInput，因此"生产会在发送前拒绝"与"预检会拒绝"来自同一份规则，
+// 不会出现预检放过、真实入口再拒绝而前一步已经发送的分裂。
+var ErrInvalidInput = errors.New("rerank: invalid request input")
+
+// ValidateInput 是 (*Rerank).Rerank 的纯输入校验：不读配置、不发请求、
+// 不做任何 I/O，只判定请求本身是否自相矛盾。
+func ValidateInput(query string, docs []*schema.Document, topK int) error {
+	if len(docs) == 0 {
+		return fmt.Errorf("%w: empty docs", ErrInvalidInput)
+	}
+	for i, doc := range docs {
+		if doc == nil {
+			return fmt.Errorf("%w: nil document at index %d", ErrInvalidInput, i)
+		}
+	}
+	if topK <= 0 {
+		return fmt.Errorf("%w: invalid topK: %d", ErrInvalidInput, topK)
+	}
+	return nil
+}
+
+// Rerank performs reranking on the given documents.
+// It validates inputs before making any HTTP call.
+func (r *Rerank) Rerank(ctx context.Context, query string, docs []*schema.Document, topK int) ([]*schema.Document, error) {
+	// Input validation（与预检共用同一实现）
+	if err := ValidateInput(query, docs, topK); err != nil {
+		return nil, err
+	}
+
+	// Check ctx before making HTTP call
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	data := &Data{
 		Query: query,
 		TopN:  topK,
 	}
-	// g.Log().Infof(ctx, "docs num: %d", len(docs))
 	for _, doc := range docs {
 		data.Documents = append(data.Documents, doc.Content)
 	}
-	// 重排
-	results, err := rerankDoHttp(ctx, data)
+
+	results, err := r.rerankDoHttp(ctx, data, docs)
 	if err != nil {
-		return
+		return nil, err
 	}
-	// 重新组装数据
-	for _, result := range results {
-		doc := docs[result.Index]
-		// g.Log().Infof(ctx, "content: %s, score_old: %f, score_new: %f", doc.Content, doc.Score(), result.RelevanceScore)
-		doc.WithScore(result.RelevanceScore)
-		output = append(output, docs[result.Index])
-	}
-	return
+
+	// Build independent output documents, preserving input unchanged
+	return r.buildOutput(docs, results)
 }
 
-func rerankDoHttp(ctx context.Context, data *Data) ([]*Result, error) {
-	cfg := GetConf(ctx)
+// buildOutput generates independent output documents.
+// Copies Document structure and top-level MetaData map, isolating WithScore writes.
+// Does not recursively copy arbitrarily nested values.
+func (r *Rerank) buildOutput(docs []*schema.Document, results []*Result) ([]*schema.Document, error) {
+	output := make([]*schema.Document, len(results))
+	for i, result := range results {
+		src := docs[*result.Index]
+		// Deep copy Document including metadata map
+		cp := &schema.Document{
+			ID:       src.ID,
+			Content:  src.Content,
+			MetaData: copyMetadata(src.MetaData),
+		}
+		// Set score on the independent copy
+		output[i] = cp.WithScore(*result.RelevanceScore)
+	}
+	return output, nil
+}
+
+// copyMetadata performs a shallow copy of a metadata map.
+func copyMetadata(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
+	c := make(map[string]any, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
+// rerankDoHttp performs the HTTP request to the rerank API with bounded timeout,
+// response size limit, status code check, and thorough result validation.
+func (r *Rerank) rerankDoHttp(ctx context.Context, data *Data, docs []*schema.Document) ([]*Result, error) {
+	// Bind to caller ctx with bounded timeout; caller's earlier deadline wins
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	reqData := &Req{
 		Data: data,
-		Conf: cfg,
+		Conf: &Conf{
+			Model:           r.cfg.Model,
+			ReturnDocuments: r.cfg.ReturnDocuments,
+			MaxChunksPerDoc: r.cfg.MaxChunksPerDoc,
+			OverlapTokens:   r.cfg.OverlapTokens,
+		},
 	}
 
 	marshal, err := sonic.Marshal(reqData)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal request: %w", err)
 	}
-	payload := bytes.NewReader(marshal)
-	request, err := http.NewRequest("POST", cfg.url, payload)
+
+	req, err := http.NewRequestWithContext(timeoutCtx, "POST", r.cfg.URL, bytes.NewReader(marshal))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create request: %w", err)
 	}
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", cfg.apiKey))
-	do, err := g.Client().Do(request)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.cfg.APIKey))
+
+	resp, err := r.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("http request: %w", err)
 	}
-	defer do.Body.Close()
-	body, err := ioutil.ReadAll(do.Body)
+	defer resp.Body.Close()
+
+	// Status code check
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("rerank API returned status %d", resp.StatusCode)
+	}
+
+	// Bounded response body read: precise 10 MiB limit
+	const maxRespSize = 10 << 20 // 10 MiB = 10,485,760 bytes
+	limited := io.LimitReader(resp.Body, maxRespSize+1)
+	body, err := io.ReadAll(limited)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read response: %w", err)
 	}
-	res := Resp{}
-	err = sonic.Unmarshal(body, &res)
-	if err != nil {
-		return nil, err
+	if len(body) > maxRespSize {
+		return nil, fmt.Errorf("response exceeds %d bytes limit", maxRespSize)
 	}
+
+	// JSON parse
+	var res Resp
+	if err := sonic.Unmarshal(body, &res); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	// Results existence check
+	if res.Results == nil {
+		return nil, fmt.Errorf("missing results field")
+	}
+	if len(res.Results) == 0 {
+		return nil, fmt.Errorf("empty results")
+	}
+
+	// Result count contract: server must not return more than requested
+	if len(res.Results) > data.TopN {
+		return nil, fmt.Errorf("server returned %d results, expected at most %d", len(res.Results), data.TopN)
+	}
+
+	// Validate each result
+	seen := make(map[int]bool)
+	for i, result := range res.Results {
+		if result == nil {
+			return nil, fmt.Errorf("result[%d]: null result item", i)
+		}
+		if result.Index == nil {
+			return nil, fmt.Errorf("result[%d]: missing index", i)
+		}
+		if *result.Index < 0 || *result.Index >= len(docs) {
+			return nil, fmt.Errorf("result[%d]: index %d out of range", i, *result.Index)
+		}
+		if seen[*result.Index] {
+			return nil, fmt.Errorf("result[%d]: duplicate index %d", i, *result.Index)
+		}
+		seen[*result.Index] = true
+
+		if result.RelevanceScore == nil {
+			return nil, fmt.Errorf("result[%d]: missing score", i)
+		}
+		if math.IsNaN(*result.RelevanceScore) || math.IsInf(*result.RelevanceScore, 0) {
+			return nil, fmt.Errorf("result[%d]: invalid score %v", i, *result.RelevanceScore)
+		}
+	}
+
 	return res.Results, nil
 }

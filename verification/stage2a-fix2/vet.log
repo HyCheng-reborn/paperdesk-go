@@ -1,0 +1,4 @@
+# CMD: go vet ./...
+# CWD: <WORKSPACE>\server
+# EXIT: 0
+# DATE: 2026-10-19 04:10:06

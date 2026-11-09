@@ -1,3 +1,5 @@
+//go:build online
+
 package rerank
 
 import (
@@ -8,21 +10,26 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 )
 
-func TestRerank(t *testing.T) {
+func TestRerank_Online(t *testing.T) {
+	// 显式许可检查：API key 存在不等于许可
+	if os.Getenv("ONLINE_TEST_PERMITTED") != "true" {
+		t.Skip("Online tests require ONLINE_TEST_PERMITTED=true")
+	}
 	// 该测试会真实调用 rerank 在线接口，未配置 RERANK_API_KEY 时跳过，
 	// 保证 go test ./... 可以离线通过
 	apiKey := os.Getenv("RERANK_API_KEY")
 	if apiKey == "" {
 		t.Skip("未设置环境变量 RERANK_API_KEY，跳过 rerank 在线测试")
 	}
-	rerankCfg = &Conf{
-		apiKey:          apiKey,
+	cfg := &RerankConfig{
+		APIKey:          apiKey,
 		Model:           "BAAI/bge-reranker-v2-m3",
 		ReturnDocuments: false,
 		MaxChunksPerDoc: 1024,
 		OverlapTokens:   80,
-		url:             "https://api.siliconflow.cn/v1/rerank",
+		URL:             "https://api.siliconflow.cn/v1/rerank",
 	}
+	reranker := NewRerank(cfg, nil)
 	ctx := gctx.New()
 	docs := []*schema.Document{
 		{Content: "banana"},
@@ -30,7 +37,7 @@ func TestRerank(t *testing.T) {
 		{Content: "apple"},
 		{Content: "vegetable"},
 	}
-	output, err := NewRerank(ctx, "水果", docs, 2)
+	output, err := reranker.Rerank(ctx, "水果", docs, 2)
 	if err != nil {
 		t.Fatal(err)
 	}

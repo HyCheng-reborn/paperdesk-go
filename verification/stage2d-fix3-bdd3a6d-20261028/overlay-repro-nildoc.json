@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/independent_nil_doc_test.go": "<WORKSPACE>/verification/independent-2d-bdd3a6-concurrency/nil_doc_test.go"
+  }
+}

@@ -1,0 +1,12 @@
+CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
+BASELINE: c4111e031521eb372198d6b428759637cf21fee8
+PARENT: 6ab2027ecf8e5cf6664ac751f3a40305772d9ffd
+BRANCH: codex/stage2c2-fingerprint
+CWD: <WORKSPACE>\server
+Offline evidence: no real model/ES/Qdrant/MySQL calls; only httptest and local fakes.
+CGO toolchain: <TOOLCHAIN>\ucrt64 (gcc), CGO_ENABLED=1, PATH includes <TOOLCHAIN>\ucrt64\bin
+go version go1.27.1 windows/amd64
+windows
+amd64
+1
+

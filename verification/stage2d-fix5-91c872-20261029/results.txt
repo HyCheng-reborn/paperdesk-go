@@ -1,0 +1,50 @@
+Stage 2D S-1 第五批（91c872f 的第四轮独立复核）——命令与退出码汇总
+环境：Windows/amd64、Go 1.27.1、UCRT64 gcc 16.2.0、GOPROXY=off、GOSUMDB=off、CGO_ENABLED=1、GOFLAGS=''
+WORKDIR: server/（overlay 的基线两项为 .review-stage2c1-2dc0b82/server，只读）
+详见各日志首行的实际命令与 run-tests.ps1 / run-overlays.ps1。
+瞬时 "test binary ... being used by another process"（Windows 杀毒/索引占用）按日志中的
+"ATTEMPT n: transient windows binary lock, retrying" 有限重试；真实断言失败不重试。
+
+[干净目标：默认构建]
+01-default-targeted.txt                 exit 0   （百炼身份/预算承诺/既有停止与计数回归，全 PASS）
+02-default-full.txt                     exit 0   （probe + providers/... + common 全量）
+03-default-race-full.txt                exit 0   （-race，无 DATA RACE）
+04-default-race-repeat.txt              exit 0   （5 个关键用例各重复 5 次，-race -v）
+
+[干净目标：online 标签（对端仍为本机 fake）]
+05-online-full.txt                      exit 0
+06-online-race-full.txt                 exit 0   （无 DATA RACE）
+07-online-race-repeat.txt               exit 0   （身份/预算承诺/授权边界各重复 3 次）
+
+[全量/静态]
+08-serial-all.txt                       exit 0   （go test -p 1 ./...）
+09-build.txt                            exit 0   （go build ./...）
+10-vet.txt                              exit 0   （go vet ./...）
+11-vet-online.txt                       exit 0   （go vet -tags online ./...）
+
+[补充复现：复核原始源码 overlay，未修改]
+20-baseline-bailian-counts.txt          exit 1   基线（91c872f worktree）× 3：
+                                                 "embedding role *bailian.validatedEmbedRole
+                                                  does not expose verifiable provider identity"
+21-baseline-openai-counts.txt           exit 0   基线 openai 对照 × 3：1/1/1（共享路径正常）
+22-fixed-bailian-counts.txt             exit 0   同一复核源码 overlay 到修复后工作区 × 3：
+                                                 chat/embed/rerank 均 committed/gate/transport=1/1/1
+23-fixed-openai-counts.txt              exit 0   修复后 openai 对照 × 3：1/1/1
+24-review-budget-after-stop.txt         exit 0   复核 beforeCancel 复现 × 3：
+                                                 OBSERVED before=0 after=1 modelHits=0
+
+[变异：剥离修复，用例必须失败]
+30-mutation-bailian-zero-profile.txt    exit 1   Profile() -> 零身份：复核 bailian 用例重新失败，
+                                                 "embedding role reports empty provider name"
+31-mutation-bailian-shallow-profile.txt exit 1   Profile() -> 浅拷贝：防御性复制用例失败，
+                                                 "second snapshot KeyOptions = \"tampered\" ... (internal map leaked)"
+
+结论：
+- P1 已修复（防御性 Profile + 编译期断言，身份门禁未放宽）。前置遗留（接口强制来自 2c952ce），
+  不是固定起点 91c872f 的新回归；20→22 为同一复核源码的失败→通过对照，30/31 为非空转证据。
+- P2 无法在 probe 范围闭合"停止标记后零新预算提交"：承诺点在发送闸门之前，stop 不参与预算账本。
+  本批只保证零新入口准入/零新闸门准入/零新重试，保留保守结算（不退款、lease 收敛、错误链保留），
+  并把该边界写入 design/stage2d-plan.md §9.1/§9.2 与本目录 REPORT.md §3，等待用户决定 A/B/B+/C。
+- P3 方案 B 只交付离线设计（design/stage2d-stop-b-plan.md），未实现、未批准，不宣称契约闭合。
+- 本批未执行在线探针；未访问真实模型、ES、Qdrant、MySQL 或互联网；未更新任何验收状态。
+- 以上 20–24、30/31 均为补充复现/变异，不写作"独立复核通过"。

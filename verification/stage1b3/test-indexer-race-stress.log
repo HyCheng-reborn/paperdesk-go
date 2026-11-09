@@ -1,0 +1,7 @@
+﻿CMD: go test -race ./core -count=25 -run TestIndex_
+GOFLAGS=[]  (untagged default)
+---- stdout ----
+ok  	github.com/wangle201210/go-rag/server/core	6.280s
+
+---- stderr ----
+---- EXIT: 0 ----

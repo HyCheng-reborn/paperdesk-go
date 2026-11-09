@@ -1,0 +1,8 @@
+$ go test -race ./core/rerank/... -count=1 -v
+exit status 0xc0000139
+FAIL    github.com/wangle201210/go-rag/server/core/rerank       0.052s
+
+Note: Race detector (-race) is not supported on Windows AMD64.
+This is a known Go limitation: cgo is required for race detector,
+and the Windows build environment does not have a C compiler configured.
+Race testing should be performed on Linux or macOS.

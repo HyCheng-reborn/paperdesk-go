@@ -1,0 +1,15 @@
+CODE_SHA: c4111e031521eb372198d6b428759637cf21fee8
+CWD: <WORKSPACE>\server
+CMD: go test -race ./core/config ./core/providers ./core/vector ./core/common ./core ./internal/logic/rag -count=1 -timeout=600s
+DATE: 2026-10-28T11:53:23.6235410+08:00
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/config	4.000s
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/providers	1.921s
+ok  	github.com/wangle201210/go-rag/server/core/vector	6.986s
+exit status 0xc0000139
+FAIL	github.com/wangle201210/go-rag/server/core/common	8.230s
+ok  	github.com/wangle201210/go-rag/server/core	8.651s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	22.310s
+FAIL
+EXIT: 1

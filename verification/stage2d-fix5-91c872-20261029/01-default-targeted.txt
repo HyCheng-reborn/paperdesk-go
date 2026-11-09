@@ -1,0 +1,70 @@
+CMD: go test ./core/probe -count=1 -v -run TestProviderRegistrationBuildsProductionChain|TestBailianEmbeddingProfileIsDefensiveCopy|TestBailianEmbeddingIdentityMismatchFailsClosed|TestBailianEmbeddingCancelAndConcurrentBudget|TestStopMarkerDoesNotRetractBudgetCommit|TestSendGate|TestStepReport_CountsSeparateCommitFromSend
+WORKDIR: <WORKSPACE>\server
+=== RUN   TestProviderRegistrationBuildsProductionChain
+=== RUN   TestProviderRegistrationBuildsProductionChain/bailian
+    bailian_identity_test.go:113: provider=bailian role=*bailian.validatedEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+=== RUN   TestProviderRegistrationBuildsProductionChain/openai
+    bailian_identity_test.go:113: provider=openai role=*providers.budgetEmbedRole identity=probe-embed/8 counts=1/1/1 committed=3 inFlight=0
+--- PASS: TestProviderRegistrationBuildsProductionChain (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/bailian (0.01s)
+    --- PASS: TestProviderRegistrationBuildsProductionChain/openai (0.00s)
+=== RUN   TestBailianEmbeddingProfileIsDefensiveCopy
+--- PASS: TestBailianEmbeddingProfileIsDefensiveCopy (0.00s)
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch
+    bailian_identity_test.go:301: provider_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: provider name: role="bailian" expected="openai"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch
+    bailian_identity_test.go:301: model_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: model: role="probe-embed" expected="probe-embed-alt"
+=== RUN   TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch
+    bailian_identity_test.go:301: dimensions_mismatch rejected at construction: embedding: identity or dimensions mismatch between Registry and config resolution: profile dims=8 config dims=16
+--- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/provider_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/model_mismatch (0.00s)
+    --- PASS: TestBailianEmbeddingIdentityMismatchFailsClosed/dimensions_mismatch (0.00s)
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively
+    bailian_identity_test.go:375: cancel settled: err=Post "http://127.0.0.1:57070/embeddings": context canceled committed=1 inputUsed=4 inFlight=0
+=== RUN   TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner
+    bailian_identity_test.go:425: concurrent steps: committed=4 inFlight=0 hits=4
+--- PASS: TestBailianEmbeddingCancelAndConcurrentBudget (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/cancel_mid_flight_settles_conservatively (0.00s)
+    --- PASS: TestBailianEmbeddingCancelAndConcurrentBudget/concurrent_steps_share_single_owner (0.00s)
+=== RUN   TestStopMarkerDoesNotRetractBudgetCommit
+    budget_stop_test.go:162: OBSERVED commit after stop marker: before=0 after=1 gate=0 transport=0 hits=0 inputUsed=5 inFlight=0; NOT a guarantee of zero commits after the marker
+--- PASS: TestStopMarkerDoesNotRetractBudgetCommit (0.00s)
+=== RUN   TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt
+--- PASS: TestSendGate_StopMarkerRefusesAdmittedButUnsentAttempt (0.00s)
+=== RUN   TestSendGate_InFlightRequestIsNotRevokedAndNotRetried
+--- PASS: TestSendGate_InFlightRequestIsNotRevokedAndNotRetried (0.00s)
+=== RUN   TestSendGate_OriginalReviewStopWindowShapeHasNoSend
+--- PASS: TestSendGate_OriginalReviewStopWindowShapeHasNoSend (0.03s)
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/chat
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/embedding
+=== RUN   TestSendGate_TransportBoundaryRefusesAfterStopMarker/rerank
+--- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker (0.00s)
+    --- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker/chat (0.00s)
+    --- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker/embedding (0.00s)
+    --- PASS: TestSendGate_TransportBoundaryRefusesAfterStopMarker/rerank (0.00s)
+=== RUN   TestSendGate_ConcurrentStopConverges
+--- PASS: TestSendGate_ConcurrentStopConverges (0.01s)
+=== RUN   TestSendGate_PostGatePreTransportWindowIsNotClosed
+=== RUN   TestSendGate_PostGatePreTransportWindowIsNotClosed/cancel_applied_before_handoff
+    sendgate_test.go:478: cancel-before-handoff: hits=0; not a guarantee, cancellation races the handoff
+=== RUN   TestSendGate_PostGatePreTransportWindowIsNotClosed/stop_marker_does_not_block_handoff
+    sendgate_test.go:566: step error after an in-flight send: <nil>
+    sendgate_test.go:573: OBSERVED: a request that had passed the send gate was handed to the transport after the stop marker and reached the local fake model (hits=1); window NOT closed
+--- PASS: TestSendGate_PostGatePreTransportWindowIsNotClosed (0.00s)
+    --- PASS: TestSendGate_PostGatePreTransportWindowIsNotClosed/cancel_applied_before_handoff (0.00s)
+    --- PASS: TestSendGate_PostGatePreTransportWindowIsNotClosed/stop_marker_does_not_block_handoff (0.00s)
+=== RUN   TestStepReport_CountsSeparateCommitFromSend
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/gate_rejected_keeps_committed_budget
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/sent_once
+=== RUN   TestStepReport_CountsSeparateCommitFromSend/retry_counts_each_attempt
+--- PASS: TestStepReport_CountsSeparateCommitFromSend (0.01s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/gate_rejected_keeps_committed_budget (0.00s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/sent_once (0.00s)
+    --- PASS: TestStepReport_CountsSeparateCommitFromSend/retry_counts_each_attempt (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	3.372s
+EXIT=0

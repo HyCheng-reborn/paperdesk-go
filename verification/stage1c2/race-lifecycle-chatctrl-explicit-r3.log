@@ -1,0 +1,244 @@
+﻿CMD: go test -race -count=5 -v -run "TestGetAnswerStream_|TestChatStream_|TestController_ChatIntegration_" ./internal/logic/chat/... ./internal/controller/rag/...
+ACTUAL-REGEX: TestGetAnswerStream_|TestChatStream_|TestController_ChatIntegration_
+GOFLAGS=[]  (untagged default)
+MATCHED-UNIQUE-TESTS (22): 
+TestChatStream_AnswerStreamError, TestChatStream_BackgroundDoneThenForegroundFail_NoSave, TestChatStream_CancelPropagation, TestChatStream_ConcurrentConvID_SaverRecords, TestChatStream_ModelReceivesDeadlineAndValue, TestChatStream_NormalComplete_CleanupWithSuccess, TestChatStream_SSEWriteFailure_CleanupWithFailure, TestController_ChatIntegration_NormalComplete, TestController_ChatIntegration_WriteFailure, TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave, TestGetAnswerStream_BlockingRecvCancel, TestGetAnswerStream_Cancel_NoSave, TestGetAnswerStream_CancelThenEOF_NoDONE, TestGetAnswerStream_CleanupIdempotent, TestGetAnswerStream_ConcurrentSessions_Isolation, TestGetAnswerStream_DirectFailCleanup_NoManualCancel, TestGetAnswerStream_ModelReceivesContext, TestGetAnswerStream_NormalEOF_SaveOnce, TestGetAnswerStream_PartialThenError_NoSave, TestGetAnswerStream_StreamCancelErrorChain, TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch, TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+PASS-LINES=115 (each test x5 via -count=5)
+FAIL-LINES=0  NO-TESTS-TO-RUN-LINES=0
+---- full -v output ----
+=== RUN   TestGetAnswerStream_ModelReceivesContext
+--- PASS: TestGetAnswerStream_ModelReceivesContext (0.00s)
+=== RUN   TestGetAnswerStream_StreamCancelErrorChain
+--- PASS: TestGetAnswerStream_StreamCancelErrorChain (0.00s)
+=== RUN   TestGetAnswerStream_BlockingRecvCancel
+--- PASS: TestGetAnswerStream_BlockingRecvCancel (0.00s)
+=== RUN   TestGetAnswerStream_NormalEOF_SaveOnce
+--- PASS: TestGetAnswerStream_NormalEOF_SaveOnce (0.00s)
+=== RUN   TestGetAnswerStream_PartialThenError_NoSave
+--- PASS: TestGetAnswerStream_PartialThenError_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_Cancel_NoSave
+--- PASS: TestGetAnswerStream_Cancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+--- PASS: TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CancelThenEOF_NoDONE
+--- PASS: TestGetAnswerStream_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestGetAnswerStream_ConcurrentSessions_Isolation
+--- PASS: TestGetAnswerStream_ConcurrentSessions_Isolation (0.00s)
+=== RUN   TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave
+--- PASS: TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CleanupIdempotent
+--- PASS: TestGetAnswerStream_CleanupIdempotent (0.00s)
+=== RUN   TestGetAnswerStream_DirectFailCleanup_NoManualCancel
+--- PASS: TestGetAnswerStream_DirectFailCleanup_NoManualCancel (0.00s)
+=== RUN   TestChatStream_BackgroundDoneThenForegroundFail_NoSave
+--- PASS: TestChatStream_BackgroundDoneThenForegroundFail_NoSave (0.00s)
+=== RUN   TestChatStream_ConcurrentConvID_SaverRecords
+--- PASS: TestChatStream_ConcurrentConvID_SaverRecords (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch
+--- PASS: TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch (0.00s)
+=== RUN   TestGetAnswerStream_ModelReceivesContext
+--- PASS: TestGetAnswerStream_ModelReceivesContext (0.00s)
+=== RUN   TestGetAnswerStream_StreamCancelErrorChain
+--- PASS: TestGetAnswerStream_StreamCancelErrorChain (0.00s)
+=== RUN   TestGetAnswerStream_BlockingRecvCancel
+--- PASS: TestGetAnswerStream_BlockingRecvCancel (0.00s)
+=== RUN   TestGetAnswerStream_NormalEOF_SaveOnce
+--- PASS: TestGetAnswerStream_NormalEOF_SaveOnce (0.00s)
+=== RUN   TestGetAnswerStream_PartialThenError_NoSave
+--- PASS: TestGetAnswerStream_PartialThenError_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_Cancel_NoSave
+--- PASS: TestGetAnswerStream_Cancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+--- PASS: TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CancelThenEOF_NoDONE
+--- PASS: TestGetAnswerStream_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestGetAnswerStream_ConcurrentSessions_Isolation
+--- PASS: TestGetAnswerStream_ConcurrentSessions_Isolation (0.00s)
+=== RUN   TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave
+--- PASS: TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CleanupIdempotent
+--- PASS: TestGetAnswerStream_CleanupIdempotent (0.00s)
+=== RUN   TestGetAnswerStream_DirectFailCleanup_NoManualCancel
+--- PASS: TestGetAnswerStream_DirectFailCleanup_NoManualCancel (0.00s)
+=== RUN   TestChatStream_BackgroundDoneThenForegroundFail_NoSave
+--- PASS: TestChatStream_BackgroundDoneThenForegroundFail_NoSave (0.00s)
+=== RUN   TestChatStream_ConcurrentConvID_SaverRecords
+--- PASS: TestChatStream_ConcurrentConvID_SaverRecords (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch
+--- PASS: TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch (0.00s)
+=== RUN   TestGetAnswerStream_ModelReceivesContext
+--- PASS: TestGetAnswerStream_ModelReceivesContext (0.00s)
+=== RUN   TestGetAnswerStream_StreamCancelErrorChain
+--- PASS: TestGetAnswerStream_StreamCancelErrorChain (0.00s)
+=== RUN   TestGetAnswerStream_BlockingRecvCancel
+--- PASS: TestGetAnswerStream_BlockingRecvCancel (0.00s)
+=== RUN   TestGetAnswerStream_NormalEOF_SaveOnce
+--- PASS: TestGetAnswerStream_NormalEOF_SaveOnce (0.00s)
+=== RUN   TestGetAnswerStream_PartialThenError_NoSave
+--- PASS: TestGetAnswerStream_PartialThenError_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_Cancel_NoSave
+--- PASS: TestGetAnswerStream_Cancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+--- PASS: TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CancelThenEOF_NoDONE
+--- PASS: TestGetAnswerStream_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestGetAnswerStream_ConcurrentSessions_Isolation
+--- PASS: TestGetAnswerStream_ConcurrentSessions_Isolation (0.00s)
+=== RUN   TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave
+--- PASS: TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CleanupIdempotent
+--- PASS: TestGetAnswerStream_CleanupIdempotent (0.00s)
+=== RUN   TestGetAnswerStream_DirectFailCleanup_NoManualCancel
+--- PASS: TestGetAnswerStream_DirectFailCleanup_NoManualCancel (0.00s)
+=== RUN   TestChatStream_BackgroundDoneThenForegroundFail_NoSave
+--- PASS: TestChatStream_BackgroundDoneThenForegroundFail_NoSave (0.00s)
+=== RUN   TestChatStream_ConcurrentConvID_SaverRecords
+--- PASS: TestChatStream_ConcurrentConvID_SaverRecords (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch
+--- PASS: TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch (0.00s)
+=== RUN   TestGetAnswerStream_ModelReceivesContext
+--- PASS: TestGetAnswerStream_ModelReceivesContext (0.00s)
+=== RUN   TestGetAnswerStream_StreamCancelErrorChain
+--- PASS: TestGetAnswerStream_StreamCancelErrorChain (0.00s)
+=== RUN   TestGetAnswerStream_BlockingRecvCancel
+--- PASS: TestGetAnswerStream_BlockingRecvCancel (0.00s)
+=== RUN   TestGetAnswerStream_NormalEOF_SaveOnce
+--- PASS: TestGetAnswerStream_NormalEOF_SaveOnce (0.00s)
+=== RUN   TestGetAnswerStream_PartialThenError_NoSave
+--- PASS: TestGetAnswerStream_PartialThenError_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_Cancel_NoSave
+--- PASS: TestGetAnswerStream_Cancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+--- PASS: TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CancelThenEOF_NoDONE
+--- PASS: TestGetAnswerStream_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestGetAnswerStream_ConcurrentSessions_Isolation
+--- PASS: TestGetAnswerStream_ConcurrentSessions_Isolation (0.00s)
+=== RUN   TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave
+--- PASS: TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CleanupIdempotent
+--- PASS: TestGetAnswerStream_CleanupIdempotent (0.00s)
+=== RUN   TestGetAnswerStream_DirectFailCleanup_NoManualCancel
+--- PASS: TestGetAnswerStream_DirectFailCleanup_NoManualCancel (0.00s)
+=== RUN   TestChatStream_BackgroundDoneThenForegroundFail_NoSave
+--- PASS: TestChatStream_BackgroundDoneThenForegroundFail_NoSave (0.00s)
+=== RUN   TestChatStream_ConcurrentConvID_SaverRecords
+--- PASS: TestChatStream_ConcurrentConvID_SaverRecords (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch
+--- PASS: TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch (0.00s)
+=== RUN   TestGetAnswerStream_ModelReceivesContext
+--- PASS: TestGetAnswerStream_ModelReceivesContext (0.00s)
+=== RUN   TestGetAnswerStream_StreamCancelErrorChain
+--- PASS: TestGetAnswerStream_StreamCancelErrorChain (0.00s)
+=== RUN   TestGetAnswerStream_BlockingRecvCancel
+--- PASS: TestGetAnswerStream_BlockingRecvCancel (0.00s)
+=== RUN   TestGetAnswerStream_NormalEOF_SaveOnce
+--- PASS: TestGetAnswerStream_NormalEOF_SaveOnce (0.00s)
+=== RUN   TestGetAnswerStream_PartialThenError_NoSave
+--- PASS: TestGetAnswerStream_PartialThenError_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_Cancel_NoSave
+--- PASS: TestGetAnswerStream_Cancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave
+--- PASS: TestGetAnswerStream_WriteFailure_ModelObservesCancel_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CancelThenEOF_NoDONE
+--- PASS: TestGetAnswerStream_CancelThenEOF_NoDONE (0.00s)
+=== RUN   TestGetAnswerStream_ConcurrentSessions_Isolation
+--- PASS: TestGetAnswerStream_ConcurrentSessions_Isolation (0.00s)
+=== RUN   TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave
+--- PASS: TestGetAnswerStream_BackgroundEOFThenForegroundFail_NoSave (0.00s)
+=== RUN   TestGetAnswerStream_CleanupIdempotent
+--- PASS: TestGetAnswerStream_CleanupIdempotent (0.00s)
+=== RUN   TestGetAnswerStream_DirectFailCleanup_NoManualCancel
+--- PASS: TestGetAnswerStream_DirectFailCleanup_NoManualCancel (0.00s)
+=== RUN   TestChatStream_BackgroundDoneThenForegroundFail_NoSave
+--- PASS: TestChatStream_BackgroundDoneThenForegroundFail_NoSave (0.00s)
+=== RUN   TestChatStream_ConcurrentConvID_SaverRecords
+--- PASS: TestChatStream_ConcurrentConvID_SaverRecords (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch
+--- PASS: TestGetAnswerStream_SuccessCleanup_ClosesForegroundBranch (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/chat	1.192s
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestChatStream_SSEWriteFailure_CleanupWithFailure
+--- PASS: TestChatStream_SSEWriteFailure_CleanupWithFailure (0.00s)
+=== RUN   TestChatStream_NormalComplete_CleanupWithSuccess
+--- PASS: TestChatStream_NormalComplete_CleanupWithSuccess (0.00s)
+=== RUN   TestChatStream_CancelPropagation
+--- PASS: TestChatStream_CancelPropagation (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestController_ChatIntegration_WriteFailure
+--- PASS: TestController_ChatIntegration_WriteFailure (0.01s)
+=== RUN   TestController_ChatIntegration_NormalComplete
+--- PASS: TestController_ChatIntegration_NormalComplete (0.00s)
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestChatStream_SSEWriteFailure_CleanupWithFailure
+--- PASS: TestChatStream_SSEWriteFailure_CleanupWithFailure (0.00s)
+=== RUN   TestChatStream_NormalComplete_CleanupWithSuccess
+--- PASS: TestChatStream_NormalComplete_CleanupWithSuccess (0.00s)
+=== RUN   TestChatStream_CancelPropagation
+--- PASS: TestChatStream_CancelPropagation (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestController_ChatIntegration_WriteFailure
+--- PASS: TestController_ChatIntegration_WriteFailure (0.00s)
+=== RUN   TestController_ChatIntegration_NormalComplete
+--- PASS: TestController_ChatIntegration_NormalComplete (0.00s)
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestChatStream_SSEWriteFailure_CleanupWithFailure
+--- PASS: TestChatStream_SSEWriteFailure_CleanupWithFailure (0.00s)
+=== RUN   TestChatStream_NormalComplete_CleanupWithSuccess
+--- PASS: TestChatStream_NormalComplete_CleanupWithSuccess (0.00s)
+=== RUN   TestChatStream_CancelPropagation
+--- PASS: TestChatStream_CancelPropagation (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestController_ChatIntegration_WriteFailure
+--- PASS: TestController_ChatIntegration_WriteFailure (0.00s)
+=== RUN   TestController_ChatIntegration_NormalComplete
+--- PASS: TestController_ChatIntegration_NormalComplete (0.00s)
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestChatStream_SSEWriteFailure_CleanupWithFailure
+--- PASS: TestChatStream_SSEWriteFailure_CleanupWithFailure (0.00s)
+=== RUN   TestChatStream_NormalComplete_CleanupWithSuccess
+--- PASS: TestChatStream_NormalComplete_CleanupWithSuccess (0.00s)
+=== RUN   TestChatStream_CancelPropagation
+--- PASS: TestChatStream_CancelPropagation (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestController_ChatIntegration_WriteFailure
+--- PASS: TestController_ChatIntegration_WriteFailure (0.00s)
+=== RUN   TestController_ChatIntegration_NormalComplete
+--- PASS: TestController_ChatIntegration_NormalComplete (0.00s)
+=== RUN   TestChatStream_AnswerStreamError
+--- PASS: TestChatStream_AnswerStreamError (0.00s)
+=== RUN   TestChatStream_SSEWriteFailure_CleanupWithFailure
+--- PASS: TestChatStream_SSEWriteFailure_CleanupWithFailure (0.00s)
+=== RUN   TestChatStream_NormalComplete_CleanupWithSuccess
+--- PASS: TestChatStream_NormalComplete_CleanupWithSuccess (0.00s)
+=== RUN   TestChatStream_CancelPropagation
+--- PASS: TestChatStream_CancelPropagation (0.00s)
+=== RUN   TestChatStream_ModelReceivesDeadlineAndValue
+--- PASS: TestChatStream_ModelReceivesDeadlineAndValue (0.00s)
+=== RUN   TestController_ChatIntegration_WriteFailure
+--- PASS: TestController_ChatIntegration_WriteFailure (0.00s)
+=== RUN   TestController_ChatIntegration_NormalComplete
+--- PASS: TestController_ChatIntegration_NormalComplete (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/controller/rag	1.266s
+
+---- EXIT: 0 ----

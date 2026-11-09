@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/probe.go": "<WORKSPACE>/verification/stage2d-fix4-1e81aa4-20261028/mutation-probe-no-canonical.go"
+  }
+}

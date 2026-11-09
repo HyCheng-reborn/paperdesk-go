@@ -1,0 +1,20 @@
+CMD: go test -overlay <WORKSPACE>\verification\independent-2d-91c872-counts\overlay-openai.json -p 1 ./core/probe -run ^TestReviewOpenAITraceCountsRealAdapters$ -count=3 -v
+WORKDIR: <WORKSPACE>\.review-stage2c1-2dc0b82\server
+=== RUN   TestReviewOpenAITraceCountsRealAdapters
+    independent_counts_test.go:3: verified role chat: committed/gate/transport=1/1/1
+    independent_counts_test.go:3: verified role embed: committed/gate/transport=1/1/1
+    independent_counts_test.go:3: verified role rerank: committed/gate/transport=1/1/1
+--- PASS: TestReviewOpenAITraceCountsRealAdapters (0.01s)
+=== RUN   TestReviewOpenAITraceCountsRealAdapters
+    independent_counts_test.go:3: verified role chat: committed/gate/transport=1/1/1
+    independent_counts_test.go:3: verified role embed: committed/gate/transport=1/1/1
+    independent_counts_test.go:3: verified role rerank: committed/gate/transport=1/1/1
+--- PASS: TestReviewOpenAITraceCountsRealAdapters (0.00s)
+=== RUN   TestReviewOpenAITraceCountsRealAdapters
+    independent_counts_test.go:3: verified role chat: committed/gate/transport=1/1/1
+    independent_counts_test.go:3: verified role embed: committed/gate/transport=1/1/1
+    independent_counts_test.go:3: verified role rerank: committed/gate/transport=1/1/1
+--- PASS: TestReviewOpenAITraceCountsRealAdapters (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	1.899s
+EXIT=0

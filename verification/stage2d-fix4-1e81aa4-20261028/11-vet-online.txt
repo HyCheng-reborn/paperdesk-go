@@ -1,0 +1,3 @@
+CMD: go vet -tags online ./...
+WORKDIR: <WORKSPACE>\server
+EXIT=0

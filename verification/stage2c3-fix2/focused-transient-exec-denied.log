@@ -1,0 +1,117 @@
+CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
+CWD: <WORKSPACE>\server
+CMD: go test ./core/providers ./core/providers/bailian ./core/vector ./core/common ./core ./internal/logic/rag -run ^(TestRequestModelIDRejectsVersionedIdentity|TestP1_|TestP2_|TestP12_|TestR2_|TestNewProviderEmbedding_|TestComputeFingerprintMeta) -count=1 -timeout=300s -v
+DATE: 2026-10-28T15:49:04.0434763+08:00
+=== RUN   TestRequestModelIDRejectsVersionedIdentity
+=== RUN   TestRequestModelIDRejectsVersionedIdentity/text-embedding-v4
+=== RUN   TestRequestModelIDRejectsVersionedIdentity/__text-embedding-v4__
+=== RUN   TestRequestModelIDRejectsVersionedIdentity/text-embedding-v4@v1
+=== RUN   TestRequestModelIDRejectsVersionedIdentity/text-embedding-v4@
+=== RUN   TestRequestModelIDRejectsVersionedIdentity/@v1
+=== RUN   TestRequestModelIDRejectsVersionedIdentity/m@v1@v2
+--- PASS: TestRequestModelIDRejectsVersionedIdentity (0.00s)
+    --- PASS: TestRequestModelIDRejectsVersionedIdentity/text-embedding-v4 (0.00s)
+    --- PASS: TestRequestModelIDRejectsVersionedIdentity/__text-embedding-v4__ (0.00s)
+    --- PASS: TestRequestModelIDRejectsVersionedIdentity/text-embedding-v4@v1 (0.00s)
+    --- PASS: TestRequestModelIDRejectsVersionedIdentity/text-embedding-v4@ (0.00s)
+    --- PASS: TestRequestModelIDRejectsVersionedIdentity/@v1 (0.00s)
+    --- PASS: TestRequestModelIDRejectsVersionedIdentity/m@v1@v2 (0.00s)
+=== RUN   TestP1_VersionedProfileFailsClosedForAllBuilders
+=== RUN   TestP1_VersionedProfileFailsClosedForAllBuilders/chat
+=== RUN   TestP1_VersionedProfileFailsClosedForAllBuilders/embed
+=== RUN   TestP1_VersionedProfileFailsClosedForAllBuilders/rerank
+--- PASS: TestP1_VersionedProfileFailsClosedForAllBuilders (0.00s)
+    --- PASS: TestP1_VersionedProfileFailsClosedForAllBuilders/chat (0.00s)
+    --- PASS: TestP1_VersionedProfileFailsClosedForAllBuilders/embed (0.00s)
+    --- PASS: TestP1_VersionedProfileFailsClosedForAllBuilders/rerank (0.00s)
+=== RUN   TestP1_WireModelEqualsBoundIdentity
+--- PASS: TestP1_WireModelEqualsBoundIdentity (0.09s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers	3.787s
+=== RUN   TestP1_BailianBuildersFailClosedForVersionedProfile
+--- PASS: TestP1_BailianBuildersFailClosedForVersionedProfile (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	1.736s
+fork/exec <USER_HOME>\<redacted>\AppData\Local\Temp\go-build777798905\b1381\vector.test.exe: Access is denied.
+FAIL	github.com/wangle201210/go-rag/server/core/vector	8.109s
+=== RUN   TestP12_EmbeddingIdentityFailsClosed
+=== RUN   TestP12_EmbeddingIdentityFailsClosed/role_without_verifiable_profile
+=== RUN   TestP12_EmbeddingIdentityFailsClosed/empty_provider_name_in_profile
+=== RUN   TestP12_EmbeddingIdentityFailsClosed/different_provider_same_dimensions
+=== RUN   TestP12_EmbeddingIdentityFailsClosed/different_model_same_dimensions
+=== RUN   TestP12_EmbeddingIdentityFailsClosed/role_adds_version_to_unversioned_config
+=== RUN   TestP12_EmbeddingIdentityFailsClosed/role_with_empty_version
+--- PASS: TestP12_EmbeddingIdentityFailsClosed (0.03s)
+    --- PASS: TestP12_EmbeddingIdentityFailsClosed/role_without_verifiable_profile (0.01s)
+    --- PASS: TestP12_EmbeddingIdentityFailsClosed/empty_provider_name_in_profile (0.00s)
+    --- PASS: TestP12_EmbeddingIdentityFailsClosed/different_provider_same_dimensions (0.00s)
+    --- PASS: TestP12_EmbeddingIdentityFailsClosed/different_model_same_dimensions (0.00s)
+    --- PASS: TestP12_EmbeddingIdentityFailsClosed/role_adds_version_to_unversioned_config (0.00s)
+    --- PASS: TestP12_EmbeddingIdentityFailsClosed/role_with_empty_version (0.00s)
+=== RUN   TestP12_EmptyVersionConfigRejected
+=== RUN   TestP12_EmptyVersionConfigRejected/m@
+=== RUN   TestP12_EmptyVersionConfigRejected/@v1
+=== RUN   TestP12_EmptyVersionConfigRejected/m@v1@v2
+--- PASS: TestP12_EmptyVersionConfigRejected (0.01s)
+    --- PASS: TestP12_EmptyVersionConfigRejected/m@ (0.00s)
+    --- PASS: TestP12_EmptyVersionConfigRejected/@v1 (0.00s)
+    --- PASS: TestP12_EmptyVersionConfigRejected/m@v1@v2 (0.00s)
+=== RUN   TestP1_VersionedProviderConfigFailsClosed
+--- PASS: TestP1_VersionedProviderConfigFailsClosed (0.00s)
+=== RUN   TestP2_ExpectedFingerprintUsesSharedConstructor
+--- PASS: TestP2_ExpectedFingerprintUsesSharedConstructor (0.00s)
+=== RUN   TestP2_DirectEntryComparesFullFingerprint
+=== RUN   TestP2_DirectEntryComparesFullFingerprint/matching_cosine_binding_is_accepted
+=== RUN   TestP2_DirectEntryComparesFullFingerprint/dot_binding_is_rejected
+--- PASS: TestP2_DirectEntryComparesFullFingerprint (0.00s)
+    --- PASS: TestP2_DirectEntryComparesFullFingerprint/matching_cosine_binding_is_accepted (0.00s)
+    --- PASS: TestP2_DirectEntryComparesFullFingerprint/dot_binding_is_rejected (0.00s)
+=== RUN   TestNewProviderEmbedding_RegistryNil
+--- PASS: TestNewProviderEmbedding_RegistryNil (0.00s)
+=== RUN   TestNewProviderEmbedding_Success
+--- PASS: TestNewProviderEmbedding_Success (0.00s)
+=== RUN   TestNewProviderEmbedding_ModelMismatch
+--- PASS: TestNewProviderEmbedding_ModelMismatch (0.00s)
+=== RUN   TestNewProviderEmbedding_DimensionMismatch
+--- PASS: TestNewProviderEmbedding_DimensionMismatch (0.00s)
+=== RUN   TestNewProviderEmbedding_VersionedConfigFailsClosed
+--- PASS: TestNewProviderEmbedding_VersionedConfigFailsClosed (0.00s)
+=== RUN   TestNewProviderEmbedding_RegistryGetEmbedderError
+--- PASS: TestNewProviderEmbedding_RegistryGetEmbedderError (0.00s)
+=== RUN   TestNewProviderEmbedding_RegistryReturnsNil
+--- PASS: TestNewProviderEmbedding_RegistryReturnsNil (0.00s)
+=== RUN   TestR2_ProviderName_Mismatch
+--- PASS: TestR2_ProviderName_Mismatch (0.00s)
+=== RUN   TestR2_ConfigNoVersion_RoleHasVersion
+--- PASS: TestR2_ConfigNoVersion_RoleHasVersion (0.00s)
+=== RUN   TestR2_VersionMismatch
+--- PASS: TestR2_VersionMismatch (0.00s)
+=== RUN   TestR2_VersionMatch
+--- PASS: TestR2_VersionMatch (0.00s)
+=== RUN   TestR2_FilterEmbeddingOptions_StripsWithModel
+--- PASS: TestR2_FilterEmbeddingOptions_StripsWithModel (0.00s)
+=== RUN   TestNewProviderEmbedding_GuardPropagation
+--- PASS: TestNewProviderEmbedding_GuardPropagation (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/common	2.742s
+fork/exec <USER_HOME>\<redacted>\AppData\Local\Temp\go-build777798905\b1443\core.test.exe: Access is denied.
+FAIL	github.com/wangle201210/go-rag/server/core	5.011s
+=== RUN   TestP1_FactoryFailsClosedBeforeTouchingES
+--- PASS: TestP1_FactoryFailsClosedBeforeTouchingES (0.05s)
+=== RUN   TestP2_DefaultFactoryRejectsNonCosineTarget
+--- PASS: TestP2_DefaultFactoryRejectsNonCosineTarget (0.01s)
+=== RUN   TestP1_VersionedProviderEmbeddingConfigFailsClosed
+--- PASS: TestP1_VersionedProviderEmbeddingConfigFailsClosed (0.01s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	11.201s
+FAIL
+go : go: unlinkat <USER_HOME>\<redacted>\AppData\Local\Temp\go-build777798905\b1381\vecto
+r.test.exe: Access is denied.
+所在位置 <WORKSPACE>\verification\stage2c3-fix2\run.ps1:49 字符: 3
++   go @a 2>&1 | Out-File $log -Append -Encoding utf8
++   ~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (go: unlinkat C:...cess is denied.
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+EXIT: 1

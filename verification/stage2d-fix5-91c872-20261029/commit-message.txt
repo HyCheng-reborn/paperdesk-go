@@ -1,0 +1,50 @@
+fix(probe): expose bailian embedding identity defensively; record budget-commit boundary and stop design B
+
+Stage 2D S-1 第五批：处理针对 91c872f 的第四轮独立复核
+(verification/independent-2d-91c872-20261029)。
+
+P1 百炼 embedding 身份接口（前置遗留，非本起点新回归）
+- bailian.validatedEmbedRole 新增 Profile()，返回 *v.profile.Clone() 的防御性副本
+  （值类型 + KeyOptions 深拷贝），并加编译期断言 _ providers.ProfiledEmbedRole。
+  真实注册后 Registry 返回的正是该类型，此前因缺 Profile() 被
+  common.NewEmbedding 的 fail-closed 身份检查拒绝，导致 NewChain 恒失败
+  （接口强制来自更早的 2c952ce）。
+- 门禁未放宽：provider/模型/维度不一致仍在构造期返回
+  ErrEmbeddingIdentityMismatch 且零模型请求。
+- 新增 server/core/probe/bailian_identity_test.go：真实注册 + Registry + 本机
+  fake ES 绑定 + 本机 fake HTTP，覆盖三步正常调用、Profile 防御性复制、
+  三类身份不匹配、预算 owner/lease、取消与并发；openai 共享路径对照。
+
+P2 停止标记后的预算承诺（待决边界，不宣称闭合）
+- 预算 Reserve→Commit 在角色适配器内部、发送闸门之前，stop 不参与预算账本；
+  因此"停止标记后零新预算提交"无法在 probe 范围闭合。
+- 新增 server/core/probe/budget_stop_test.go 确定性特征化
+  TestStopMarkerDoesNotRetractBudgetCommit：marker 后 committed 0→1、
+  gate/transport 0/0、对端 0 命中，同时断言保守结算不变量
+  （不退款、lease 收敛、预留归零、errors.Is 链保留）。
+- 更正表述：design/stage2d-plan.md §9.1 加注（不含零新预算提交）、新增 §9.2；
+  fix4 REPORT 追加更正节。
+
+P3 停止语义方案 B 离线设计（未实现、未批准）
+- 新增 design/stage2d-stop-b-plan.md：closing 标记 / handoff / 停止成功返回
+  各自的线性化点；已准入 / 已过闸门 / 已交 transport / 对端已收到的区别；
+  RoundTrip 可能等待响应头故不等于发送开始；有界等待与 StopResult、
+  超时"未确认"与调用方责任；B 不闭合预算承诺（B+ 需改 providers 预算 API/锁序）；
+  A/B/C 比较与待批准开放问题。
+
+证据
+- verification/stage2d-fix5-91c872-20261029/：11 项干净目标（默认/race/重复/
+  online/online race/串行全量/build/vet/online vet，全部 exit 0，无 DATA RACE、
+  无 SKIP），7 项复核原始源码 overlay 与变异：
+  20 基线 bailian exit 1（复现阻塞）、21 基线 openai exit 0、
+  22 修复后 bailian exit 0（1/1/1 ×3）、23 修复后 openai exit 0、
+  24 复核 beforeCancel 复现 exit 0（before=0/after=1/modelHits=0 ×3）、
+  30 零身份变异 exit 1、31 浅拷贝变异 exit 1。
+- Attempts=预算承诺；GateAdmissions/TransportCalls 为不同观测点，后者不证明
+  网络字节或对端收到；fake ES 为本机 httptest HTTP；钩子只固定时序。
+
+边界
+- 未执行在线探针；未访问真实模型/ES/Qdrant/MySQL/互联网；未解除门禁；
+  未更新验收状态；未推送/合并/修改 PR。
+- 不提交 verification/independent-* 复核目录，保留既有 .git-commit-msg.txt 与
+  CLAIMS.md 改动。

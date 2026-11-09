@@ -1,0 +1,184 @@
+=== RUN   TestConcurrentStop_RefusesNewRetryAndConverges
+--- PASS: TestConcurrentStop_RefusesNewRetryAndConverges (0.03s)
+=== RUN   TestProbeChain_ProductionBindingAndScope
+--- PASS: TestProbeChain_ProductionBindingAndScope (0.10s)
+=== RUN   TestProbeChain_IdentityMismatchRejected
+--- PASS: TestProbeChain_IdentityMismatchRejected (0.01s)
+=== RUN   TestProbeChain_GuardRejectsReplacedTarget
+--- PASS: TestProbeChain_GuardRejectsReplacedTarget (0.01s)
+=== RUN   TestW1_RetryReservesAndCommitsEveryAttempt
+--- PASS: TestW1_RetryReservesAndCommitsEveryAttempt (0.01s)
+=== RUN   TestW2_ExhaustedBudgetSendsNothingFurther
+--- PASS: TestW2_ExhaustedBudgetSendsNothingFurther (0.01s)
+=== RUN   TestW3_ExpiredCallerContextStopsBeforeSend
+--- PASS: TestW3_ExpiredCallerContextStopsBeforeSend (0.00s)
+=== RUN   TestW3_DeadlineDuringSendIsNotRetried
+--- PASS: TestW3_DeadlineDuringSendIsNotRetried (0.16s)
+=== RUN   TestW3_ConcurrencyLimitAppliesAtProbeEntry
+--- PASS: TestW3_ConcurrencyLimitAppliesAtProbeEntry (0.01s)
+=== RUN   TestW4_UsageSettlement
+=== RUN   TestW4_UsageSettlement/usage_missing_is_unknown
+=== RUN   TestW4_UsageSettlement/usage_reported_is_known
+--- PASS: TestW4_UsageSettlement (0.02s)
+    --- PASS: TestW4_UsageSettlement/usage_missing_is_unknown (0.01s)
+    --- PASS: TestW4_UsageSettlement/usage_reported_is_known (0.01s)
+=== RUN   TestW5_UnexpectedErrorStopsSubsequentSteps
+--- PASS: TestW5_UnexpectedErrorStopsSubsequentSteps (0.01s)
+=== RUN   TestProbeChain_ResponseDimensionMismatchRejected
+--- PASS: TestProbeChain_ResponseDimensionMismatchRejected (0.01s)
+=== RUN   TestRedirect_ProhibitedIsNotRetried
+--- PASS: TestRedirect_ProhibitedIsNotRetried (0.01s)
+=== RUN   TestPreflight_InvalidLaterStepSendsNothing
+--- PASS: TestPreflight_InvalidLaterStepSendsNothing (0.01s)
+=== RUN   TestStopReasonIsSanitized
+--- PASS: TestStopReasonIsSanitized (0.01s)
+=== RUN   TestCredentials_SharedRules
+=== RUN   TestCredentials_SharedRules/not_declared
+=== RUN   TestCredentials_SharedRules/blank_name
+=== RUN   TestCredentials_SharedRules/two_declarations
+=== RUN   TestCredentials_SharedRules/duplicate_declaration
+=== RUN   TestCredentials_SharedRules/absent_variable
+=== RUN   TestCredentials_SharedRules/empty_value
+=== RUN   TestCredentials_SharedRules/whitespace_value
+=== RUN   TestCredentials_SharedRules/valid_single
+--- PASS: TestCredentials_SharedRules (0.00s)
+    --- PASS: TestCredentials_SharedRules/not_declared (0.00s)
+    --- PASS: TestCredentials_SharedRules/blank_name (0.00s)
+    --- PASS: TestCredentials_SharedRules/two_declarations (0.00s)
+    --- PASS: TestCredentials_SharedRules/duplicate_declaration (0.00s)
+    --- PASS: TestCredentials_SharedRules/absent_variable (0.00s)
+    --- PASS: TestCredentials_SharedRules/empty_value (0.00s)
+    --- PASS: TestCredentials_SharedRules/whitespace_value (0.00s)
+    --- PASS: TestCredentials_SharedRules/valid_single (0.00s)
+=== RUN   TestCredentials_PresenceTreatsEmptyAsMissing
+--- PASS: TestCredentials_PresenceTreatsEmptyAsMissing (0.00s)
+=== RUN   TestProxyControl_EnvironmentIsHonored
+--- PASS: TestProxyControl_EnvironmentIsHonored (0.00s)
+=== RUN   TestOnlineBuild_HasRemoteCapability
+--- PASS: TestOnlineBuild_HasRemoteCapability (0.00s)
+=== RUN   TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend
+--- PASS: TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho
+--- PASS: TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho (0.00s)
+=== RUN   TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend
+--- PASS: TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_QuerySecretNotEchoedInEvidence
+--- PASS: TestOnlineBuild_QuerySecretNotEchoedInEvidence (0.00s)
+=== RUN   TestOnlineBuild_CredentialValueNeverAppearsInEvidence
+--- PASS: TestOnlineBuild_CredentialValueNeverAppearsInEvidence (0.00s)
+=== RUN   TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+--- PASS: TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline (0.01s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.02s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.01s)
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable
+--- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution (0.01s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable (0.01s)
+=== RUN   TestNewChain_FixedBudgetAndAuthorizationAfterConstruction
+--- PASS: TestNewChain_FixedBudgetAndAuthorizationAfterConstruction (0.01s)
+=== RUN   TestNewChain_MutablePlanRaceRegression
+--- PASS: TestNewChain_MutablePlanRaceRegression (0.12s)
+=== RUN   TestRunStep_ClonesStepInputs
+--- PASS: TestRunStep_ClonesStepInputs (0.01s)
+=== RUN   TestPreflight_RejectsVersionedRoles
+=== RUN   TestPreflight_RejectsVersionedRoles/later_chat_versioned
+=== RUN   TestPreflight_RejectsVersionedRoles/later_rerank_versioned
+=== RUN   TestPreflight_RejectsVersionedRoles/first_embed_versioned
+--- PASS: TestPreflight_RejectsVersionedRoles (0.00s)
+    --- PASS: TestPreflight_RejectsVersionedRoles/later_chat_versioned (0.00s)
+    --- PASS: TestPreflight_RejectsVersionedRoles/later_rerank_versioned (0.00s)
+    --- PASS: TestPreflight_RejectsVersionedRoles/first_embed_versioned (0.00s)
+=== RUN   TestNewChain_RejectsVersionedRoleBeforeAnySend
+=== RUN   TestNewChain_RejectsVersionedRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestNewChain_RejectsVersionedRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestNewChain_RejectsVersionedRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestNewChain_RejectsVersionedRoleBeforeAnySend (0.01s)
+    --- PASS: TestNewChain_RejectsVersionedRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestNewChain_RejectsVersionedRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestNewChain_RejectsVersionedRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestChainRun_VersionedRoleStopReasonIsSanitized
+--- PASS: TestChainRun_VersionedRoleStopReasonIsSanitized (0.01s)
+=== RUN   TestPlan_Validate
+=== RUN   TestPlan_Validate/missing_index_name
+=== RUN   TestPlan_Validate/missing_provider
+=== RUN   TestPlan_Validate/missing_similarity
+=== RUN   TestPlan_Validate/missing_chat_model
+=== RUN   TestPlan_Validate/zero_chat_max_output
+=== RUN   TestPlan_Validate/missing_embed_endpoint
+=== RUN   TestPlan_Validate/zero_dims
+=== RUN   TestPlan_Validate/missing_rerank_url
+=== RUN   TestPlan_Validate/zero_topk
+=== RUN   TestPlan_Validate/zero_retry_attempts
+=== RUN   TestPlan_Validate/negative_retry_attempts
+=== RUN   TestPlan_Validate/approved_without_scope
+=== RUN   TestPlan_Validate/approved_unknown_scope
+=== RUN   TestPlan_Validate/approved_without_approver
+--- PASS: TestPlan_Validate (0.00s)
+    --- PASS: TestPlan_Validate/missing_index_name (0.00s)
+    --- PASS: TestPlan_Validate/missing_provider (0.00s)
+    --- PASS: TestPlan_Validate/missing_similarity (0.00s)
+    --- PASS: TestPlan_Validate/missing_chat_model (0.00s)
+    --- PASS: TestPlan_Validate/zero_chat_max_output (0.00s)
+    --- PASS: TestPlan_Validate/missing_embed_endpoint (0.00s)
+    --- PASS: TestPlan_Validate/zero_dims (0.00s)
+    --- PASS: TestPlan_Validate/missing_rerank_url (0.00s)
+    --- PASS: TestPlan_Validate/zero_topk (0.00s)
+    --- PASS: TestPlan_Validate/zero_retry_attempts (0.00s)
+    --- PASS: TestPlan_Validate/negative_retry_attempts (0.00s)
+    --- PASS: TestPlan_Validate/approved_without_scope (0.00s)
+    --- PASS: TestPlan_Validate/approved_unknown_scope (0.00s)
+    --- PASS: TestPlan_Validate/approved_without_approver (0.00s)
+=== RUN   TestBudgetPlan_ZeroIsNotFinite
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/zero_requests_rejected
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/zero_input_tokens_rejected
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/zero_concurrency_rejected
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/explicit_unlimited_accepted
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/unknown_unlimited_rejected
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/negative_rejected
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/deadline_required
+=== RUN   TestBudgetPlan_ZeroIsNotFinite/process_budget_reuses_validation
+--- PASS: TestBudgetPlan_ZeroIsNotFinite (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/zero_requests_rejected (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/zero_input_tokens_rejected (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/zero_concurrency_rejected (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/explicit_unlimited_accepted (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/unknown_unlimited_rejected (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/negative_rejected (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/deadline_required (0.00s)
+    --- PASS: TestBudgetPlan_ZeroIsNotFinite/process_budget_reuses_validation (0.00s)
+=== RUN   TestCredentials_ReportsPresenceOnly
+--- PASS: TestCredentials_ReportsPresenceOnly (0.00s)
+=== RUN   TestReadiness_ListsUnconfiguredItems
+--- PASS: TestReadiness_ListsUnconfiguredItems (0.00s)
+=== RUN   TestReadiness_ReadyWhenAllDeclared
+--- PASS: TestReadiness_ReadyWhenAllDeclared (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	1.981s

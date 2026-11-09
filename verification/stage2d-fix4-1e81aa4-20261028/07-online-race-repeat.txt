@@ -1,0 +1,4 @@
+CMD: go test -tags online -race ./core/probe -count=3 -run TestOnlineBuild_TargetRulesReadinessMatchesExecution|TestOnlineBuild_DirectNewChainRequiresAuthorization
+WORKDIR: <WORKSPACE>\server
+ok  	github.com/wangle201210/go-rag/server/core/probe	1.622s
+EXIT=0

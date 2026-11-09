@@ -1,0 +1,20 @@
+CMD: go test -overlay <WORKSPACE>\verification\stage2d-fix3-bdd3a6d-20261028\overlay-mutation-preflight.json -p 1 ./core/probe -run ^TestPreflight_RejectsNilRerankDocumentBeforeAnySend$ -count=1 -v
+WORKDIR: <WORKSPACE>\server
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/preflight_rejects_with_shared_production_rule
+    preflight_target_test.go:54: Preflight() = <nil>, want ErrEmptyStep
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/readiness_matches_execution
+    preflight_target_test.go:79: steps readiness = {Name:steps OK:true Detail:2 step(s) declared}, want not OK
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_refuses_before_any_send
+    preflight_target_test.go:93: Run() = rerank: invalid request input: nil document at index 0, want ErrEmptyStep
+=== RUN   TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_step_refuses_before_any_send
+    preflight_target_test.go:106: RunStep() = rerank: invalid request input: nil document at index 0, want ErrEmptyStep
+--- FAIL: TestPreflight_RejectsNilRerankDocumentBeforeAnySend (0.01s)
+    --- FAIL: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/preflight_rejects_with_shared_production_rule (0.00s)
+    --- FAIL: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/readiness_matches_execution (0.00s)
+    --- FAIL: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_refuses_before_any_send (0.01s)
+    --- FAIL: TestPreflight_RejectsNilRerankDocumentBeforeAnySend/run_step_refuses_before_any_send (0.00s)
+FAIL
+FAIL	github.com/wangle201210/go-rag/server/core/probe	0.264s
+FAIL
+EXIT=1

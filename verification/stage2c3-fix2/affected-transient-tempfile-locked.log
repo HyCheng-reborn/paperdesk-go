@@ -1,0 +1,22 @@
+CODE_SHA: 2c952ce5e4afe3096945596c9b03be1b5cf1458b
+CWD: <WORKSPACE>\server
+CMD: go test ./core/providers ./core/providers/bailian ./core/vector ./core/common ./core ./internal/logic/rag -count=1 -timeout=600s
+DATE: 2026-10-28T15:51:05.3102625+08:00
+ok  	github.com/wangle201210/go-rag/server/core/providers	3.657s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	9.898s
+ok  	github.com/wangle201210/go-rag/server/core/vector	6.721s
+ok  	github.com/wangle201210/go-rag/server/core/common	3.447s
+fork/exec <TEMP>\go-build2402225002\b1443\core.test.exe: Access is denied.
+FAIL	github.com/wangle201210/go-rag/server/core	9.385s
+ok  	github.com/wangle201210/go-rag/server/internal/logic/rag	28.002s
+FAIL
+go : go: unlinkat <TEMP>\go-build2402225002\b1443\core.test.exe: Access is de
+nied.
+所在位置 <WORKSPACE>\verification\stage2c3-fix2\run.ps1:54 字符: 3
++   go @a 2>&1 | Out-File $log -Append -Encoding utf8
++   ~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (go: unlinkat C:...cess is denied.
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+EXIT: 1

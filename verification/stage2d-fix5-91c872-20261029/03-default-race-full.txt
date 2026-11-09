@@ -1,0 +1,8 @@
+CMD: go test -race ./core/probe ./core/providers/... ./core/common -count=1
+WORKDIR: <WORKSPACE>\server
+ok  	github.com/wangle201210/go-rag/server/core/probe	6.185s
+ok  	github.com/wangle201210/go-rag/server/core/providers	2.834s
+ok  	github.com/wangle201210/go-rag/server/core/providers/bailian	14.192s
+ok  	github.com/wangle201210/go-rag/server/core/providers/openai	6.728s
+ok  	github.com/wangle201210/go-rag/server/core/common	7.738s
+EXIT=0

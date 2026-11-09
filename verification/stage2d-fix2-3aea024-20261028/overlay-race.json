@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/zz_review_race_test.go": "<WORKSPACE>/verification/stage2d-fix2-3aea024-20261028/review-race-repro_test.go"
+  }
+}

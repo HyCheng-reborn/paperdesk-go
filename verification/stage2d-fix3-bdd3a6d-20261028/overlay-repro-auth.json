@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/independent_auth_bdd_test.go": "<WORKSPACE>/verification/independent-2d-bdd3a6-auth/review_test.go"
+  }
+}

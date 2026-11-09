@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "<WORKSPACE>/server/core/probe/preflight.go": "<WORKSPACE>/verification/stage2d-fix3-bdd3a6d-20261028/mutation-preflight-no-rerank-validation.go"
+  }
+}

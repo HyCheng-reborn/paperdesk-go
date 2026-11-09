@@ -1,0 +1,3 @@
+﻿command: go test ./core/probe/ -run "TestW1|TestW2|TestW3|TestW4|TestW5" -count=5 -timeout 300s
+ok  	github.com/wangle201210/go-rag/server/core/probe	1.140s
+exit=0

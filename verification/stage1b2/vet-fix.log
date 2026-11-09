@@ -1,0 +1,11 @@
+go : # github.com/wangle201210/go-rag/server/core
+所在位置 行:1 字符: 32
++  cd <WORKSPACE>\server; go vet ./... 2>&1 | Tee-Object -FilePa ...
++                                ~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (# github.com/wa...rag/server/core 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+# [github.com/wangle201210/go-rag/server/core]
+vet.exe: core\retriever_test.go:554:6: TestRetrieve_PreCancel redeclared in thi
+s block

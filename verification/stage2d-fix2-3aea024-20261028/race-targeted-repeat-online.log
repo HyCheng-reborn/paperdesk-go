@@ -1,0 +1,272 @@
+=== RUN   TestConcurrentStop_RefusesNewRetryAndConverges
+--- PASS: TestConcurrentStop_RefusesNewRetryAndConverges (0.03s)
+=== RUN   TestProxyControl_EnvironmentIsHonored
+--- PASS: TestProxyControl_EnvironmentIsHonored (0.00s)
+=== RUN   TestOnlineBuild_HasRemoteCapability
+--- PASS: TestOnlineBuild_HasRemoteCapability (0.00s)
+=== RUN   TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend
+--- PASS: TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho
+--- PASS: TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho (0.00s)
+=== RUN   TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend
+--- PASS: TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_QuerySecretNotEchoedInEvidence
+--- PASS: TestOnlineBuild_QuerySecretNotEchoedInEvidence (0.00s)
+=== RUN   TestOnlineBuild_CredentialValueNeverAppearsInEvidence
+--- PASS: TestOnlineBuild_CredentialValueNeverAppearsInEvidence (0.00s)
+=== RUN   TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+--- PASS: TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline (0.10s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.02s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.01s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.01s)
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable
+--- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution (0.02s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable (0.01s)
+=== RUN   TestNewChain_MutablePlanRaceRegression
+--- PASS: TestNewChain_MutablePlanRaceRegression (0.12s)
+=== RUN   TestConcurrentStop_RefusesNewRetryAndConverges
+--- PASS: TestConcurrentStop_RefusesNewRetryAndConverges (0.01s)
+=== RUN   TestProxyControl_EnvironmentIsHonored
+--- PASS: TestProxyControl_EnvironmentIsHonored (0.00s)
+=== RUN   TestOnlineBuild_HasRemoteCapability
+--- PASS: TestOnlineBuild_HasRemoteCapability (0.00s)
+=== RUN   TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend
+--- PASS: TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho
+--- PASS: TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho (0.00s)
+=== RUN   TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend
+--- PASS: TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_QuerySecretNotEchoedInEvidence
+--- PASS: TestOnlineBuild_QuerySecretNotEchoedInEvidence (0.00s)
+=== RUN   TestOnlineBuild_CredentialValueNeverAppearsInEvidence
+--- PASS: TestOnlineBuild_CredentialValueNeverAppearsInEvidence (0.00s)
+=== RUN   TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+--- PASS: TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline (0.01s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.02s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.01s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.01s)
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable
+--- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution (0.01s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable (0.01s)
+=== RUN   TestNewChain_MutablePlanRaceRegression
+--- PASS: TestNewChain_MutablePlanRaceRegression (0.12s)
+=== RUN   TestConcurrentStop_RefusesNewRetryAndConverges
+--- PASS: TestConcurrentStop_RefusesNewRetryAndConverges (0.01s)
+=== RUN   TestProxyControl_EnvironmentIsHonored
+--- PASS: TestProxyControl_EnvironmentIsHonored (0.00s)
+=== RUN   TestOnlineBuild_HasRemoteCapability
+--- PASS: TestOnlineBuild_HasRemoteCapability (0.00s)
+=== RUN   TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend
+--- PASS: TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho
+--- PASS: TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho (0.00s)
+=== RUN   TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend
+--- PASS: TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_QuerySecretNotEchoedInEvidence
+--- PASS: TestOnlineBuild_QuerySecretNotEchoedInEvidence (0.00s)
+=== RUN   TestOnlineBuild_CredentialValueNeverAppearsInEvidence
+--- PASS: TestOnlineBuild_CredentialValueNeverAppearsInEvidence (0.00s)
+=== RUN   TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+--- PASS: TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline (0.01s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.02s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.01s)
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable
+--- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution (0.02s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable (0.01s)
+=== RUN   TestNewChain_MutablePlanRaceRegression
+--- PASS: TestNewChain_MutablePlanRaceRegression (0.12s)
+=== RUN   TestConcurrentStop_RefusesNewRetryAndConverges
+--- PASS: TestConcurrentStop_RefusesNewRetryAndConverges (0.01s)
+=== RUN   TestProxyControl_EnvironmentIsHonored
+--- PASS: TestProxyControl_EnvironmentIsHonored (0.00s)
+=== RUN   TestOnlineBuild_HasRemoteCapability
+--- PASS: TestOnlineBuild_HasRemoteCapability (0.00s)
+=== RUN   TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend
+--- PASS: TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho
+--- PASS: TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho (0.00s)
+=== RUN   TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend
+--- PASS: TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_QuerySecretNotEchoedInEvidence
+--- PASS: TestOnlineBuild_QuerySecretNotEchoedInEvidence (0.00s)
+=== RUN   TestOnlineBuild_CredentialValueNeverAppearsInEvidence
+--- PASS: TestOnlineBuild_CredentialValueNeverAppearsInEvidence (0.00s)
+=== RUN   TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+--- PASS: TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline (0.01s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.02s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.01s)
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable
+--- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution (0.01s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable (0.01s)
+=== RUN   TestNewChain_MutablePlanRaceRegression
+--- PASS: TestNewChain_MutablePlanRaceRegression (0.12s)
+=== RUN   TestConcurrentStop_RefusesNewRetryAndConverges
+--- PASS: TestConcurrentStop_RefusesNewRetryAndConverges (0.01s)
+=== RUN   TestProxyControl_EnvironmentIsHonored
+--- PASS: TestProxyControl_EnvironmentIsHonored (0.00s)
+=== RUN   TestOnlineBuild_HasRemoteCapability
+--- PASS: TestOnlineBuild_HasRemoteCapability (0.00s)
+=== RUN   TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend
+--- PASS: TestOnlineBuild_PlaintextRemoteRejectedBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho
+--- PASS: TestOnlineBuild_UserInfoEndpointRejectedWithoutEcho (0.00s)
+=== RUN   TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend
+--- PASS: TestOnlineBuild_PreflightRejectsLaterInvalidStepBeforeAnySend (0.00s)
+=== RUN   TestOnlineBuild_QuerySecretNotEchoedInEvidence
+--- PASS: TestOnlineBuild_QuerySecretNotEchoedInEvidence (0.00s)
+=== RUN   TestOnlineBuild_CredentialValueNeverAppearsInEvidence
+--- PASS: TestOnlineBuild_CredentialValueNeverAppearsInEvidence (0.00s)
+=== RUN   TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline
+--- PASS: TestOnlineBuild_LoopbackFakeStillRunsThroughRunOnline (0.01s)
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send
+=== RUN   TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly
+--- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization (0.02s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_mixed_endpoints_rejected_before_any_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_literal_api_key_rejected (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/approved_env_credentials_construct_without_send (0.00s)
+    --- PASS: TestOnlineBuild_DirectNewChainRequiresAuthorization/unapproved_loopback_fake_still_runs_directly (0.01s)
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned
+=== RUN   TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned
+--- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_chat_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/later_rerank_versioned (0.00s)
+    --- PASS: TestOnlineBuild_PreflightRejectsVersionedLaterRoleBeforeAnySend/first_embed_versioned (0.00s)
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value
+=== RUN   TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable
+--- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution (0.01s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/not_declared (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/blank_name (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/two_declarations (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/absent_variable (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/empty_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/whitespace_value (0.00s)
+    --- PASS: TestOnlineBuild_CredentialBoundarySharedByReadinessAndExecution/valid_credentials_ready_and_executable (0.01s)
+=== RUN   TestNewChain_MutablePlanRaceRegression
+--- PASS: TestNewChain_MutablePlanRaceRegression (0.12s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	2.393s

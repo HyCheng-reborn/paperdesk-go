@@ -1,0 +1,5 @@
+CMD: go test -p 1 -count=1 ./core/probe/... ./core/rerank/...
+WORKDIR: <WORKSPACE>\server
+ok  	github.com/wangle201210/go-rag/server/core/probe	0.604s
+ok  	github.com/wangle201210/go-rag/server/core/rerank	0.925s
+EXIT=0

@@ -1,0 +1,38 @@
+Stage 2D S-1 fix batch 2 (incremental review of 3aea024) - environment
+
+repo            = <WORKSPACE>
+work dir        = <WORKSPACE>/server (unless noted)
+go version      = go version go1.27.1 windows/amd64
+GOOS/GOARCH     = windows/amd64
+CGO_ENABLED     = 1
+gcc (UCRT64)    = gcc.exe (Rev6, Built by MSYS2 project) 16.2.0
+fixed start     = 3aea024981d5137e6e64a6084ff99fcd7cf53871
+parent          = 7a30899b0e205ad714b5a8ac4db152eb200bcb76
+branch          = codex/stage2c2-fingerprint
+
+git status --porcelain (before this batch's commit, evidence dir excluded):
+ M .git-commit-msg.txt
+ M server/core/probe/chain.go
+ M server/core/probe/chain_test.go
+ M server/core/probe/endpoint_policy.go
+ M server/core/probe/endpoint_policy_online.go
+ M server/core/probe/errcat.go
+ M server/core/probe/online_config.go
+ M server/core/probe/online_endpoint_test.go
+ M server/core/probe/online_run.go
+ M server/core/probe/preflight.go
+ M server/core/probe/probe.go
+ M verification/stage2d-offline-a12af92-20261028/CLAIMS.md
+?? server/core/probe/chain_concurrent_test.go
+?? server/core/probe/clone.go
+?? server/core/probe/credentials_test.go
+?? server/core/probe/plan_clone_test.go
+?? server/core/probe/preflight_roles_test.go
+?? server/core/probe/roles.go
+?? verification/independent-2c3-2c952ce-20261028/
+?? verification/independent-2c3-6ab2027-20261028/
+?? verification/independent-2c3-a12af92-20261028/
+?? verification/independent-2c3-c4111e0-20261028/
+?? verification/independent-2d-3aea024-20261028/
+?? verification/independent-2d-3aea024-isolation/
+?? verification/independent-2d-7a30899-20261028/

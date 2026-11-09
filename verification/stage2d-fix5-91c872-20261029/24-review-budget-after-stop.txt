@@ -1,0 +1,15 @@
+CMD: go test -overlay <WORKSPACE>\verification\stage2d-fix5-91c872-20261029\overlay-review-budget-stop.json -p 1 ./core/probe -run ^TestReviewBudgetCommitAfterStop$ -count=3 -v
+WORKDIR: <WORKSPACE>\server
+ATTEMPT 1: transient windows binary lock, retrying
+=== RUN   TestReviewBudgetCommitAfterStop
+    independent_budget_stop_test.go:9: OBSERVED budget committed after stopped marker: before=0 after=1 modelHits=0
+--- PASS: TestReviewBudgetCommitAfterStop (0.01s)
+=== RUN   TestReviewBudgetCommitAfterStop
+    independent_budget_stop_test.go:9: OBSERVED budget committed after stopped marker: before=0 after=1 modelHits=0
+--- PASS: TestReviewBudgetCommitAfterStop (0.00s)
+=== RUN   TestReviewBudgetCommitAfterStop
+    independent_budget_stop_test.go:9: OBSERVED budget committed after stopped marker: before=0 after=1 modelHits=0
+--- PASS: TestReviewBudgetCommitAfterStop (0.00s)
+PASS
+ok  	github.com/wangle201210/go-rag/server/core/probe	1.872s
+EXIT=0
